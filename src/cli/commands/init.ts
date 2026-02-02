@@ -1,18 +1,26 @@
 import { Command } from "commander";
 
+/**
+ * Generate the shell function for htpx.
+ * This function wraps htpx intercept with eval so that environment
+ * variables can be set in the current shell.
+ */
+export function generateShellFunction(): string {
+  const lines = [
+    "htpx() {",
+    '  if [[ "$1" == "intercept" ]]; then',
+    "    shift",
+    '    eval "$(command htpx intercept "$@")"',
+    "  else",
+    '    command htpx "$@"',
+    "  fi",
+    "}",
+  ];
+  return lines.join("\n");
+}
+
 export const initCommand = new Command("init")
   .description("Output shell function for .zshrc/.bashrc (one-time setup)")
   .action(() => {
-    // TODO: Output shell function that wraps htpx intercept
-    console.log("# Add this to your .zshrc or .bashrc:");
-    console.log('# eval "$(htpx init)"');
-    console.log("");
-    console.log("htpx() {");
-    console.log('  if [[ "$1" == "intercept" ]]; then');
-    console.log("    shift");
-    console.log('    eval "$(command htpx intercept "$@")"');
-    console.log("  else");
-    console.log('    command htpx "$@"');
-    console.log("  fi");
-    console.log("}");
+    console.log(generateShellFunction());
   });
