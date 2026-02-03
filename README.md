@@ -1,0 +1,274 @@
+# htpx
+
+A terminal-based HTTP interception toolkit with project-scoped isolation and a lazygit-style TUI.
+
+Capture HTTP/HTTPS traffic through a MITM proxy and inspect it in an interactive terminal interface. No browser extensions, no separate apps—just your terminal.
+
+## Features
+
+- **Project-scoped isolation** — Each project gets its own `.htpx/` directory, keeping traffic separate
+- **Interactive TUI** — Browse, inspect, and export requests with vim-style keybindings
+- **Full HTTPS support** — Automatic CA certificate generation and trust
+- **Session labelling** — Tag and filter traffic by session for organised debugging
+- **Export anywhere** — Generate curl commands or HAR files from captured requests
+- **Zero config** — Works out of the box with curl, wget, Node.js, Python, and more
+
+## Quick Start
+
+```bash
+# Install globally
+npm install -g htpx
+
+# One-time shell setup (add to ~/.zshrc or ~/.bashrc)
+eval "$(htpx init)"
+
+# Start intercepting in your project directory
+htpx intercept
+
+# Make some requests...
+curl https://api.example.com/users
+
+# Open the TUI to inspect
+htpx tui
+```
+
+## Installation
+
+```bash
+npm install -g htpx
+```
+
+**Requirements:** Node.js 20 or later
+
+### Shell Setup
+
+Add the following to your `~/.zshrc` or `~/.bashrc`:
+
+```bash
+eval "$(htpx init)"
+```
+
+This creates a shell function that properly sets up proxy environment variables in your current session.
+
+## Usage
+
+### Start Intercepting
+
+```bash
+# Basic interception
+htpx intercept
+
+# With a session label for filtering
+htpx intercept --label api-tests
+```
+
+This auto-starts the daemon, sets up the proxy, and configures your shell to route HTTP traffic through htpx.
+
+### Browse Captured Traffic
+
+```bash
+# View all requests
+htpx tui
+
+# Filter by session label
+htpx tui --label api-tests
+```
+
+### TUI Keybindings
+
+| Key | Action |
+|-----|--------|
+| `j` / `↓` | Navigate down |
+| `k` / `↑` | Navigate up |
+| `Tab` | Switch between list and details panes |
+| `c` | Export selected request as curl command |
+| `h` | Export all requests as HAR file |
+| `r` | Refresh request list |
+| `q` | Quit |
+
+### Other Commands
+
+```bash
+htpx status    # Check daemon status
+htpx stop      # Stop the daemon
+htpx clear     # Clear captured requests
+```
+
+## How It Works
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│  Your Shell                                                 │
+│  ┌─────────────────────────────────────────────────────┐   │
+│  │  curl, wget, node, python...                        │   │
+│  │          │                                          │   │
+│  │          ▼                                          │   │
+│  │  HTTP_PROXY=localhost:54321                         │   │
+│  └─────────────────────────────────────────────────────┘   │
+│                          │                                  │
+└──────────────────────────┼──────────────────────────────────┘
+                           ▼
+┌─────────────────────────────────────────────────────────────┐
+│  htpx daemon                                                │
+│  ┌─────────────┐    ┌─────────────┐    ┌─────────────┐     │
+│  │ MITM Proxy  │───▶│   SQLite    │◀───│ Control API │     │
+│  │  (mockttp)  │    │  requests   │    │ (unix sock) │     │
+│  └─────────────┘    └─────────────┘    └─────────────┘     │
+└─────────────────────────────────────────────────────────────┘
+                           ▲
+                           │
+┌──────────────────────────┼──────────────────────────────────┐
+│  htpx tui                │                                  │
+│  ┌───────────────────────┴─────────────────────────────┐   │
+│  │ ● POST /api/users   │ POST https://api.example.com  │   │
+│  │   GET  /health      │ Status: 200 │ Duration: 45ms  │   │
+│  │   POST /login       │                               │   │
+│  │                     │ Request Headers:              │   │
+│  │                     │   Content-Type: application/  │   │
+│  └─────────────────────┴───────────────────────────────┘   │
+└─────────────────────────────────────────────────────────────┘
+```
+
+When you run `htpx intercept`:
+
+1. A daemon starts in the background with a MITM proxy
+2. Environment variables (`HTTP_PROXY`, `HTTPS_PROXY`, etc.) are set in your shell
+3. HTTP clients that respect these variables route traffic through the proxy
+4. Requests are captured and stored in a local SQLite database
+5. The TUI connects via Unix socket to display captured traffic
+
+### Project Isolation
+
+htpx creates a `.htpx/` directory in your project root (detected by `.git` or existing `.htpx`):
+
+```
+your-project/
+├── .htpx/
+│   ├── proxy.port      # Proxy TCP port
+│   ├── control.sock    # IPC socket
+│   ├── requests.db     # Captured traffic
+│   ├── ca.pem          # CA certificate
+│   └── daemon.pid      # Process ID
+└── src/...
+```
+
+Different projects have completely separate daemons, databases, and certificates.
+
+## Supported HTTP Clients
+
+htpx works with any client that respects the `HTTP_PROXY` environment variable:
+
+| Client | Support |
+|--------|---------|
+| curl | ✅ Automatic |
+| wget | ✅ Automatic |
+| Node.js (fetch, axios, etc.) | ✅ With `NODE_EXTRA_CA_CERTS` |
+| Python (requests, httpx) | ✅ With `REQUESTS_CA_BUNDLE` |
+| Go | ✅ Automatic |
+| Rust (reqwest) | ✅ Automatic |
+
+## Export Formats
+
+### curl
+
+Press `c` in the TUI to copy a request as a curl command:
+
+```bash
+curl -X POST 'https://api.example.com/users' \
+  -H 'Content-Type: application/json' \
+  -H 'Authorization: Bearer token123' \
+  -d '{"name": "test"}'
+```
+
+### HAR
+
+Press `h` to export all captured requests as a HAR file, compatible with browser dev tools and HTTP analysis tools.
+
+## CLI Reference
+
+### `htpx init`
+
+Output shell configuration for your `.zshrc`/`.bashrc`.
+
+### `htpx intercept [options]`
+
+Start intercepting HTTP traffic.
+
+| Option | Description |
+|--------|-------------|
+| `-l, --label <label>` | Label this session for filtering |
+
+### `htpx tui [options]`
+
+Open the interactive TUI.
+
+| Option | Description |
+|--------|-------------|
+| `-l, --label <label>` | Filter to requests from labelled sessions |
+
+### `htpx status`
+
+Show daemon status, including proxy port, active sessions, and request count.
+
+### `htpx stop`
+
+Stop the daemon gracefully.
+
+### `htpx clear`
+
+Clear all captured requests from the database.
+
+### `htpx project init`
+
+Manually initialise a `.htpx` directory in the current location.
+
+## Development
+
+```bash
+# Clone and install
+git clone https://github.com/your-username/htpx.git
+cd htpx
+npm install
+
+# Build
+npm run build
+
+# Run tests
+npm test
+
+# Type check and lint
+npm run typecheck
+npm run lint
+
+# Development mode (watch)
+npm run dev
+```
+
+## Troubleshooting
+
+### Certificate errors
+
+Some tools need explicit CA certificate configuration. htpx sets common environment variables automatically, but you may need to configure your specific tool:
+
+```bash
+# The CA certificate is at:
+cat .htpx/ca.pem
+```
+
+### Daemon won't start
+
+Check if another process is using the socket:
+
+```bash
+htpx status
+htpx stop
+htpx intercept
+```
+
+### Requests not appearing
+
+Ensure your HTTP client respects proxy environment variables. Some clients (like browsers) ignore `HTTP_PROXY` by default.
+
+## Licence
+
+MIT

@@ -7,6 +7,9 @@
   "bin": {
     "htpx": "dist/cli/index.js"
   },
+  "files": [
+    "dist"
+  ],
   "scripts": {
     "build": "tsc",
     "dev": "tsc --watch",
@@ -19,18 +22,36 @@
     "lint:fix": "eslint src tests --fix",
     "format": "prettier --write \"src/**/*.ts\" \"tests/**/*.ts\"",
     "format:check": "prettier --check \"src/**/*.ts\" \"tests/**/*.ts\"",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "prepare": "husky"
+  },
+  "lint-staged": {
+    "*.ts": [
+      "eslint --fix",
+      "prettier --write"
+    ]
   },
   "keywords": [
     "http",
+    "https",
     "proxy",
     "intercept",
+    "mitm",
     "debugging",
     "cli",
-    "tui"
+    "tui",
+    "terminal"
   ],
   "author": "",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/mtford/htpx.git"
+  },
+  "bugs": {
+    "url": "https://github.com/mtford/htpx/issues"
+  },
+  "homepage": "https://github.com/mtford/htpx#readme",
   "engines": {
     "node": ">=20"
   },
@@ -52,7 +73,9 @@
     "cli-testing-library": "^3.0.1",
     "eslint": "^9.39.2",
     "eslint-config-prettier": "^10.1.8",
+    "husky": "^9.1.7",
     "ink-testing-library": "^4.0.0",
+    "lint-staged": "^16.2.7",
     "prettier": "^3.8.1",
     "typescript": "^5.9.3",
     "typescript-eslint": "^8.54.0",
@@ -60,8 +83,7 @@
   },
   "pnpm": {
     "onlyBuiltDependencies": [
-      "better-sqlite3",
-      "esbuild"
+      "better-sqlite3"
     ]
   }
 }

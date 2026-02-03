@@ -53,17 +53,17 @@ Then `htpx intercept` just works - no eval needed at call time.
 
 - **Language**: TypeScript
 - **Runtime**: Node.js (>=20)
-- **CLI framework**: commander (simple) or oclif (batteries-included)
+- **CLI framework**: commander
 - **TUI**: ink (React-like terminal UI)
 - **Proxy**: mockttp (HTTP Toolkit's own library)
 - **Storage**: better-sqlite3
-- **Distribution**: pkg (mockttp incompatible with Bun)
+- **Distribution**: npm package (pkg doesn't support ESM with top-level await used by ink/yoga-layout)
 - **Testing**: Vitest
 
 ## Phases
 - [x] Phase 1: Research
 - [x] Phase 2: Architecture design
-- [ ] Phase 3: Implementation
+- [x] Phase 3: Implementation
 - [ ] Phase 4: Polish & release
 
 ## Testing Strategy
@@ -144,15 +144,17 @@ pnpm test:shell     # shell script tests
 - [x] `htpx stop` command
 - [x] Graceful shutdown (SIGTERM/SIGINT handlers)
 - [x] Proper error messages (daemon startup errors now surface log output)
-- [ ] Clear requests command (backend exists, needs CLI)
+- [x] `htpx clear` command
 - [x] **Tests:**
   - [x] Integration: status reports correct state
   - [x] Integration: stop cleanly shuts down daemon
+  - [x] Shell: clear command clears requests
 
-### Phase 3f: Distribution
-- [ ] Build standalone binary (pkg or bun compile)
-- [ ] Test on macOS
-- [ ] Homebrew formula (future)
+### Phase 3f: Distribution ✅
+- [x] Configure npm package (package.json with files, prepublishOnly)
+- [x] Test npm global install works
+- [ ] Publish to npm (when ready)
+- [ ] Homebrew formula (future - would require standalone binary)
 
 ## Decisions Made
 - Project-scoped isolation via .htpx directory
@@ -162,7 +164,7 @@ pnpm test:shell     # shell script tests
 - Auto-start daemon on intercept
 - Node.js + TypeScript (user expertise)
 - mockttp for proxy (same as HTTP Toolkit)
-- pkg for distribution (mockttp incompatible with Bun)
+- npm package distribution (pkg doesn't support ESM with top-level await used by ink/yoga-layout)
 
 ## Status
-**Awaiting approval** - Ready to start implementation
+**Phase 3 Complete** - Ready for Phase 4 (Polish & release)

@@ -12,7 +12,7 @@ const __dirname = path.dirname(__filename);
  * Get the path to the daemon entry point.
  */
 function getDaemonPath(): string {
-  // In development, this is relative to dist/shared/daemon.js
+  // This is relative to dist/shared/daemon.js
   // The daemon entry point is at dist/daemon/index.js
   return path.resolve(__dirname, "..", "daemon", "index.js");
 }
