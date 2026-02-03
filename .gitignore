@@ -27,3 +27,5 @@ coverage/
 # Environment
 .env
 .env.local
+
+.envrc
