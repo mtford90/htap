@@ -10,11 +10,12 @@ import { restartCommand } from "./commands/restart.js";
 import { tuiCommand } from "./commands/tui.js";
 import { statusCommand } from "./commands/status.js";
 import { stopCommand } from "./commands/stop.js";
+import { getHtpxVersion } from "../shared/version.js";
 
 program
   .name("htpx")
   .description("Terminal HTTP interception toolkit")
-  .version("0.1.0")
+  .version(getHtpxVersion())
   .option(
     "-v, --verbose",
     "increase verbosity (use -vv or -vvv for more)",
