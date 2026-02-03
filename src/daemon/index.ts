@@ -48,6 +48,10 @@ async function main() {
   // Find a free port for the proxy
   const proxyPort = await findFreePort();
 
+  // Ensure daemon session exists (handles restarts gracefully)
+  const DAEMON_SESSION_ID = "daemon";
+  storage.ensureSession(DAEMON_SESSION_ID, "daemon", process.pid);
+
   // Start the proxy server
   console.log(`Starting proxy on port ${proxyPort}...`);
   const proxy = await createProxy({
@@ -55,7 +59,7 @@ async function main() {
     caKeyPath: paths.caKeyFile,
     caCertPath: paths.caCertFile,
     storage,
-    sessionId: "daemon", // Default session for unattributed requests
+    sessionId: DAEMON_SESSION_ID,
   });
 
   // Write proxy port to file

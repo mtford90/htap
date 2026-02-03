@@ -65,6 +65,29 @@ export class RequestRepository {
   }
 
   /**
+   * Ensure a session exists with a specific ID.
+   * If the session already exists, returns it unchanged.
+   * If not, creates a new session with the given ID.
+   */
+  ensureSession(id: string, label?: string, pid: number = process.pid): Session {
+    const startedAt = Date.now();
+    const stmt = this.db.prepare(`
+      INSERT OR IGNORE INTO sessions (id, label, pid, started_at)
+      VALUES (?, ?, ?, ?)
+    `);
+    stmt.run(id, label ?? null, pid, startedAt);
+
+    // Return the session (either newly created or existing)
+    const existing = this.getSession(id);
+    if (existing) {
+      return existing;
+    }
+
+    // This should never happen since we just inserted, but satisfies the type checker
+    return { id, label, pid, startedAt };
+  }
+
+  /**
    * Get a session by ID.
    */
   getSession(id: string): Session | undefined {

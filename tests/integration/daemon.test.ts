@@ -62,6 +62,41 @@ describe("daemon integration", () => {
       cleanup.pop(); // Remove from cleanup since we already stopped
     });
 
+    it("captures requests using daemon default session", async () => {
+      // This mimics the actual daemon startup in src/daemon/index.ts
+      // which uses a fixed "daemon" session ID
+      const DAEMON_SESSION_ID = "daemon";
+
+      // Ensure the daemon session exists (this is what the fix adds)
+      storage.ensureSession(DAEMON_SESSION_ID, "daemon", process.pid);
+
+      const proxy = await createProxy({
+        caKeyPath: paths.caKeyFile,
+        caCertPath: paths.caCertFile,
+        storage,
+        sessionId: DAEMON_SESSION_ID,
+      });
+      cleanup.push(proxy.stop);
+
+      // Create test server
+      const testServer = http.createServer((req, res) => {
+        res.writeHead(200);
+        res.end("ok");
+      });
+      await new Promise<void>((resolve) => testServer.listen(0, "127.0.0.1", resolve));
+      const testServerAddress = testServer.address() as { port: number };
+      cleanup.push(() => new Promise((resolve) => testServer.close(() => resolve())));
+
+      // Make request through proxy
+      await makeProxiedRequest(proxy.port, `http://127.0.0.1:${testServerAddress.port}/test`);
+      await new Promise((resolve) => setTimeout(resolve, 100));
+
+      // Verify request was captured
+      const requests = storage.listRequests();
+      expect(requests.length).toBeGreaterThanOrEqual(1);
+      expect(requests.find((r) => r.sessionId === DAEMON_SESSION_ID)).toBeDefined();
+    });
+
     it("captures HTTP requests through the proxy", async () => {
       // Create a simple test server
       const testServer = http.createServer((req, res) => {

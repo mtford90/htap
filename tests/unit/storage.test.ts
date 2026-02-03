@@ -60,6 +60,34 @@ describe("RequestRepository", () => {
     });
   });
 
+  describe("ensureSession", () => {
+    it("creates a new session with specified ID", () => {
+      const session = repo.ensureSession("my-id", "my-label", 12345);
+
+      expect(session.id).toBe("my-id");
+      expect(session.label).toBe("my-label");
+      expect(session.pid).toBe(12345);
+      expect(session.startedAt).toBeDefined();
+    });
+
+    it("returns existing session if ID already exists", () => {
+      const first = repo.ensureSession("same-id", "first", 111);
+      const second = repo.ensureSession("same-id", "second", 222);
+
+      // Should return the original session, not update it
+      expect(second.id).toBe("same-id");
+      expect(second.label).toBe("first"); // Original label preserved
+      expect(second.pid).toBe(111); // Original PID preserved
+      expect(second.startedAt).toBe(first.startedAt);
+    });
+
+    it("uses process.pid as default when pid not specified", () => {
+      const session = repo.ensureSession("default-pid-id", "test");
+
+      expect(session.pid).toBe(process.pid);
+    });
+  });
+
   describe("requests", () => {
     let sessionId: string;
 
