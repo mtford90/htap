@@ -1,5 +1,11 @@
 # htpx - Terminal HTTP Interception Toolkit
 
+## Planning & Status
+
+**See `PLAN.md` for current tasks, feature roadmap, and progress tracking.**
+
+Published to npm as `htpx-cli` (v0.1.0). The name `htpx` was taken.
+
 ## Project Overview
 
 htpx is a terminal-based HTTP interception/inspection tool with project-scoped isolation and a lazygit-style TUI. It captures HTTP/HTTPS traffic through a MITM proxy and displays it in an interactive terminal interface.
@@ -72,3 +78,18 @@ npm run typecheck && npm run lint && npm test
 - mockttp handles CA certificate generation automatically
 - Sessions are tracked by parent PID for automatic cleanup
 - The TUI connects to the daemon's control socket for live updates
+
+## Release Process
+
+To publish a new version:
+```bash
+npm version patch  # or minor/major
+git push && git push --tags
+```
+
+CI will automatically publish to npm on version tags (requires `NPM_TOKEN` secret in GitHub).
+
+## Repository
+
+- **npm**: https://www.npmjs.com/package/htpx-cli
+- **GitHub**: https://github.com/mtford90/htpx
