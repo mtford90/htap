@@ -1,5 +1,5 @@
 {
-  "name": "htpx",
+  "name": "htpx-cli",
   "version": "0.1.0",
   "description": "Terminal HTTP interception toolkit",
   "type": "module",

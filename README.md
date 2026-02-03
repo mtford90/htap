@@ -17,7 +17,7 @@ Capture HTTP/HTTPS traffic through a MITM proxy and inspect it in an interactive
 
 ```bash
 # Install globally
-npm install -g htpx
+npm install -g htpx-cli
 
 # One-time shell setup (add to ~/.zshrc or ~/.bashrc)
 eval "$(htpx init)"
@@ -35,7 +35,7 @@ htpx tui
 ## Installation
 
 ```bash
-npm install -g htpx
+npm install -g htpx-cli
 ```
 
 **Requirements:** Node.js 20 or later
@@ -226,7 +226,7 @@ Manually initialise a `.htpx` directory in the current location.
 
 ```bash
 # Clone and install
-git clone https://github.com/your-username/htpx.git
+git clone https://github.com/mtford90/htpx.git
 cd htpx
 npm install
 
