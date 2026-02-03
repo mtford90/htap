@@ -46,12 +46,12 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/mtford/htpx.git"
+    "url": "git+https://github.com/mtford90/htpx.git"
   },
   "bugs": {
-    "url": "https://github.com/mtford/htpx/issues"
+    "url": "https://github.com/mtford90/htpx/issues"
   },
-  "homepage": "https://github.com/mtford/htpx#readme",
+  "homepage": "https://github.com/mtford90/htpx#readme",
   "engines": {
     "node": ">=20"
   },
