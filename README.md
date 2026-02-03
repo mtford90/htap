@@ -1,5 +1,9 @@
 # htpx
 
+[![npm version](https://img.shields.io/npm/v/htpx-cli.svg)](https://www.npmjs.com/package/htpx-cli)
+[![CI](https://github.com/mtford90/htpx/actions/workflows/ci.yml/badge.svg)](https://github.com/mtford90/htpx/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+
 A terminal-based HTTP interception toolkit with project-scoped isolation and a lazygit-style TUI.
 
 Capture HTTP/HTTPS traffic through a MITM proxy and inspect it in an interactive terminal interface. No browser extensions, no separate apps—just your terminal.
