@@ -3,6 +3,7 @@
 import { program } from "commander";
 import { initCommand } from "./commands/init.js";
 import { interceptCommand } from "./commands/intercept.js";
+import { projectCommand } from "./commands/project.js";
 import { tuiCommand } from "./commands/tui.js";
 import { statusCommand } from "./commands/status.js";
 import { stopCommand } from "./commands/stop.js";
@@ -11,6 +12,7 @@ program.name("htpx").description("Terminal HTTP interception toolkit").version("
 
 program.addCommand(initCommand);
 program.addCommand(interceptCommand);
+program.addCommand(projectCommand);
 program.addCommand(tuiCommand);
 program.addCommand(statusCommand);
 program.addCommand(stopCommand);

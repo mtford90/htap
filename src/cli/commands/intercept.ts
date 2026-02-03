@@ -1,5 +1,5 @@
 import { Command } from "commander";
-import { findProjectRoot, getHtpxPaths } from "../../shared/project.js";
+import { findOrCreateProjectRoot, ensureHtpxDir, getHtpxPaths } from "../../shared/project.js";
 import { startDaemon } from "../../shared/daemon.js";
 import { ControlClient } from "../../daemon/control.js";
 
@@ -19,12 +19,9 @@ export const interceptCommand = new Command("intercept")
   .action(async (options: { label?: string }) => {
     const label = options.label;
 
-    // Find project root
-    const projectRoot = findProjectRoot();
-    if (!projectRoot) {
-      console.error("# htpx error: not in a project directory (no .htpx or .git found)");
-      process.exit(1);
-    }
+    // Find project root (auto-creates .htpx if needed)
+    const projectRoot = findOrCreateProjectRoot();
+    ensureHtpxDir(projectRoot);
 
     const paths = getHtpxPaths(projectRoot);
 

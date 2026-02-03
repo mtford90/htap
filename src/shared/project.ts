@@ -30,6 +30,35 @@ export function findProjectRoot(startDir: string = process.cwd()): string | unde
 }
 
 /**
+ * Determine the project root, creating .htpx if needed.
+ * - If .htpx exists anywhere in the tree, use that directory
+ * - If .git exists, use the git root
+ * - Otherwise, use the current working directory
+ */
+export function findOrCreateProjectRoot(startDir: string = process.cwd()): string {
+  let currentDir = path.resolve(startDir);
+  const root = path.parse(currentDir).root;
+  let gitRoot: string | undefined;
+
+  while (currentDir !== root) {
+    // Check for .htpx directory first - this takes priority
+    if (fs.existsSync(path.join(currentDir, HTPX_DIR))) {
+      return currentDir;
+    }
+
+    // Remember the git root if we find one
+    if (!gitRoot && fs.existsSync(path.join(currentDir, ".git"))) {
+      gitRoot = currentDir;
+    }
+
+    currentDir = path.dirname(currentDir);
+  }
+
+  // If we found a git root, use that; otherwise use cwd
+  return gitRoot ?? process.cwd();
+}
+
+/**
  * Get the .htpx directory path for a project root.
  */
 export function getHtpxDir(projectRoot: string): string {
