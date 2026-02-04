@@ -8,6 +8,9 @@ importers:
 
   .:
     dependencies:
+      '@ink-tools/ink-mouse':
+        specifier: ^2.1.0
+        version: 2.1.0(ink@6.6.0(@types/react@19.2.10)(react@19.2.4))(react@19.2.4)
       better-sqlite3:
         specifier: ^12.6.2
         version: 12.6.2
@@ -338,6 +341,13 @@ packages:
   '@humanwhocodes/retry@0.4.3':
     resolution: {integrity: sha512-bV0Tgo9K4hfPCek+aMAn81RppFKv2ySDQeMoSZuvTASywNTnVJCArCZE2FWqpvIatKu7VMRLWlR1EazvVhDyhQ==}
     engines: {node: '>=18.18'}
+
+  '@ink-tools/ink-mouse@2.1.0':
+    resolution: {integrity: sha512-6EfKsu6R3VYRgRRWsQ7PI5kJy+OsS/VAVhbG+YvUeZePKuHSS2AvstFD5yU/748iQS6wBBENtMoCcBvCjbylog==}
+    engines: {node: '>=20'}
+    peerDependencies:
+      ink: '>=6'
+      react: '>=17'
 
   '@jridgewell/sourcemap-codec@1.5.5':
     resolution: {integrity: sha512-cYQ9310grqxueWbl+WuIUIaiUaDcj7WOq5fVhEljNVgRfOUhY9fy2zTvfoqWsnebh8Sl70VScFbICvJnLKB0Og==}
@@ -2117,6 +2127,10 @@ packages:
     resolution: {integrity: sha512-LKYU1iAXJXUgAXn9URjiu+MWhyUXHsvfp7mcuYm9dSUKK0/CjtrUwFAxD82/mCWbtLsGjFIad0wIsod4zrTAEQ==}
     engines: {node: '>=0.4'}
 
+  xterm-mouse@1.0.0:
+    resolution: {integrity: sha512-A+PkxOzlwgnhfeZclQvCNfLIcLbtTyDSgWs//adOYYUKdjhU9Lejot6wbnW5GEyNCWFFkfLHO8wdQ8eg35BMUg==}
+    engines: {node: '>=20'}
+
   yaml@2.8.2:
     resolution: {integrity: sha512-mplynKqc1C2hTVYxd0PU2xQAc22TI1vShAYGksCCfxbn/dFwnHTNi1bvYsBTkhdUNtGIf5xNOg938rrSSYvS9A==}
     engines: {node: '>= 14.6'}
@@ -2339,6 +2353,12 @@ snapshots:
   '@humanwhocodes/module-importer@1.0.1': {}
 
   '@humanwhocodes/retry@0.4.3': {}
+
+  '@ink-tools/ink-mouse@2.1.0(ink@6.6.0(@types/react@19.2.10)(react@19.2.4))(react@19.2.4)':
+    dependencies:
+      ink: 6.6.0(@types/react@19.2.10)(react@19.2.4)
+      react: 19.2.4
+      xterm-mouse: 1.0.0
 
   '@jridgewell/sourcemap-codec@1.5.5': {}
 
@@ -4200,6 +4220,8 @@ snapshots:
   ws@8.19.0: {}
 
   xtend@4.0.2: {}
+
+  xterm-mouse@1.0.0: {}
 
   yaml@2.8.2: {}
 

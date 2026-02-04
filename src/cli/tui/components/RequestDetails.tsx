@@ -2,8 +2,8 @@
  * Right panel: detailed view of the selected request.
  */
 
-import React from "react";
-import { Box, Text } from "ink";
+import React, { forwardRef } from "react";
+import { Box, Text, type DOMElement } from "ink";
 import type { CapturedRequest } from "../../../shared/types.js";
 import { HeadersView } from "./HeadersView.js";
 import { BodyView } from "./BodyView.js";
@@ -12,19 +12,21 @@ import { formatRelativeTime, formatDuration } from "../utils/formatters.js";
 interface RequestDetailsProps {
   request: CapturedRequest | undefined;
   isActive: boolean;
+  isHovered?: boolean;
   height: number;
 }
 
-export function RequestDetails({
-  request,
-  isActive,
-  height,
-}: RequestDetailsProps): React.ReactElement {
-  const borderColour = isActive ? "cyan" : "gray";
+export const RequestDetails = forwardRef<DOMElement, RequestDetailsProps>(function RequestDetails(
+  { request, isActive, isHovered, height },
+  ref,
+) {
+  // Border colour: active > hovered > default
+  const borderColour = isActive ? "cyan" : isHovered ? "white" : "gray";
 
   if (!request) {
     return (
       <Box
+        ref={ref}
         flexDirection="column"
         flexGrow={1}
         height={height}
@@ -52,6 +54,7 @@ export function RequestDetails({
 
   return (
     <Box
+      ref={ref}
       flexDirection="column"
       flexGrow={1}
       height={height}
@@ -126,4 +129,4 @@ export function RequestDetails({
       )}
     </Box>
   );
-}
+});

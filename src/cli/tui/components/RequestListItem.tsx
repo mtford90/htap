@@ -2,8 +2,9 @@
  * Single request row in the request list.
  */
 
-import React from "react";
-import { Box, Text } from "ink";
+import React, { useRef, useState } from "react";
+import { Box, Text, type DOMElement } from "ink";
+import { useOnClick, useOnMouseEnter, useOnMouseLeave } from "@ink-tools/ink-mouse";
 import type { CapturedRequest } from "../../../shared/types.js";
 import { formatMethod, formatDuration, truncate } from "../utils/formatters.js";
 
@@ -12,6 +13,7 @@ interface RequestListItemProps {
   isSelected: boolean;
   width: number;
   showFullUrl?: boolean;
+  onClick?: () => void;
 }
 
 /**
@@ -58,7 +60,23 @@ export function RequestListItem({
   isSelected,
   width,
   showFullUrl,
+  onClick,
 }: RequestListItemProps): React.ReactElement {
+  const ref = useRef<DOMElement>(null);
+  const [isHovered, setIsHovered] = useState(false);
+
+  // Register mouse event handlers
+  useOnClick(ref, () => {
+    if (onClick) {
+      onClick();
+    }
+  });
+  useOnMouseEnter(ref, () => setIsHovered(true));
+  useOnMouseLeave(ref, () => setIsHovered(false));
+
+  // Determine visual state: selected takes precedence, then hovered
+  const isHighlighted = isSelected || isHovered;
+
   const methodWidth = 7;
   const statusWidth = 4;
   const durationWidth = 8;
@@ -71,15 +89,25 @@ export function RequestListItem({
   const statusText = request.responseStatus?.toString() ?? "...";
   const duration = formatDuration(request.durationMs);
 
+  // Indicator: selected shows ❯, hovered shows ›, otherwise empty
+  let indicator = "  ";
+  let indicatorColour: string | undefined;
+  if (isSelected) {
+    indicator = "❯ ";
+    indicatorColour = "cyan";
+  } else if (isHovered) {
+    indicator = "› ";
+    indicatorColour = "gray";
+  }
+
   return (
-    <Box>
-      {isSelected && <Text color="cyan">❯ </Text>}
-      {!isSelected && <Text>  </Text>}
+    <Box ref={ref}>
+      <Text color={indicatorColour}>{indicator}</Text>
       <Text color={getMethodColour(request.method)}>{formatMethod(request.method)}</Text>
       <Text> </Text>
       <Text color={getStatusColour(request.responseStatus)}>{statusText.padStart(3)}</Text>
       <Text> </Text>
-      <Text dimColor={!isSelected}>{displayPath}</Text>
+      <Text dimColor={!isHighlighted}>{displayPath}</Text>
       <Box flexGrow={1} />
       <Text dimColor>{duration.padStart(durationWidth)}</Text>
     </Box>

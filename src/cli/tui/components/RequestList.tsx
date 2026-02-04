@@ -2,8 +2,8 @@
  * Left panel: scrollable list of captured requests.
  */
 
-import React from "react";
-import { Box, Text } from "ink";
+import React, { forwardRef } from "react";
+import { Box, Text, type DOMElement } from "ink";
 import type { CapturedRequest } from "../../../shared/types.js";
 import { RequestListItem } from "./RequestListItem.js";
 
@@ -11,19 +11,17 @@ interface RequestListProps {
   requests: CapturedRequest[];
   selectedIndex: number;
   isActive: boolean;
+  isHovered?: boolean;
   width: number;
   height: number;
   showFullUrl?: boolean;
+  onItemClick?: (index: number) => void;
 }
 
-export function RequestList({
-  requests,
-  selectedIndex,
-  isActive,
-  width,
-  height,
-  showFullUrl,
-}: RequestListProps): React.ReactElement {
+export const RequestList = forwardRef<DOMElement, RequestListProps>(function RequestList(
+  { requests, selectedIndex, isActive, isHovered, width, height, showFullUrl, onItemClick },
+  ref,
+) {
   // Calculate visible window (accounting for border and header)
   const visibleHeight = Math.max(1, height - 3); // Border + header row
   const halfWindow = Math.floor(visibleHeight / 2);
@@ -36,10 +34,12 @@ export function RequestList({
 
   const visibleRequests = requests.slice(scrollOffset, scrollOffset + visibleHeight);
 
-  const borderColour = isActive ? "cyan" : "gray";
+  // Border colour: active > hovered > default
+  const borderColour = isActive ? "cyan" : isHovered ? "white" : "gray";
 
   return (
     <Box
+      ref={ref}
       flexDirection="column"
       width={width}
       height={height}
@@ -64,17 +64,21 @@ export function RequestList({
         </Box>
       ) : (
         <Box flexDirection="column" paddingX={1}>
-          {visibleRequests.map((request, index) => (
-            <RequestListItem
-              key={request.id}
-              request={request}
-              isSelected={scrollOffset + index === selectedIndex}
-              width={width - 4} // Account for border and padding
-              showFullUrl={showFullUrl}
-            />
-          ))}
+          {visibleRequests.map((request, index) => {
+            const absoluteIndex = scrollOffset + index;
+            return (
+              <RequestListItem
+                key={request.id}
+                request={request}
+                isSelected={absoluteIndex === selectedIndex}
+                width={width - 4} // Account for border and padding
+                showFullUrl={showFullUrl}
+                onClick={onItemClick ? () => onItemClick(absoluteIndex) : undefined}
+              />
+            );
+          })}
         </Box>
       )}
     </Box>
   );
-}
+});

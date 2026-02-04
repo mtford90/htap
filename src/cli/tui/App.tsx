@@ -2,8 +2,9 @@
  * Root TUI component for browsing captured HTTP traffic.
  */
 
-import React, { useState, useCallback } from "react";
+import React, { useState, useCallback, useRef } from "react";
 import { Box, Text, useInput, useApp, useStdin } from "ink";
+import { MouseProvider, useOnClick, useOnWheel, useOnMouseEnter, useOnMouseLeave } from "@ink-tools/ink-mouse";
 import { useStdoutDimensions } from "./hooks/useStdoutDimensions.js";
 import { useRequests } from "./hooks/useRequests.js";
 import { useExport } from "./hooks/useExport.js";
@@ -19,7 +20,7 @@ interface AppProps {
 
 type Panel = "list" | "details";
 
-export function App({ label, __testEnableInput }: AppProps): React.ReactElement {
+function AppContent({ label, __testEnableInput }: AppProps): React.ReactElement {
   const { exit } = useApp();
   const { isRawModeSupported } = useStdin();
   const [columns, rows] = useStdoutDimensions();
@@ -31,9 +32,39 @@ export function App({ label, __testEnableInput }: AppProps): React.ReactElement 
   const [activePanel, setActivePanel] = useState<Panel>("list");
   const [statusMessage, setStatusMessage] = useState<string | undefined>();
   const [showFullUrl, setShowFullUrl] = useState(false);
+  const [hoveredPanel, setHoveredPanel] = useState<Panel | null>(null);
+
+  // Refs for mouse interaction
+  const listPanelRef = useRef(null);
+  const detailsPanelRef = useRef(null);
 
   // Get the currently selected request
   const selectedRequest = requests[selectedIndex];
+
+  // Handle item click from the request list
+  const handleItemClick = useCallback((index: number) => {
+    setSelectedIndex(index);
+    setActivePanel("list");
+  }, []);
+
+  // Handle scroll wheel on list panel
+  useOnWheel(listPanelRef, (event) => {
+    if (event.button === "wheel-up") {
+      setSelectedIndex((prev) => Math.max(prev - 1, 0));
+    } else if (event.button === "wheel-down") {
+      setSelectedIndex((prev) => Math.min(prev + 1, requests.length - 1));
+    }
+  });
+
+  // Handle click on panels to activate them
+  useOnClick(listPanelRef, () => setActivePanel("list"));
+  useOnClick(detailsPanelRef, () => setActivePanel("details"));
+
+  // Handle hover on panels
+  useOnMouseEnter(listPanelRef, () => setHoveredPanel("list"));
+  useOnMouseLeave(listPanelRef, () => setHoveredPanel((prev) => (prev === "list" ? null : prev)));
+  useOnMouseEnter(detailsPanelRef, () => setHoveredPanel("details"));
+  useOnMouseLeave(detailsPanelRef, () => setHoveredPanel((prev) => (prev === "details" ? null : prev)));
 
   // Clear status message after a delay
   const showStatus = useCallback((message: string) => {
@@ -136,16 +167,21 @@ export function App({ label, __testEnableInput }: AppProps): React.ReactElement 
       {/* Main content */}
       <Box flexDirection="row" flexGrow={1}>
         <RequestList
+          ref={listPanelRef}
           requests={requests}
           selectedIndex={selectedIndex}
           isActive={activePanel === "list"}
+          isHovered={hoveredPanel === "list"}
           width={listWidth}
           height={contentHeight}
           showFullUrl={showFullUrl}
+          onItemClick={handleItemClick}
         />
         <RequestDetails
+          ref={detailsPanelRef}
           request={selectedRequest}
           isActive={activePanel === "details"}
+          isHovered={hoveredPanel === "details"}
           height={contentHeight}
         />
       </Box>
@@ -153,5 +189,13 @@ export function App({ label, __testEnableInput }: AppProps): React.ReactElement 
       {/* Status bar */}
       <StatusBar message={statusMessage} />
     </Box>
+  );
+}
+
+export function App(props: AppProps): React.ReactElement {
+  return (
+    <MouseProvider>
+      <AppContent {...props} />
+    </MouseProvider>
   );
 }
