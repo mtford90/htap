@@ -9,7 +9,13 @@ import { useStdoutDimensions } from "./hooks/useStdoutDimensions.js";
 import { useRequests } from "./hooks/useRequests.js";
 import { useExport } from "./hooks/useExport.js";
 import { RequestList } from "./components/RequestList.js";
-import { RequestDetails } from "./components/RequestDetails.js";
+import {
+  AccordionPanel,
+  SECTION_REQUEST,
+  SECTION_REQUEST_BODY,
+  SECTION_RESPONSE,
+  SECTION_RESPONSE_BODY,
+} from "./components/AccordionPanel.js";
 import { StatusBar } from "./components/StatusBar.js";
 
 interface AppProps {
@@ -17,7 +23,7 @@ interface AppProps {
   __testEnableInput?: boolean;
 }
 
-type Panel = "list" | "details";
+type Panel = "list" | "accordion";
 
 function AppContent({ __testEnableInput }: AppProps): React.ReactElement {
   const { exit } = useApp();
@@ -33,9 +39,15 @@ function AppContent({ __testEnableInput }: AppProps): React.ReactElement {
   const [showFullUrl, setShowFullUrl] = useState(false);
   const [hoveredPanel, setHoveredPanel] = useState<Panel | null>(null);
 
+  // Accordion state
+  const [focusedSection, setFocusedSection] = useState(SECTION_REQUEST);
+  const [expandedSections, setExpandedSections] = useState<Set<number>>(
+    () => new Set([SECTION_REQUEST, SECTION_RESPONSE_BODY]),
+  );
+
   // Refs for mouse interaction
   const listPanelRef = useRef(null);
-  const detailsPanelRef = useRef(null);
+  const accordionPanelRef = useRef(null);
 
   // Get the currently selected request
   const selectedRequest = requests[selectedIndex];
@@ -44,6 +56,19 @@ function AppContent({ __testEnableInput }: AppProps): React.ReactElement {
   const handleItemClick = useCallback((index: number) => {
     setSelectedIndex(index);
     setActivePanel("list");
+  }, []);
+
+  // Toggle a section's expanded state
+  const handleSectionToggle = useCallback((index: number) => {
+    setExpandedSections((prev) => {
+      const next = new Set(prev);
+      if (next.has(index)) {
+        next.delete(index);
+      } else {
+        next.add(index);
+      }
+      return next;
+    });
   }, []);
 
   // Handle scroll wheel on list panel
@@ -55,15 +80,24 @@ function AppContent({ __testEnableInput }: AppProps): React.ReactElement {
     }
   });
 
+  // Handle scroll wheel on accordion panel for navigating sections
+  useOnWheel(accordionPanelRef, (event) => {
+    if (event.button === "wheel-up") {
+      setFocusedSection((prev) => Math.max(prev - 1, 0));
+    } else if (event.button === "wheel-down") {
+      setFocusedSection((prev) => Math.min(prev + 1, 3));
+    }
+  });
+
   // Handle click on panels to activate them
   useOnClick(listPanelRef, () => setActivePanel("list"));
-  useOnClick(detailsPanelRef, () => setActivePanel("details"));
+  useOnClick(accordionPanelRef, () => setActivePanel("accordion"));
 
   // Handle hover on panels
   useOnMouseEnter(listPanelRef, () => setHoveredPanel("list"));
   useOnMouseLeave(listPanelRef, () => setHoveredPanel((prev) => (prev === "list" ? null : prev)));
-  useOnMouseEnter(detailsPanelRef, () => setHoveredPanel("details"));
-  useOnMouseLeave(detailsPanelRef, () => setHoveredPanel((prev) => (prev === "details" ? null : prev)));
+  useOnMouseEnter(accordionPanelRef, () => setHoveredPanel("accordion"));
+  useOnMouseLeave(accordionPanelRef, () => setHoveredPanel((prev) => (prev === "accordion" ? null : prev)));
 
   // Clear status message after a delay
   const showStatus = useCallback((message: string) => {
@@ -74,17 +108,42 @@ function AppContent({ __testEnableInput }: AppProps): React.ReactElement {
   // Handle keyboard input (only when raw mode is supported, i.e. running in a TTY)
   useInput(
     (input, key) => {
-      // Navigation
+      // Navigation - behaviour depends on active panel
       if (input === "j" || key.downArrow) {
-        setSelectedIndex((prev) => Math.min(prev + 1, requests.length - 1));
+        if (activePanel === "list") {
+          setSelectedIndex((prev) => Math.min(prev + 1, requests.length - 1));
+        } else {
+          // Navigate sections in accordion
+          setFocusedSection((prev) => Math.min(prev + 1, 3));
+        }
       } else if (input === "k" || key.upArrow) {
-        setSelectedIndex((prev) => Math.max(prev - 1, 0));
+        if (activePanel === "list") {
+          setSelectedIndex((prev) => Math.max(prev - 1, 0));
+        } else {
+          // Navigate sections in accordion
+          setFocusedSection((prev) => Math.max(prev - 1, 0));
+        }
       } else if (key.tab) {
-        setActivePanel((prev) => (prev === "list" ? "details" : "list"));
+        setActivePanel((prev) => (prev === "list" ? "accordion" : "list"));
       } else if (input === "1") {
         setActivePanel("list");
       } else if (input === "2") {
-        setActivePanel("details");
+        setActivePanel("accordion");
+        setFocusedSection(SECTION_REQUEST);
+      } else if (input === "3") {
+        setActivePanel("accordion");
+        setFocusedSection(SECTION_REQUEST_BODY);
+      } else if (input === "4") {
+        setActivePanel("accordion");
+        setFocusedSection(SECTION_RESPONSE);
+      } else if (input === "5") {
+        setActivePanel("accordion");
+        setFocusedSection(SECTION_RESPONSE_BODY);
+      }
+
+      // Toggle section expansion with Enter
+      else if (key.return && activePanel === "accordion") {
+        handleSectionToggle(focusedSection);
       }
 
       // Actions
@@ -125,7 +184,7 @@ function AppContent({ __testEnableInput }: AppProps): React.ReactElement {
 
   // Calculate layout
   const listWidth = Math.floor(columns * 0.4);
-  const detailsWidth = columns - listWidth;
+  const accordionWidth = columns - listWidth;
   // Status bar takes 2 rows (border line + content line)
   const contentHeight = rows - 2;
 
@@ -168,13 +227,14 @@ function AppContent({ __testEnableInput }: AppProps): React.ReactElement {
           showFullUrl={showFullUrl}
           onItemClick={handleItemClick}
         />
-        <RequestDetails
-          ref={detailsPanelRef}
+        <AccordionPanel
+          ref={accordionPanelRef}
           request={selectedRequest}
-          isActive={activePanel === "details"}
-          isHovered={hoveredPanel === "details"}
-          width={detailsWidth}
+          isActive={activePanel === "accordion"}
+          width={accordionWidth}
           height={contentHeight}
+          focusedSection={focusedSection}
+          expandedSections={expandedSections}
         />
       </Box>
 
