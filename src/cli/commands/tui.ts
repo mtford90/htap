@@ -36,13 +36,5 @@ export const tuiCommand = new Command("tui")
         const logger = createLogger("tui", projectRoot, logLevel);
         logger.info("TUI exited");
       }
-
-      // Print curl command if one was exported
-      const curl = (globalThis as Record<string, unknown>)["__htpxCurl"];
-      if (typeof curl === "string") {
-        console.log("\n--- Exported curl command ---\n");
-        console.log(curl);
-        console.log();
-      }
     });
   });

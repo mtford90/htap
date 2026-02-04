@@ -11,6 +11,7 @@ interface RequestListItemProps {
   request: CapturedRequest;
   isSelected: boolean;
   width: number;
+  showFullUrl?: boolean;
 }
 
 /**
@@ -56,6 +57,7 @@ export function RequestListItem({
   request,
   isSelected,
   width,
+  showFullUrl,
 }: RequestListItemProps): React.ReactElement {
   const methodWidth = 7;
   const statusWidth = 4;
@@ -64,7 +66,7 @@ export function RequestListItem({
 
   // Calculate remaining width for path
   const pathWidth = Math.max(10, width - methodWidth - statusWidth - durationWidth - separatorsWidth);
-  const displayPath = truncate(request.path, pathWidth);
+  const displayPath = truncate(showFullUrl ? request.url : request.path, pathWidth);
 
   const statusText = request.responseStatus?.toString() ?? "...";
   const duration = formatDuration(request.durationMs);

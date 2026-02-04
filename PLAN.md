@@ -1,33 +1,42 @@
-# htpx Post-Release Tasks
+# htpx Development Plan
 
-## Phase 5: Polish & CI Publishing
+## Next Up (Definites)
 
-### Tasks
-
-- [x] **1. Add LICENSE file** - Create MIT license file
-- [x] **2. Add npm badge to README** - Show version/downloads badges
-- [x] **3. Test global install** - Verify `npm install -g htpx-cli` works end-to-end
-- [x] **4. Set up npm publish in CI** - Auto-publish on version tags
-- [ ] **5. New features** - See options below
+- [x] **Full URL in request list** - Toggle full URL display with `u` key
+- [ ] **Request/response body viewing** - Stack/accordion UI in details pane to view request body and response body (tab through sections)
+- [ ] **Request/response size display** - Show payload sizes in list and details
+- [ ] **Request filtering** - Filter requests by:
+  - Fuzzy search (URL, headers, body)
+  - HTTP method
+  - Status codes
+- [ ] **Publish proxy details** - Allow proxy to be used anywhere, not just via `eval $(htpx intercept)` on CLI
+- [ ] **Support any directory** - Allow running htpx in any dir; climb to `~/` if no project/git root found (generic proxy across projects)
+- [ ] **Mouse support** - Click to select requests, panels, etc. (like neovim/zellij)
 
 ---
 
-## Feature Options (Task 5)
+## Future
 
-Potential features to implement - priority TBD:
+- [ ] **MCP/skill support** - Allow Claude to discover `.htpx` and communicate with proxy; provide search tools (search through request/response body, URL, headers, etc.)
+- [ ] **More export formats** - e.g. fetch, Python requests
+- [ ] **Request replay** - Replay captured requests with optional modifications
+- [ ] **WebSocket support** - Capture and display WebSocket traffic
+- [ ] **Aggregate mode** - Instead of showing requests one-by-one, aggregate by method, domain, path, etc.
+- [ ] **Launch Chromium** - Spawn Chromium instance pre-configured to use the proxy
 
-- [ ] **a) Request filtering/search in TUI** - Filter by URL, method, status code
-- [ ] **b) Response body viewing** - View response bodies in detail pane
-- [ ] **c) Request/response size display** - Show payload sizes in list and details
-- [ ] **d) WebSocket support** - Capture and display WebSocket traffic
-- [ ] **e) Request replay** - Replay captured requests with optional modifications
-- [ ] **f) Export improvements** - More export formats, batch export options
+---
+
+## Maybe
+
+- [ ] **Drop mockttp** - mockttp doesn't support Bun; dropping it would enable Bun portable executables instead of npm (note: htpx doesn't need mock functionality)
 
 ---
 
 ## Completed
 
-- [x] **1. Add LICENSE file** - MIT license added
-- [x] **2. Add npm badges** - Version, CI, license badges in README
-- [x] **3. Test global install** - `npm install -g htpx-cli` works
-- [x] **4. Set up npm publish in CI** - Auto-publish on `v*` tags (requires `NPM_TOKEN` secret)
+- [x] Add LICENSE file (MIT)
+- [x] Add npm badges to README
+- [x] Test global install (`npm install -g htpx-cli`)
+- [x] Set up npm publish in CI (auto-publish on `v*` tags)
+- [x] Improve `htpx intercept` UX - detect direct vs eval usage
+- [x] Copy curl to clipboard instead of printing after TUI exit

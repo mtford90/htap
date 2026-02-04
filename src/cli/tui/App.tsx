@@ -13,11 +13,13 @@ import { StatusBar } from "./components/StatusBar.js";
 
 interface AppProps {
   label?: string;
+  /** Enable keyboard input in tests (bypasses TTY check) */
+  __testEnableInput?: boolean;
 }
 
 type Panel = "list" | "details";
 
-export function App({ label }: AppProps): React.ReactElement {
+export function App({ label, __testEnableInput }: AppProps): React.ReactElement {
   const { exit } = useApp();
   const { isRawModeSupported } = useStdin();
   const [columns, rows] = useStdoutDimensions();
@@ -28,6 +30,7 @@ export function App({ label }: AppProps): React.ReactElement {
   const [selectedIndex, setSelectedIndex] = useState(0);
   const [activePanel, setActivePanel] = useState<Panel>("list");
   const [statusMessage, setStatusMessage] = useState<string | undefined>();
+  const [showFullUrl, setShowFullUrl] = useState(false);
 
   // Get the currently selected request
   const selectedRequest = requests[selectedIndex];
@@ -58,16 +61,9 @@ export function App({ label }: AppProps): React.ReactElement {
         showStatus("Refreshing...");
       } else if (input === "c") {
         if (selectedRequest) {
-          const result = exportCurl(selectedRequest);
-          if (result.success) {
-            // In a real implementation, we'd copy to clipboard or show in a modal
-            // For now, just indicate success
-            showStatus("Curl copied! Check terminal output after exit.");
-            // Store for printing after TUI exits
-            (globalThis as Record<string, unknown>)["__htpxCurl"] = result.message;
-          } else {
-            showStatus(`Error: ${result.message}`);
-          }
+          void exportCurl(selectedRequest).then((result) => {
+            showStatus(result.success ? result.message : `Error: ${result.message}`);
+          });
         } else {
           showStatus("No request selected");
         }
@@ -78,9 +74,12 @@ export function App({ label }: AppProps): React.ReactElement {
         } else {
           showStatus("No requests to export");
         }
+      } else if (input === "u") {
+        setShowFullUrl((prev) => !prev);
+        showStatus(showFullUrl ? "Showing path" : "Showing full URL");
       }
     },
-    { isActive: isRawModeSupported === true },
+    { isActive: __testEnableInput || isRawModeSupported === true },
   );
 
   // Keep selection in bounds when requests change
@@ -142,6 +141,7 @@ export function App({ label }: AppProps): React.ReactElement {
           isActive={activePanel === "list"}
           width={listWidth}
           height={contentHeight}
+          showFullUrl={showFullUrl}
         />
         <RequestDetails
           request={selectedRequest}

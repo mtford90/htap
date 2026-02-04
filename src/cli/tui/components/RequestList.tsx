@@ -13,6 +13,7 @@ interface RequestListProps {
   isActive: boolean;
   width: number;
   height: number;
+  showFullUrl?: boolean;
 }
 
 export function RequestList({
@@ -21,6 +22,7 @@ export function RequestList({
   isActive,
   width,
   height,
+  showFullUrl,
 }: RequestListProps): React.ReactElement {
   // Calculate visible window (accounting for border and header)
   const visibleHeight = Math.max(1, height - 3); // Border + header row
@@ -68,6 +70,7 @@ export function RequestList({
               request={request}
               isSelected={scrollOffset + index === selectedIndex}
               width={width - 4} // Account for border and padding
+              showFullUrl={showFullUrl}
             />
           ))}
         </Box>

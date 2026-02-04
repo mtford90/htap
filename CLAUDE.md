@@ -2,7 +2,12 @@
 
 ## Planning & Status
 
-**See `PLAN.md` for current tasks, feature roadmap, and progress tracking.**
+**`PLAN.md` is the source of truth for all development work on this project.**
+
+- Always check `PLAN.md` before starting work to understand current priorities
+- Update `PLAN.md` when completing tasks (move to Completed section)
+- Update `PLAN.md` when discovering new tasks or requirements
+- Keep task descriptions concise but informative
 
 Published to npm as `htpx-cli` (v0.1.0). The name `htpx` was taken.
 
@@ -51,10 +56,71 @@ npm run dev        # Watch mode for development
 
 ## Testing
 
-Tests are organised into:
-- `tests/unit/` - Pure functions, formatters, SQLite operations
-- `tests/integration/` - Daemon lifecycle, proxy interception, control API
-- `tests/e2e/` - Full TUI tests using ink-testing-library
+### Tools
+
+- **Vitest** - Test runner (configured in `vitest.config.ts`)
+- **ink-testing-library** - Component-level TUI testing with keyboard input simulation
+- **cli-testing-library** - Full CLI process spawning for e2e tests
+
+### Test Types
+
+#### Unit Tests (`tests/unit/`)
+Pure functions with no external dependencies. Fast, isolated, deterministic.
+
+**Use for**: Formatters, utilities, data transformations, SQLite operations (with temp files)
+
+**Examples**: `formatters.test.ts`, `curl.test.ts`, `har.test.ts`, `storage.test.ts`
+
+#### Component Tests (`tests/unit/tui/`)
+ink components tested with ink-testing-library. Can simulate keyboard input.
+
+**Use for**: TUI component behaviour, keyboard interactions, state changes
+
+**Key pattern** - Use `__testEnableInput` prop to bypass TTY check:
+```tsx
+const { lastFrame, stdin } = render(<App __testEnableInput />);
+stdin.write("u");
+await new Promise((resolve) => setTimeout(resolve, 50)); // Wait for re-render
+expect(lastFrame()).toContain("expected text");
+```
+
+**Note**: `stdin.write()` requires async handling - React needs time to process state updates.
+
+#### Integration Tests (`tests/integration/`)
+Tests that spin up real daemon/proxy but don't spawn CLI processes.
+
+**Use for**: Daemon lifecycle, proxy interception, control API communication, multi-component interactions
+
+**Examples**: `daemon.test.ts`, `logging.test.ts`, `version-check.test.ts`
+
+#### E2E Tests (`tests/e2e/`)
+Full CLI process spawning with cli-testing-library. Tests the complete user flow.
+
+**Use for**: CLI command output, full integration from CLI entry point to TUI render
+
+**Limitations**: cli-testing-library doesn't support PTY/raw mode, so keyboard input tests belong in component tests instead.
+
+**Example**: `tui.test.ts` - spawns `node dist/cli/index.js tui --ci`
+
+### When to Write Which Test
+
+| Scenario | Test Type |
+|----------|-----------|
+| New utility/formatter function | Unit |
+| New TUI keyboard shortcut | Component (ink-testing-library) |
+| New CLI command output | E2E |
+| Daemon/proxy behaviour | Integration |
+| Data persistence | Unit (SQLite with temp file) |
+
+### Running Tests
+
+```bash
+npm test                           # All tests
+npm run test:unit                  # Unit tests only
+npm run test:int                   # Integration tests only
+npm test -- tests/path/to/file    # Specific file
+npm run test:watch                 # Watch mode
+```
 
 Always run the full verification suite after making changes:
 ```bash

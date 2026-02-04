@@ -13,8 +13,9 @@ interface KeyHint {
 const KEY_HINTS: KeyHint[] = [
   { key: "j/k", action: "navigate" },
   { key: "Tab", action: "switch panel" },
-  { key: "c", action: "curl" },
+  { key: "c", action: "copy curl" },
   { key: "h", action: "HAR" },
+  { key: "u", action: "toggle URL" },
   { key: "r", action: "refresh" },
   { key: "q", action: "quit" },
 ];
