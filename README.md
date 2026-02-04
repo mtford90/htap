@@ -11,9 +11,8 @@ Capture HTTP/HTTPS traffic through a MITM proxy and inspect it in an interactive
 ## Features
 
 - **Project-scoped isolation** — Each project gets its own `.htpx/` directory, keeping traffic separate
-- **Interactive TUI** — Browse, inspect, and export requests with vim-style keybindings
+- **Interactive TUI** — Browse, inspect, and export requests with vim-style keybindings and mouse support
 - **Full HTTPS support** — Automatic CA certificate generation and trust
-- **Session labelling** — Tag and filter traffic by session for organised debugging
 - **Export anywhere** — Generate curl commands or HAR files from captured requests
 - **Zero config** — Works out of the box with curl, wget, Node.js, Python, and more
 
@@ -59,11 +58,7 @@ This creates a shell function that properly sets up proxy environment variables 
 ### Start Intercepting
 
 ```bash
-# Basic interception
 htpx intercept
-
-# With a session label for filtering
-htpx intercept --label api-tests
 ```
 
 This auto-starts the daemon, sets up the proxy, and configures your shell to route HTTP traffic through htpx.
@@ -71,24 +66,22 @@ This auto-starts the daemon, sets up the proxy, and configures your shell to rou
 ### Browse Captured Traffic
 
 ```bash
-# View all requests
 htpx tui
-
-# Filter by session label
-htpx tui --label api-tests
 ```
 
 ### TUI Keybindings
 
 | Key | Action |
 |-----|--------|
-| `j` / `↓` | Navigate down |
-| `k` / `↑` | Navigate up |
-| `Tab` | Switch between list and details panes |
-| `c` | Export selected request as curl command |
-| `h` | Export all requests as HAR file |
-| `r` | Refresh request list |
+| `j`/`k` | Navigate up/down |
+| `Tab` or `1`/`2` | Switch panels |
+| `u` | Toggle full URL |
+| `c` | Copy as curl |
+| `h` | Export HAR |
+| `r` | Refresh |
 | `q` | Quit |
+
+Mouse support: click to select requests, scroll wheel to navigate, click panels to focus.
 
 ### Other Commands
 
@@ -194,21 +187,13 @@ Press `h` to export all captured requests as a HAR file, compatible with browser
 
 Output shell configuration for your `.zshrc`/`.bashrc`.
 
-### `htpx intercept [options]`
+### `htpx intercept`
 
 Start intercepting HTTP traffic.
 
-| Option | Description |
-|--------|-------------|
-| `-l, --label <label>` | Label this session for filtering |
-
-### `htpx tui [options]`
+### `htpx tui`
 
 Open the interactive TUI.
-
-| Option | Description |
-|--------|-------------|
-| `-l, --label <label>` | Filter to requests from labelled sessions |
 
 ### `htpx status`
 
