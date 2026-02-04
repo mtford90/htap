@@ -205,8 +205,10 @@ describe("htpx tui e2e", () => {
       });
 
       // Should show numbered panel titles (check for text content)
-      await findByText(/Requests/);
-      await findByText(/Details/);
+      // Left panel shows "[1] Requests"
+      await findByText(/\[1\] Requests/);
+      // Right panel shows accordion sections like "[2] Request", "[3] Request Body", etc.
+      await findByText(/\[2\] Request/);
     });
 
     it("shows keybinding hints in status bar", async () => {

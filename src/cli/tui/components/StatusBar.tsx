@@ -13,11 +13,11 @@ interface KeyHint {
 const KEY_HINTS: KeyHint[] = [
   { key: "j/k", action: "nav" },
   { key: "Tab", action: "panel" },
-  { key: "1/2", action: "panel" },
+  { key: "1-5", action: "section" },
+  { key: "Enter", action: "expand" },
   { key: "c", action: "curl" },
   { key: "h", action: "HAR" },
   { key: "u", action: "URL" },
-  { key: "r", action: "refresh" },
   { key: "q", action: "quit" },
 ];
 
