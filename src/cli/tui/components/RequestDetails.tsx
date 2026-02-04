@@ -8,39 +8,34 @@ import type { CapturedRequest } from "../../../shared/types.js";
 import { HeadersView } from "./HeadersView.js";
 import { BodyView } from "./BodyView.js";
 import { formatRelativeTime, formatDuration } from "../utils/formatters.js";
+import { Panel } from "./Panel.js";
 
 interface RequestDetailsProps {
   request: CapturedRequest | undefined;
   isActive: boolean;
   isHovered?: boolean;
+  width: number;
   height: number;
 }
 
 export const RequestDetails = forwardRef<DOMElement, RequestDetailsProps>(function RequestDetails(
-  { request, isActive, isHovered, height },
+  { request, isActive, isHovered, width, height },
   ref,
 ) {
-  // Border colour: active > hovered > default
-  const borderColour = isActive ? "cyan" : isHovered ? "white" : "gray";
-
   if (!request) {
     return (
-      <Box
+      <Panel
         ref={ref}
-        flexDirection="column"
-        flexGrow={1}
+        title="[2] Details"
+        isActive={isActive}
+        isHovered={isHovered}
+        width={width}
         height={height}
-        borderStyle="single"
-        borderColor={borderColour}
-        paddingX={1}
       >
-        <Text bold color={isActive ? "cyan" : "white"}>
-          Details
-        </Text>
         <Box flexGrow={1} alignItems="center" justifyContent="center">
           <Text dimColor>Select a request to view details</Text>
         </Box>
-      </Box>
+      </Panel>
     );
   }
 
@@ -53,20 +48,14 @@ export const RequestDetails = forwardRef<DOMElement, RequestDetailsProps>(functi
   const resContentType = request.responseHeaders?.["content-type"];
 
   return (
-    <Box
+    <Panel
       ref={ref}
-      flexDirection="column"
-      flexGrow={1}
+      title="[2] Details"
+      isActive={isActive}
+      isHovered={isHovered}
+      width={width}
       height={height}
-      borderStyle="single"
-      borderColor={borderColour}
-      paddingX={1}
-      overflowY="hidden"
     >
-      <Text bold color={isActive ? "cyan" : "white"}>
-        Details
-      </Text>
-
       {/* URL and basic info */}
       <Box marginBottom={1}>
         <Text color="green" bold>
@@ -127,6 +116,6 @@ export const RequestDetails = forwardRef<DOMElement, RequestDetailsProps>(functi
           />
         </Box>
       )}
-    </Box>
+    </Panel>
   );
 });

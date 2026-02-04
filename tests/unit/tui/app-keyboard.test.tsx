@@ -123,7 +123,7 @@ describe("App keyboard interactions", () => {
       const frame = lastFrame();
 
       expect(frame).toContain("u");
-      expect(frame).toContain("toggle URL");
+      expect(frame).toContain("URL");
     });
   });
 });

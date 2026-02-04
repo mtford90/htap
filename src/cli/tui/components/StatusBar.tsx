@@ -11,11 +11,12 @@ interface KeyHint {
 }
 
 const KEY_HINTS: KeyHint[] = [
-  { key: "j/k", action: "navigate" },
-  { key: "Tab", action: "switch panel" },
-  { key: "c", action: "copy curl" },
+  { key: "j/k", action: "nav" },
+  { key: "Tab", action: "panel" },
+  { key: "1/2", action: "panel" },
+  { key: "c", action: "curl" },
   { key: "h", action: "HAR" },
-  { key: "u", action: "toggle URL" },
+  { key: "u", action: "URL" },
   { key: "r", action: "refresh" },
   { key: "q", action: "quit" },
 ];
@@ -33,22 +34,21 @@ export function StatusBar({ message }: StatusBarProps): React.ReactElement {
       borderLeft={false}
       borderRight={false}
       paddingX={1}
+      height={2}
     >
-      <Box flexGrow={1}>
-        {message ? (
-          <Text color="yellow">{message}</Text>
-        ) : (
-          KEY_HINTS.map((hint, index) => (
-            <React.Fragment key={hint.key}>
-              <Text color="cyan" bold>
-                {hint.key}
-              </Text>
-              <Text dimColor> {hint.action}</Text>
-              {index < KEY_HINTS.length - 1 && <Text> │ </Text>}
-            </React.Fragment>
-          ))
-        )}
-      </Box>
+      {message ? (
+        <Text color="yellow">{message}</Text>
+      ) : (
+        KEY_HINTS.map((hint, index) => (
+          <React.Fragment key={hint.key}>
+            <Text color="cyan" bold>
+              {hint.key}
+            </Text>
+            <Text dimColor> {hint.action}</Text>
+            {index < KEY_HINTS.length - 1 && <Text dimColor> │ </Text>}
+          </React.Fragment>
+        ))
+      )}
     </Box>
   );
 }

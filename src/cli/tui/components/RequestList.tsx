@@ -6,6 +6,7 @@ import React, { forwardRef } from "react";
 import { Box, Text, type DOMElement } from "ink";
 import type { CapturedRequest } from "../../../shared/types.js";
 import { RequestListItem } from "./RequestListItem.js";
+import { Panel } from "./Panel.js";
 
 interface RequestListProps {
   requests: CapturedRequest[];
@@ -22,8 +23,8 @@ export const RequestList = forwardRef<DOMElement, RequestListProps>(function Req
   { requests, selectedIndex, isActive, isHovered, width, height, showFullUrl, onItemClick },
   ref,
 ) {
-  // Calculate visible window (accounting for border and header)
-  const visibleHeight = Math.max(1, height - 3); // Border + header row
+  // Calculate visible window (accounting for border - 2 lines for top/bottom)
+  const visibleHeight = Math.max(1, height - 2);
   const halfWindow = Math.floor(visibleHeight / 2);
 
   // Calculate scroll offset to keep selection centered
@@ -34,30 +35,23 @@ export const RequestList = forwardRef<DOMElement, RequestListProps>(function Req
 
   const visibleRequests = requests.slice(scrollOffset, scrollOffset + visibleHeight);
 
-  // Border colour: active > hovered > default
-  const borderColour = isActive ? "cyan" : isHovered ? "white" : "gray";
+  // Build title and right value
+  const title = "[1] Requests";
+  let rightValue: string | number = requests.length;
+  if (requests.length > visibleHeight) {
+    rightValue = `${scrollOffset + 1}-${Math.min(scrollOffset + visibleHeight, requests.length)}/${requests.length}`;
+  }
 
   return (
-    <Box
+    <Panel
       ref={ref}
-      flexDirection="column"
+      title={title}
+      rightValue={rightValue}
+      isActive={isActive}
+      isHovered={isHovered}
       width={width}
       height={height}
-      borderStyle="single"
-      borderColor={borderColour}
     >
-      <Box paddingX={1}>
-        <Text bold color={isActive ? "cyan" : "white"}>
-          Requests ({requests.length})
-        </Text>
-        {requests.length > visibleHeight && (
-          <Text dimColor>
-            {" "}
-            [{scrollOffset + 1}-{Math.min(scrollOffset + visibleHeight, requests.length)}]
-          </Text>
-        )}
-      </Box>
-
       {requests.length === 0 ? (
         <Box paddingX={1} paddingY={1}>
           <Text dimColor>No requests captured yet</Text>
@@ -79,6 +73,6 @@ export const RequestList = forwardRef<DOMElement, RequestListProps>(function Req
           })}
         </Box>
       )}
-    </Box>
+    </Panel>
   );
 });

@@ -8,7 +8,6 @@ import { ControlClient } from "../../../daemon/control.js";
 import { findProjectRoot, getHtpxPaths } from "../../../shared/project.js";
 
 interface UseRequestsOptions {
-  label?: string;
   pollInterval?: number;
 }
 
@@ -23,7 +22,7 @@ interface UseRequestsResult {
  * Hook to fetch and poll for captured requests.
  */
 export function useRequests(options: UseRequestsOptions = {}): UseRequestsResult {
-  const { label, pollInterval = 2000 } = options;
+  const { pollInterval = 2000 } = options;
 
   const [requests, setRequests] = useState<CapturedRequest[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -53,12 +52,11 @@ export function useRequests(options: UseRequestsOptions = {}): UseRequestsResult
 
     try {
       // First check the count to avoid unnecessary data transfer
-      const count = await client.countRequests({ label });
+      const count = await client.countRequests({});
 
       // Only fetch full list if count changed
       if (count !== lastCountRef.current || requests.length === 0) {
         const newRequests = await client.listRequests({
-          label,
           limit: 1000,
         });
         setRequests(newRequests);
@@ -76,7 +74,7 @@ export function useRequests(options: UseRequestsOptions = {}): UseRequestsResult
     } finally {
       setIsLoading(false);
     }
-  }, [label, requests.length]);
+  }, [requests.length]);
 
   // Manual refresh function
   const refresh = useCallback(async () => {

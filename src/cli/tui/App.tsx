@@ -13,19 +13,18 @@ import { RequestDetails } from "./components/RequestDetails.js";
 import { StatusBar } from "./components/StatusBar.js";
 
 interface AppProps {
-  label?: string;
   /** Enable keyboard input in tests (bypasses TTY check) */
   __testEnableInput?: boolean;
 }
 
 type Panel = "list" | "details";
 
-function AppContent({ label, __testEnableInput }: AppProps): React.ReactElement {
+function AppContent({ __testEnableInput }: AppProps): React.ReactElement {
   const { exit } = useApp();
   const { isRawModeSupported } = useStdin();
   const [columns, rows] = useStdoutDimensions();
 
-  const { requests, isLoading, error, refresh } = useRequests({ label });
+  const { requests, isLoading, error, refresh } = useRequests();
   const { exportCurl, exportHar } = useExport();
 
   const [selectedIndex, setSelectedIndex] = useState(0);
@@ -82,6 +81,10 @@ function AppContent({ label, __testEnableInput }: AppProps): React.ReactElement 
         setSelectedIndex((prev) => Math.max(prev - 1, 0));
       } else if (key.tab) {
         setActivePanel((prev) => (prev === "list" ? "details" : "list"));
+      } else if (input === "1") {
+        setActivePanel("list");
+      } else if (input === "2") {
+        setActivePanel("details");
       }
 
       // Actions
@@ -122,7 +125,9 @@ function AppContent({ label, __testEnableInput }: AppProps): React.ReactElement 
 
   // Calculate layout
   const listWidth = Math.floor(columns * 0.4);
-  const contentHeight = rows - 3; // Leave room for status bar
+  const detailsWidth = columns - listWidth;
+  // Status bar takes 2 rows (border line + content line)
+  const contentHeight = rows - 2;
 
   // Loading state
   if (isLoading && requests.length === 0) {
@@ -150,22 +155,8 @@ function AppContent({ label, __testEnableInput }: AppProps): React.ReactElement 
 
   return (
     <Box flexDirection="column" height={rows}>
-      {/* Header */}
-      <Box paddingX={1}>
-        <Text bold color="cyan">
-          htpx
-        </Text>
-        {label && (
-          <>
-            <Text> │ </Text>
-            <Text dimColor>label: </Text>
-            <Text color="yellow">{label}</Text>
-          </>
-        )}
-      </Box>
-
       {/* Main content */}
-      <Box flexDirection="row" flexGrow={1}>
+      <Box flexDirection="row" height={contentHeight}>
         <RequestList
           ref={listPanelRef}
           requests={requests}
@@ -182,6 +173,7 @@ function AppContent({ label, __testEnableInput }: AppProps): React.ReactElement 
           request={selectedRequest}
           isActive={activePanel === "details"}
           isHovered={hoveredPanel === "details"}
+          width={detailsWidth}
           height={contentHeight}
         />
       </Box>
