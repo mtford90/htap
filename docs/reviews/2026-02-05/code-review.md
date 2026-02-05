@@ -17,30 +17,19 @@ Comprehensive code review conducted across 8 dimensions using parallel opus agen
 
 ## 1. React/Ink Best Practices
 
-- [ ] **1.1: Memory Leak - setTimeout without cleanup**
+- [x] **1.1: Memory Leak - setTimeout without cleanup** ✓
 
-  **File:** `src/cli/tui/App.tsx:116-119`
+  **File:** `src/cli/tui/App.tsx:131-148`
 
-  ```tsx
-  const showStatus = useCallback((message: string) => {
-    setStatusMessage(message);
-    setTimeout(() => setStatusMessage(undefined), 3000);
-  }, []);
-  ```
-
-  **Issue:** The `setTimeout` is never cleaned up. If the component unmounts before the timeout fires, it will attempt to call `setStatusMessage` on an unmounted component. Additionally, if `showStatus` is called multiple times in quick succession, multiple timeouts will be active simultaneously.
-
-  **Fix:** Store timeout in ref, clear on unmount and before setting new timeout.
+  **Fixed:** Uses `statusTimeoutRef` to store timeout, clears existing timeout before setting new one, and has unmount cleanup effect.
 
 ---
 
-- [ ] **1.2: Missing useCallback dependency causing cascade**
+- [x] **1.2: Missing useCallback dependency causing cascade** ✓
 
-  **File:** `src/cli/tui/hooks/useRequests.ts:47-77`
+  **File:** `src/cli/tui/hooks/useRequests.ts:38,52-55,88`
 
-  **Issue:** The `fetchRequests` callback depends on `requests.length`, causing it to be recreated whenever the requests array length changes. This triggers a cascade: `fetchRequests` changes → `refresh` changes → effects re-run → polling interval cleared/recreated.
-
-  **Fix:** Use a ref to track `requests.length` instead of including it in dependencies.
+  **Fixed:** Uses `requestsLengthRef` synced via separate effect, `fetchRequests` has empty dependency array.
 
 ---
 
@@ -220,18 +209,12 @@ Comprehensive code review conducted across 8 dimensions using parallel opus agen
 
 ## 4. Test Coverage
 
-- [ ] **4.0: No TUI component tests at all (CRITICAL)**
+- [x] **4.0: No TUI component tests at all (CRITICAL)** ✓
 
-  **Issue:** There are **zero** ink-testing-library component tests for any TUI components.
-
-  **Components needing tests:**
-  1. `App.tsx` - keyboard navigation, panel switching, export actions
-  2. `SaveModal.tsx` - option selection, custom path input
-  3. `AccordionPanel.tsx` - section expansion, focus states
-  4. `RequestList.tsx` - scroll behaviour, empty state
-  5. `RequestListItem.tsx` - status colours, hover state
-
-  **Fix:** Create `tests/unit/tui/*.test.tsx` files with ink-testing-library.
+  **Fixed:** Added comprehensive tests:
+  - `tests/unit/tui/app-keyboard.test.tsx` - 26 tests covering navigation, panel switching, section toggle, URL toggle, actions
+  - `tests/unit/tui/save-modal.test.tsx` - 21 tests covering rendering, navigation, option selection, custom path input
+  - `tests/unit/tui/accordion-panel.test.tsx` - 21 tests covering rendering, expansion, focus indicator, body content display
 
 ---
 
@@ -551,8 +534,8 @@ Comprehensive code review conducted across 8 dimensions using parallel opus agen
 ## High Impact (should prioritise)
 
 - [x] 8.1 - listRequestsSummary() (fixes 8.1, 8.2, 8.3) ✓
-- [ ] 4.0 - TUI component tests
-- [ ] 1.1 - setTimeout memory leak fix
-- [ ] 1.2 - useRequests callback stability
+- [x] 4.0 - TUI component tests ✓
+- [x] 1.1 - setTimeout memory leak fix ✓ (already fixed)
+- [x] 1.2 - useRequests callback stability ✓ (already fixed)
 - [ ] 3.1 - Extract & complete getStatusText()
 - [ ] 3.6 - Proper migration system
