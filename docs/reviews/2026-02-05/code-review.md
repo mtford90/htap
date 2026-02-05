@@ -125,15 +125,9 @@ Comprehensive code review conducted across 8 dimensions using parallel opus agen
 
 ## 3. Code Completeness
 
-- [ ] **3.1: getStatusText incomplete AND duplicated**
+- [x] **3.1: getStatusText incomplete AND duplicated** ✓
 
-  **Files:**
-  - `src/cli/tui/utils/har.ts:104-123`
-  - `src/cli/tui/components/AccordionPanel.tsx:432-450`
-
-  **Issue:** Two separate implementations, both missing many status codes (100, 202, 206, 207, 303, 307, 308, 405, 406, 408, 409, 410, 413, 415, 422, 429, 501, 504, etc.)
-
-  **Fix:** Extract to `utils/formatters.ts` with comprehensive coverage.
+  **Fixed:** Extracted to `src/cli/tui/utils/formatters.ts` with comprehensive HTTP status code coverage (1xx through 5xx). Removed duplicate implementations from `har.ts` and `AccordionPanel.tsx`.
 
 ---
 
@@ -537,5 +531,5 @@ Comprehensive code review conducted across 8 dimensions using parallel opus agen
 - [x] 4.0 - TUI component tests ✓
 - [x] 1.1 - setTimeout memory leak fix ✓ (already fixed)
 - [x] 1.2 - useRequests callback stability ✓ (already fixed)
-- [ ] 3.1 - Extract & complete getStatusText()
+- [x] 3.1 - Extract & complete getStatusText() ✓
 - [ ] 3.6 - Proper migration system

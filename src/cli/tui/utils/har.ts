@@ -4,6 +4,7 @@
 
 import type { CapturedRequest } from "../../../shared/types.js";
 import { getHtpxVersion } from "../../../shared/version.js";
+import { getStatusText } from "./formatters.js";
 
 /**
  * HAR 1.2 specification types.
@@ -97,31 +98,6 @@ function getContentType(headers: Record<string, string> | undefined): string {
   const contentType =
     headers["content-type"] || headers["Content-Type"] || "application/octet-stream";
   return contentType;
-}
-
-/**
- * Get status text for HTTP status code.
- */
-function getStatusText(status: number | undefined): string {
-  if (status === undefined) {
-    return "";
-  }
-  const statusTexts: Record<number, string> = {
-    200: "OK",
-    201: "Created",
-    204: "No Content",
-    301: "Moved Permanently",
-    302: "Found",
-    304: "Not Modified",
-    400: "Bad Request",
-    401: "Unauthorized",
-    403: "Forbidden",
-    404: "Not Found",
-    500: "Internal Server Error",
-    502: "Bad Gateway",
-    503: "Service Unavailable",
-  };
-  return statusTexts[status] ?? "";
 }
 
 /**
