@@ -35,6 +35,7 @@ export function useRequests(options: UseRequestsOptions = {}): UseRequestsResult
 
   const clientRef = useRef<ControlClient | null>(null);
   const lastCountRef = useRef<number>(0);
+  const requestsLengthRef = useRef<number>(0);
 
   // Initialise control client
   useEffect(() => {
@@ -48,6 +49,11 @@ export function useRequests(options: UseRequestsOptions = {}): UseRequestsResult
     clientRef.current = new ControlClient(paths.controlSocketFile);
   }, []);
 
+  // Keep ref in sync with requests length
+  useEffect(() => {
+    requestsLengthRef.current = requests.length;
+  }, [requests.length]);
+
   // Fetch request summaries from daemon
   const fetchRequests = useCallback(async () => {
     const client = clientRef.current;
@@ -59,8 +65,8 @@ export function useRequests(options: UseRequestsOptions = {}): UseRequestsResult
       // First check the count to avoid unnecessary data transfer
       const count = await client.countRequests({});
 
-      // Only fetch list if count changed
-      if (count !== lastCountRef.current || requests.length === 0) {
+      // Only fetch list if count changed or we have no requests yet
+      if (count !== lastCountRef.current || requestsLengthRef.current === 0) {
         const newRequests = await client.listRequestsSummary({
           limit: 1000,
         });
@@ -79,7 +85,7 @@ export function useRequests(options: UseRequestsOptions = {}): UseRequestsResult
     } finally {
       setIsLoading(false);
     }
-  }, [requests.length]);
+  }, []);
 
   // Manual refresh function
   const refresh = useCallback(async () => {

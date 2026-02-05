@@ -63,6 +63,9 @@ function AppContent({ __testEnableInput }: AppProps): React.ReactElement {
   const listPanelRef = useRef(null);
   const accordionPanelRef = useRef(null);
 
+  // Ref for status message timeout cleanup
+  const statusTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
   // Get the summary for the currently selected request
   const selectedSummary = requests[selectedIndex];
 
@@ -127,8 +130,21 @@ function AppContent({ __testEnableInput }: AppProps): React.ReactElement {
 
   // Clear status message after a delay
   const showStatus = useCallback((message: string) => {
+    // Clear any existing timeout to prevent race conditions
+    if (statusTimeoutRef.current) {
+      clearTimeout(statusTimeoutRef.current);
+    }
     setStatusMessage(message);
-    setTimeout(() => setStatusMessage(undefined), 3000);
+    statusTimeoutRef.current = setTimeout(() => setStatusMessage(undefined), 3000);
+  }, []);
+
+  // Cleanup status timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (statusTimeoutRef.current) {
+        clearTimeout(statusTimeoutRef.current);
+      }
+    };
   }, []);
 
   // Determine if the currently focused body section is saveable (binary content)
