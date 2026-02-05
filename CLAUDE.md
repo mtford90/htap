@@ -2,12 +2,13 @@
 
 ## Planning & Status
 
-**`PLAN.md` is the source of truth for all development work on this project.**
+**[`docs/PLAN.md`](docs/PLAN.md) is the source of truth for all development work on this project.**
 
-- Always check `PLAN.md` before starting work to understand current priorities
-- Update `PLAN.md` when completing tasks (move to Completed section)
-- Update `PLAN.md` when discovering new tasks or requirements
+- Always check `docs/PLAN.md` before starting work to understand current priorities
+- Update `docs/PLAN.md` when completing tasks (move to Completed section)
+- Update `docs/PLAN.md` when discovering new tasks or requirements
 - Keep task descriptions concise but informative
+- Code reviews are stored in `docs/reviews/<date>/`
 
 Published to npm as `htpx-cli` (v0.1.0). The name `htpx` was taken.
 
