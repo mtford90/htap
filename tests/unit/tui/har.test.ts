@@ -163,7 +163,8 @@ describe("generateHar", () => {
       { status: 500, text: "Internal Server Error" },
       { status: 502, text: "Bad Gateway" },
       { status: 503, text: "Service Unavailable" },
-      { status: 418, text: "" }, // Unknown status
+      { status: 418, text: "I'm a Teapot" },
+      { status: 999, text: "" }, // Unknown status
     ];
 
     for (const { status, text } of testCases) {

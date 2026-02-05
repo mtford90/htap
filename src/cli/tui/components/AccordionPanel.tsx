@@ -15,7 +15,7 @@ import React, { forwardRef, useMemo } from "react";
 import { Box, Text, type DOMElement } from "ink";
 import type { CapturedRequest } from "../../../shared/types.js";
 import { AccordionSection } from "./AccordionSection.js";
-import { formatSize } from "../utils/formatters.js";
+import { formatSize, getStatusText } from "../utils/formatters.js";
 import { isBinaryContent, getBinaryTypeDescription } from "../utils/binary.js";
 
 // Box drawing characters for the bottom border
@@ -426,25 +426,3 @@ export const AccordionPanel = forwardRef<DOMElement, AccordionPanelProps>(functi
   );
 });
 
-/**
- * Get HTTP status text for common status codes
- */
-function getStatusText(status: number): string {
-  const statusTexts: Record<number, string> = {
-    200: "OK",
-    201: "Created",
-    204: "No Content",
-    301: "Moved Permanently",
-    302: "Found",
-    304: "Not Modified",
-    400: "Bad Request",
-    401: "Unauthorized",
-    403: "Forbidden",
-    404: "Not Found",
-    405: "Method Not Allowed",
-    500: "Internal Server Error",
-    502: "Bad Gateway",
-    503: "Service Unavailable",
-  };
-  return statusTexts[status] ?? "";
-}
