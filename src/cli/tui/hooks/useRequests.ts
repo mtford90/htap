@@ -3,7 +3,7 @@
  */
 
 import { useState, useEffect, useCallback, useRef } from "react";
-import type { CapturedRequest } from "../../../shared/types.js";
+import type { CapturedRequest, CapturedRequestSummary } from "../../../shared/types.js";
 import { ControlClient } from "../../../daemon/control.js";
 import { findProjectRoot, getHtpxPaths } from "../../../shared/project.js";
 
@@ -12,10 +12,15 @@ interface UseRequestsOptions {
 }
 
 interface UseRequestsResult {
-  requests: CapturedRequest[];
+  /** Request summaries for list display (excludes body/header data) */
+  requests: CapturedRequestSummary[];
   isLoading: boolean;
   error: string | null;
   refresh: () => Promise<void>;
+  /** Fetch full request data including body/headers */
+  getFullRequest: (id: string) => Promise<CapturedRequest | null>;
+  /** Fetch all requests with full data (for exports) */
+  getAllFullRequests: () => Promise<CapturedRequest[]>;
 }
 
 /**
@@ -24,7 +29,7 @@ interface UseRequestsResult {
 export function useRequests(options: UseRequestsOptions = {}): UseRequestsResult {
   const { pollInterval = 2000 } = options;
 
-  const [requests, setRequests] = useState<CapturedRequest[]>([]);
+  const [requests, setRequests] = useState<CapturedRequestSummary[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -43,7 +48,7 @@ export function useRequests(options: UseRequestsOptions = {}): UseRequestsResult
     clientRef.current = new ControlClient(paths.controlSocketFile);
   }, []);
 
-  // Fetch requests from daemon
+  // Fetch request summaries from daemon
   const fetchRequests = useCallback(async () => {
     const client = clientRef.current;
     if (!client) {
@@ -54,9 +59,9 @@ export function useRequests(options: UseRequestsOptions = {}): UseRequestsResult
       // First check the count to avoid unnecessary data transfer
       const count = await client.countRequests({});
 
-      // Only fetch full list if count changed
+      // Only fetch list if count changed
       if (count !== lastCountRef.current || requests.length === 0) {
-        const newRequests = await client.listRequests({
+        const newRequests = await client.listRequestsSummary({
           limit: 1000,
         });
         setRequests(newRequests);
@@ -83,6 +88,32 @@ export function useRequests(options: UseRequestsOptions = {}): UseRequestsResult
     await fetchRequests();
   }, [fetchRequests]);
 
+  // Fetch full request data by ID
+  const getFullRequest = useCallback(async (id: string): Promise<CapturedRequest | null> => {
+    const client = clientRef.current;
+    if (!client) {
+      return null;
+    }
+    try {
+      return await client.getRequest(id);
+    } catch {
+      return null;
+    }
+  }, []);
+
+  // Fetch all requests with full data (for exports like HAR)
+  const getAllFullRequests = useCallback(async (): Promise<CapturedRequest[]> => {
+    const client = clientRef.current;
+    if (!client) {
+      return [];
+    }
+    try {
+      return await client.listRequests({ limit: 1000 });
+    } catch {
+      return [];
+    }
+  }, []);
+
   // Initial fetch
   useEffect(() => {
     void fetchRequests();
@@ -102,5 +133,7 @@ export function useRequests(options: UseRequestsOptions = {}): UseRequestsResult
     isLoading,
     error,
     refresh,
+    getFullRequest,
+    getAllFullRequests,
   };
 }

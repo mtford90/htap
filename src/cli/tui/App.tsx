@@ -2,7 +2,7 @@
  * Root TUI component for browsing captured HTTP traffic.
  */
 
-import React, { useState, useCallback, useRef, useMemo } from "react";
+import React, { useState, useCallback, useRef, useMemo, useEffect } from "react";
 import { Box, Text, useInput, useApp, useStdin } from "ink";
 import { MouseProvider, useOnClick, useOnWheel, useOnMouseEnter, useOnMouseLeave } from "@ink-tools/ink-mouse";
 import { useStdoutDimensions } from "./hooks/useStdoutDimensions.js";
@@ -21,6 +21,7 @@ import {
 } from "./components/AccordionPanel.js";
 import { StatusBar } from "./components/StatusBar.js";
 import { SaveModal, type SaveLocation } from "./components/SaveModal.js";
+import type { CapturedRequest } from "../../shared/types.js";
 
 interface AppProps {
   /** Enable keyboard input in tests (bypasses TTY check) */
@@ -34,7 +35,7 @@ function AppContent({ __testEnableInput }: AppProps): React.ReactElement {
   const { isRawModeSupported } = useStdin();
   const [columns, rows] = useStdoutDimensions();
 
-  const { requests, isLoading, error, refresh } = useRequests();
+  const { requests, isLoading, error, refresh, getFullRequest, getAllFullRequests } = useRequests();
   const { exportCurl, exportHar } = useExport();
   const { saveBinary } = useSaveBinary();
 
@@ -55,18 +56,30 @@ function AppContent({ __testEnableInput }: AppProps): React.ReactElement {
   const [showSaveModal, setShowSaveModal] = useState(false);
   const [savingBodyType, setSavingBodyType] = useState<"request" | "response" | null>(null);
 
+  // Full request data for the selected item (fetched on demand)
+  const [selectedFullRequest, setSelectedFullRequest] = useState<CapturedRequest | null>(null);
+
   // Refs for mouse interaction
   const listPanelRef = useRef(null);
   const accordionPanelRef = useRef(null);
 
-  // Get the currently selected request
-  const selectedRequest = requests[selectedIndex];
+  // Get the summary for the currently selected request
+  const selectedSummary = requests[selectedIndex];
 
   // Handle item click from the request list
   const handleItemClick = useCallback((index: number) => {
     setSelectedIndex(index);
     setActivePanel("list");
   }, []);
+
+  // Fetch full request data when selection changes
+  useEffect(() => {
+    if (selectedSummary) {
+      void getFullRequest(selectedSummary.id).then(setSelectedFullRequest);
+    } else {
+      setSelectedFullRequest(null);
+    }
+  }, [selectedSummary?.id, getFullRequest]);
 
   // Toggle a section's expanded state
   const handleSectionToggle = useCallback((index: number) => {
@@ -120,35 +133,35 @@ function AppContent({ __testEnableInput }: AppProps): React.ReactElement {
 
   // Determine if the currently focused body section is saveable (binary content)
   const currentBodyIsSaveable = useMemo(() => {
-    if (!selectedRequest || activePanel !== "accordion") return false;
+    if (!selectedFullRequest || activePanel !== "accordion") return false;
 
     if (focusedSection === SECTION_REQUEST_BODY) {
       return isSaveableBody(
-        selectedRequest.requestBody,
-        selectedRequest.requestHeaders["content-type"],
-        selectedRequest.requestBodyTruncated
+        selectedFullRequest.requestBody,
+        selectedFullRequest.requestHeaders["content-type"],
+        selectedFullRequest.requestBodyTruncated
       );
     }
     if (focusedSection === SECTION_RESPONSE_BODY) {
       return isSaveableBody(
-        selectedRequest.responseBody,
-        selectedRequest.responseHeaders?.["content-type"],
-        selectedRequest.responseBodyTruncated
+        selectedFullRequest.responseBody,
+        selectedFullRequest.responseHeaders?.["content-type"],
+        selectedFullRequest.responseBodyTruncated
       );
     }
     return false;
-  }, [selectedRequest, activePanel, focusedSection]);
+  }, [selectedFullRequest, activePanel, focusedSection]);
 
   // Handle save from modal
   const handleSave = useCallback(
     async (location: SaveLocation, customPath?: string) => {
-      if (!selectedRequest || !savingBodyType) return;
+      if (!selectedFullRequest || !savingBodyType) return;
 
       const isRequestBody = savingBodyType === "request";
-      const body = isRequestBody ? selectedRequest.requestBody : selectedRequest.responseBody;
+      const body = isRequestBody ? selectedFullRequest.requestBody : selectedFullRequest.responseBody;
       const contentType = isRequestBody
-        ? selectedRequest.requestHeaders["content-type"]
-        : selectedRequest.responseHeaders?.["content-type"];
+        ? selectedFullRequest.requestHeaders["content-type"]
+        : selectedFullRequest.responseHeaders?.["content-type"];
 
       if (!body) {
         showStatus("No body to save");
@@ -159,9 +172,9 @@ function AppContent({ __testEnableInput }: AppProps): React.ReactElement {
 
       const result = await saveBinary(
         body,
-        selectedRequest.id,
+        selectedFullRequest.id,
         contentType,
-        selectedRequest.url,
+        selectedFullRequest.url,
         location,
         customPath
       );
@@ -170,7 +183,7 @@ function AppContent({ __testEnableInput }: AppProps): React.ReactElement {
       setShowSaveModal(false);
       setSavingBodyType(null);
     },
-    [selectedRequest, savingBodyType, saveBinary, showStatus]
+    [selectedFullRequest, savingBodyType, saveBinary, showStatus]
   );
 
   // Handle keyboard input (only when raw mode is supported, i.e. running in a TTY)
@@ -247,8 +260,8 @@ function AppContent({ __testEnableInput }: AppProps): React.ReactElement {
         void refresh();
         showStatus("Refreshing...");
       } else if (input === "c") {
-        if (selectedRequest) {
-          void exportCurl(selectedRequest).then((result) => {
+        if (selectedFullRequest) {
+          void exportCurl(selectedFullRequest).then((result) => {
             showStatus(result.success ? result.message : `Error: ${result.message}`);
           });
         } else {
@@ -256,8 +269,11 @@ function AppContent({ __testEnableInput }: AppProps): React.ReactElement {
         }
       } else if (input === "h") {
         if (requests.length > 0) {
-          const result = exportHar(requests);
-          showStatus(result.success ? result.message : `Error: ${result.message}`);
+          showStatus("Exporting HAR...");
+          void getAllFullRequests().then((fullRequests) => {
+            const result = exportHar(fullRequests);
+            showStatus(result.success ? result.message : `Error: ${result.message}`);
+          });
         } else {
           showStatus("No requests to export");
         }
@@ -326,13 +342,13 @@ function AppContent({ __testEnableInput }: AppProps): React.ReactElement {
   }
 
   // Save modal - full screen replacement (terminals don't support true overlays)
-  if (showSaveModal && selectedRequest && savingBodyType) {
+  if (showSaveModal && selectedFullRequest && savingBodyType) {
     const isRequestBody = savingBodyType === "request";
-    const body = isRequestBody ? selectedRequest.requestBody : selectedRequest.responseBody;
+    const body = isRequestBody ? selectedFullRequest.requestBody : selectedFullRequest.responseBody;
     const contentType = isRequestBody
-      ? selectedRequest.requestHeaders["content-type"]
-      : selectedRequest.responseHeaders?.["content-type"];
-    const filename = generateFilename(selectedRequest.id, contentType, selectedRequest.url);
+      ? selectedFullRequest.requestHeaders["content-type"]
+      : selectedFullRequest.responseHeaders?.["content-type"];
+    const filename = generateFilename(selectedFullRequest.id, contentType, selectedFullRequest.url);
     const fileSize = formatSize(body?.length);
 
     return (
@@ -369,7 +385,7 @@ function AppContent({ __testEnableInput }: AppProps): React.ReactElement {
         />
         <AccordionPanel
           ref={accordionPanelRef}
-          request={selectedRequest}
+          request={selectedFullRequest}
           isActive={activePanel === "accordion"}
           width={accordionWidth}
           height={contentHeight}

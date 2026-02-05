@@ -6,7 +6,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import React from "react";
 import { render } from "ink-testing-library";
 import { App } from "../../../src/cli/tui/App.js";
-import type { CapturedRequest } from "../../../src/shared/types.js";
+import type { CapturedRequest, CapturedRequestSummary } from "../../../src/shared/types.js";
 
 // Mock the hooks that depend on external services
 vi.mock("../../../src/cli/tui/hooks/useRequests.js", () => ({
@@ -24,7 +24,22 @@ vi.mock("../../../src/cli/tui/hooks/useExport.js", () => ({
 import { useRequests } from "../../../src/cli/tui/hooks/useRequests.js";
 const mockUseRequests = vi.mocked(useRequests);
 
-const createMockRequest = (overrides: Partial<CapturedRequest> = {}): CapturedRequest => ({
+const createMockSummary = (overrides: Partial<CapturedRequestSummary> = {}): CapturedRequestSummary => ({
+  id: "test-1",
+  sessionId: "session-1",
+  timestamp: Date.now(),
+  method: "GET",
+  url: "http://example.com/api/users",
+  host: "example.com",
+  path: "/api/users",
+  responseStatus: 200,
+  durationMs: 150,
+  requestBodySize: 0,
+  responseBodySize: 0,
+  ...overrides,
+});
+
+const createMockFullRequest = (overrides: Partial<CapturedRequest> = {}): CapturedRequest => ({
   id: "test-1",
   sessionId: "session-1",
   timestamp: Date.now(),
@@ -46,12 +61,15 @@ describe("App keyboard interactions", () => {
 
   describe("URL toggle (u key)", () => {
     it("shows path by default", () => {
-      const mockRequest = createMockRequest();
+      const mockSummary = createMockSummary();
+      const mockFullRequest = createMockFullRequest();
       mockUseRequests.mockReturnValue({
-        requests: [mockRequest],
+        requests: [mockSummary],
         isLoading: false,
         error: null,
         refresh: vi.fn(),
+        getFullRequest: vi.fn().mockResolvedValue(mockFullRequest),
+        getAllFullRequests: vi.fn().mockResolvedValue([mockFullRequest]),
       });
 
       const { lastFrame } = render(<App __testEnableInput />);
@@ -64,12 +82,15 @@ describe("App keyboard interactions", () => {
     });
 
     it("toggles to full URL when u is pressed", async () => {
-      const mockRequest = createMockRequest();
+      const mockSummary = createMockSummary();
+      const mockFullRequest = createMockFullRequest();
       mockUseRequests.mockReturnValue({
-        requests: [mockRequest],
+        requests: [mockSummary],
         isLoading: false,
         error: null,
         refresh: vi.fn(),
+        getFullRequest: vi.fn().mockResolvedValue(mockFullRequest),
+        getAllFullRequests: vi.fn().mockResolvedValue([mockFullRequest]),
       });
 
       const { lastFrame, stdin } = render(<App __testEnableInput />);
@@ -89,12 +110,15 @@ describe("App keyboard interactions", () => {
     });
 
     it("toggles back to path when u is pressed again", async () => {
-      const mockRequest = createMockRequest();
+      const mockSummary = createMockSummary();
+      const mockFullRequest = createMockFullRequest();
       mockUseRequests.mockReturnValue({
-        requests: [mockRequest],
+        requests: [mockSummary],
         isLoading: false,
         error: null,
         refresh: vi.fn(),
+        getFullRequest: vi.fn().mockResolvedValue(mockFullRequest),
+        getAllFullRequests: vi.fn().mockResolvedValue([mockFullRequest]),
       });
 
       const { lastFrame, stdin } = render(<App __testEnableInput />);
@@ -117,6 +141,8 @@ describe("App keyboard interactions", () => {
         isLoading: false,
         error: null,
         refresh: vi.fn(),
+        getFullRequest: vi.fn().mockResolvedValue(null),
+        getAllFullRequests: vi.fn().mockResolvedValue([]),
       });
 
       const { lastFrame } = render(<App __testEnableInput />);

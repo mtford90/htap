@@ -471,33 +471,27 @@ Comprehensive code review conducted across 8 dimensions using parallel opus agen
 
 ## 8. Performance
 
-- [ ] **8.1: SELECT * fetches bodies in listRequests**
+- [x] **8.1: SELECT * fetches bodies in listRequests** ✓
 
   **File:** `src/daemon/storage.ts:279-284`
 
-  **Issue:** Fetches `request_body` and `response_body` BLOBs even for list view. With 1000 requests averaging 10KB bodies, this transfers ~10MB per poll cycle.
-
-  **Fix:** Add `listRequestsSummary()` excluding body columns.
+  **Fixed:** Added `listRequestsSummary()` method that excludes body and header data. Returns only metadata and body sizes.
 
 ---
 
-- [ ] **8.2: IPC transfers full bodies through JSON**
+- [x] **8.2: IPC transfers full bodies through JSON** ✓
 
   **File:** `src/daemon/control.ts:89-95, 148`
 
-  **Issue:** Buffers become `{ type: 'Buffer', data: [...] }` which is ~4x larger than binary. A 1MB body becomes ~4MB of JSON.
-
-  **Fix:** Will be resolved by 8.1 (don't transfer bodies in list).
+  **Fixed:** Resolved by 8.1 - TUI now uses `listRequestsSummary` for polling, fetches full data on demand.
 
 ---
 
-- [ ] **8.3: Full dataset transfer on each poll**
+- [x] **8.3: Full dataset transfer on each poll** ✓
 
   **File:** `src/cli/tui/hooks/useRequests.ts:54-64`
 
-  **Issue:** When count changes, full dataset of up to 1000 requests (with bodies) is transferred.
-
-  **Fix:** Will be resolved by 8.1, or implement incremental updates.
+  **Fixed:** Resolved by 8.1 - polling now transfers summaries only (~100 bytes per request vs ~10KB+).
 
 ---
 
@@ -556,7 +550,7 @@ Comprehensive code review conducted across 8 dimensions using parallel opus agen
 
 ## High Impact (should prioritise)
 
-- [ ] 8.1 - listRequestsSummary() (fixes 8.1, 8.2, 8.3)
+- [x] 8.1 - listRequestsSummary() (fixes 8.1, 8.2, 8.3) ✓
 - [ ] 4.0 - TUI component tests
 - [ ] 1.1 - setTimeout memory leak fix
 - [ ] 1.2 - useRequests callback stability

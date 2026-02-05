@@ -5,11 +5,11 @@
 import React, { useRef, useState, memo } from "react";
 import { Box, Text, type DOMElement } from "ink";
 import { useOnClick, useOnMouseEnter, useOnMouseLeave } from "@ink-tools/ink-mouse";
-import type { CapturedRequest } from "../../../shared/types.js";
+import type { CapturedRequestSummary } from "../../../shared/types.js";
 import { formatMethod, formatDuration, truncate } from "../utils/formatters.js";
 
 interface RequestListItemProps {
-  request: CapturedRequest;
+  request: CapturedRequestSummary;
   isSelected: boolean;
   width: number;
   showFullUrl?: boolean;
