@@ -17,29 +17,30 @@ interface RequestListProps {
   height: number;
   showFullUrl?: boolean;
   onItemClick?: (index: number) => void;
+  scrollOffset?: number;
 }
 
 export const RequestList = forwardRef<DOMElement, RequestListProps>(function RequestList(
-  { requests, selectedIndex, isActive, isHovered, width, height, showFullUrl, onItemClick },
+  { requests, selectedIndex, isActive, isHovered, width, height, showFullUrl, onItemClick, scrollOffset: providedScrollOffset },
   ref,
 ) {
   // Calculate visible window (accounting for border - 2 lines for top/bottom)
   const visibleHeight = Math.max(1, height - 2);
   const halfWindow = Math.floor(visibleHeight / 2);
 
-  // Calculate scroll offset to keep selection centered
-  let scrollOffset = 0;
-  if (requests.length > visibleHeight) {
-    scrollOffset = Math.max(0, Math.min(selectedIndex - halfWindow, requests.length - visibleHeight));
+  // Use provided scroll offset, or fall back to selection-centred behaviour
+  let effectiveScrollOffset = providedScrollOffset ?? 0;
+  if (providedScrollOffset === undefined && requests.length > visibleHeight) {
+    effectiveScrollOffset = Math.max(0, Math.min(selectedIndex - halfWindow, requests.length - visibleHeight));
   }
 
-  const visibleRequests = requests.slice(scrollOffset, scrollOffset + visibleHeight);
+  const visibleRequests = requests.slice(effectiveScrollOffset, effectiveScrollOffset + visibleHeight);
 
   // Build title and right value
   const title = "[1] Requests";
   let rightValue: string | number = requests.length;
   if (requests.length > visibleHeight) {
-    rightValue = `${scrollOffset + 1}-${Math.min(scrollOffset + visibleHeight, requests.length)}/${requests.length}`;
+    rightValue = `${effectiveScrollOffset + 1}-${Math.min(effectiveScrollOffset + visibleHeight, requests.length)}/${requests.length}`;
   }
 
   return (
@@ -59,7 +60,7 @@ export const RequestList = forwardRef<DOMElement, RequestListProps>(function Req
       ) : (
         <Box flexDirection="column" paddingX={1}>
           {visibleRequests.map((request, index) => {
-            const absoluteIndex = scrollOffset + index;
+            const absoluteIndex = effectiveScrollOffset + index;
             return (
               <RequestListItem
                 key={request.id}

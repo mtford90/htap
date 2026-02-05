@@ -3,15 +3,20 @@
 ## Next Up (Definites)
 
 - [x] **Full URL in request list** - Toggle full URL display with `u` key
-- [ ] **Request/response body viewing** - Stack/accordion UI in details pane to view request body and response body (tab through sections)
-- [ ] **Request/response size display** - Show payload sizes in list and details
+- [x] **Request/response body viewing** - Stack/accordion UI in details pane to view request body and response body (tab through sections)
+- [x] **Request/response size display** - Show payload sizes in list and details
 - [ ] **Request filtering** - Filter requests by:
   - Fuzzy search (URL, headers, body)
   - HTTP method
   - Status codes
 - [ ] **Publish proxy details** - Allow proxy to be used anywhere, not just via `eval $(htpx intercept)` on CLI
 - [ ] **Support any directory** - Allow running htpx in any dir; climb to `~/` if no project/git root found (generic proxy across projects)
-- [ ] **Mouse support** - Click to select requests, panels, etc. (like neovim/zellij)
+- [x] **Mouse support** - Click to select requests, panels, etc. (like neovim/zellij)
+- [ ] manipulate/explore request/response bodies e.g. if JSON
+- [ ] when focused on e.g. request body, allow for opening in system editor, or copy to clipboard - same for other panels - we might need a modal thing to allow choosing how to export
+- [ ] pretty request/response
+- [ ] syntax highlighting for request/response
+- [ ] copy request/response body when focused
 
 ---
 
@@ -29,8 +34,6 @@
 ## Maybe
 
 - [ ] **Drop mockttp** - mockttp doesn't support Bun; dropping it would enable Bun portable executables instead of npm (note: htpx doesn't need mock functionality)
-
----
 
 ## Completed
 

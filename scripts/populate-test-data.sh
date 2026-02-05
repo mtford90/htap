@@ -143,6 +143,28 @@ make_request PATCH "https://httpbin.org/patch" "PATCH request" \
     -H "Content-Type: application/json" \
     -d '{"partial": "update"}'
 
+# Bulk requests for scroll testing
+echo ""
+echo -e "  ${BLUE}--- Bulk Requests (for scroll testing) ---${NC}"
+for i in {1..10}; do
+    make_request GET "https://jsonplaceholder.typicode.com/posts/$i" "Post #$i"
+done
+for i in {1..10}; do
+    make_request GET "https://jsonplaceholder.typicode.com/users/$i" "User #$i"
+done
+for i in {1..5}; do
+    make_request GET "https://jsonplaceholder.typicode.com/comments/$i" "Comment #$i"
+done
+for i in {1..5}; do
+    make_request GET "https://jsonplaceholder.typicode.com/albums/$i" "Album #$i"
+done
+make_request GET "https://httpbin.org/delay/1" "Delayed response (1s)"
+make_request GET "https://httpbin.org/bytes/1024" "Random bytes (1KB)"
+make_request GET "https://httpbin.org/bytes/4096" "Random bytes (4KB)"
+make_request GET "https://httpbin.org/uuid" "Random UUID"
+make_request GET "https://httpbin.org/user-agent" "User agent echo"
+make_request GET "https://httpbin.org/ip" "IP address"
+
 echo ""
 echo -e "${GREEN}=== Complete! ===${NC}"
 echo ""

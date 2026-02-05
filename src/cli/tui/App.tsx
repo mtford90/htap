@@ -38,6 +38,7 @@ function AppContent({ __testEnableInput }: AppProps): React.ReactElement {
   const [statusMessage, setStatusMessage] = useState<string | undefined>();
   const [showFullUrl, setShowFullUrl] = useState(false);
   const [hoveredPanel, setHoveredPanel] = useState<Panel | null>(null);
+  const [listScrollOffset, setListScrollOffset] = useState(0);
 
   // Accordion state
   const [focusedSection, setFocusedSection] = useState(SECTION_REQUEST);
@@ -71,12 +72,15 @@ function AppContent({ __testEnableInput }: AppProps): React.ReactElement {
     });
   }, []);
 
-  // Handle scroll wheel on list panel
+  // Handle scroll wheel on list panel - scrolls the view, not the selection
   useOnWheel(listPanelRef, (event) => {
+    // Calculate visible height (accounting for border - 2 lines for top/bottom)
+    const visibleHeight = Math.max(1, contentHeight - 2);
+    const maxOffset = Math.max(0, requests.length - visibleHeight);
     if (event.button === "wheel-up") {
-      setSelectedIndex((prev) => Math.max(prev - 1, 0));
+      setListScrollOffset((prev) => Math.max(prev - 1, 0));
     } else if (event.button === "wheel-down") {
-      setSelectedIndex((prev) => Math.min(prev + 1, requests.length - 1));
+      setListScrollOffset((prev) => Math.min(prev + 1, maxOffset));
     }
   });
 
@@ -201,6 +205,12 @@ function AppContent({ __testEnableInput }: AppProps): React.ReactElement {
     { isActive: __testEnableInput || isRawModeSupported === true },
   );
 
+  // Calculate layout
+  const listWidth = Math.floor(columns * 0.4);
+  const accordionWidth = columns - listWidth;
+  // Status bar takes 2 rows (border line + content line)
+  const contentHeight = rows - 2;
+
   // Keep selection in bounds when requests change
   React.useEffect(() => {
     if (selectedIndex >= requests.length && requests.length > 0) {
@@ -208,11 +218,15 @@ function AppContent({ __testEnableInput }: AppProps): React.ReactElement {
     }
   }, [requests.length, selectedIndex]);
 
-  // Calculate layout
-  const listWidth = Math.floor(columns * 0.4);
-  const accordionWidth = columns - listWidth;
-  // Status bar takes 2 rows (border line + content line)
-  const contentHeight = rows - 2;
+  // Auto-scroll list view when selection moves outside visible area
+  React.useEffect(() => {
+    const visibleHeight = Math.max(1, contentHeight - 2);
+    if (selectedIndex < listScrollOffset) {
+      setListScrollOffset(selectedIndex);
+    } else if (selectedIndex >= listScrollOffset + visibleHeight) {
+      setListScrollOffset(selectedIndex - visibleHeight + 1);
+    }
+  }, [selectedIndex, contentHeight, listScrollOffset]);
 
   // Loading state
   if (isLoading && requests.length === 0) {
@@ -252,6 +266,7 @@ function AppContent({ __testEnableInput }: AppProps): React.ReactElement {
           height={contentHeight}
           showFullUrl={showFullUrl}
           onItemClick={handleItemClick}
+          scrollOffset={listScrollOffset}
         />
         <AccordionPanel
           ref={accordionPanelRef}
