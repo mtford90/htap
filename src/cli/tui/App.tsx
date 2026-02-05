@@ -262,8 +262,9 @@ function AppContent({ __testEnableInput }: AppProps): React.ReactElement {
           showStatus("No requests to export");
         }
       } else if (input === "u") {
-        setShowFullUrl((prev) => !prev);
-        showStatus(showFullUrl ? "Showing path" : "Showing full URL");
+        const newShowFullUrl = !showFullUrl;
+        setShowFullUrl(newShowFullUrl);
+        showStatus(newShowFullUrl ? "Showing full URL" : "Showing path only");
       } else if (input === "s") {
         // Save binary content
         if (currentBodyIsSaveable) {

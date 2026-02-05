@@ -49,6 +49,17 @@ describe("generateFilename", () => {
     // Should use first 8 chars of ID
     expect(filename).toMatch(/^abc12345-\d+\.png$/);
   });
+
+  it("should handle invalid URLs gracefully", () => {
+    // Invalid URL should fall through to content-type detection
+    const filename = generateFilename("abc123", "image/png", "not-a-valid-url");
+    expect(filename).toMatch(/^abc123-\d+\.png$/);
+  });
+
+  it("should use .bin for invalid URL with no content-type", () => {
+    const filename = generateFilename("abc123", undefined, ":::invalid:::");
+    expect(filename).toMatch(/^abc123-\d+\.bin$/);
+  });
 });
 
 describe("saveBinaryContent", () => {

@@ -3,6 +3,7 @@
  */
 
 import type { CapturedRequest } from "../../../shared/types.js";
+import { getHtpxVersion } from "../../../shared/version.js";
 
 /**
  * HAR 1.2 specification types.
@@ -192,7 +193,7 @@ export function generateHar(requests: CapturedRequest[]): Har {
       version: "1.2",
       creator: {
         name: "htpx",
-        version: "1.0.0",
+        version: getHtpxVersion(),
       },
       entries: requests.map(requestToHarEntry),
     },

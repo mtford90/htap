@@ -25,14 +25,19 @@ export function generateFilename(
   url: string
 ): string {
   // Try to extract extension from URL first
-  const urlPath = new URL(url).pathname;
-  const urlExtMatch = urlPath.match(/\.([a-zA-Z0-9]+)$/);
-
   let extension = "";
 
-  if (urlExtMatch?.[1]) {
-    extension = urlExtMatch[1].toLowerCase();
-  } else if (contentType) {
+  try {
+    const urlPath = new URL(url).pathname;
+    const urlExtMatch = urlPath.match(/\.([a-zA-Z0-9]+)$/);
+    if (urlExtMatch?.[1]) {
+      extension = urlExtMatch[1].toLowerCase();
+    }
+  } catch {
+    // Invalid URL, fall through to content-type detection
+  }
+
+  if (!extension && contentType) {
     // Derive extension from content type
     extension = getExtensionFromContentType(contentType);
   }

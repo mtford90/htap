@@ -2,7 +2,7 @@
  * Single request row in the request list.
  */
 
-import React, { useRef, useState } from "react";
+import React, { useRef, useState, memo } from "react";
 import { Box, Text, type DOMElement } from "ink";
 import { useOnClick, useOnMouseEnter, useOnMouseLeave } from "@ink-tools/ink-mouse";
 import type { CapturedRequest } from "../../../shared/types.js";
@@ -55,7 +55,7 @@ function getMethodColour(method: string): string {
   }
 }
 
-export function RequestListItem({
+export const RequestListItem = memo(function RequestListItem({
   request,
   isSelected,
   width,
@@ -112,4 +112,4 @@ export function RequestListItem({
       <Text dimColor>{duration.padStart(durationWidth)}</Text>
     </Box>
   );
-}
+});

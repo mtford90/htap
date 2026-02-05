@@ -44,30 +44,19 @@ Comprehensive code review conducted across 8 dimensions using parallel opus agen
 
 ---
 
-- [ ] **1.3: Stale closure in showStatus toggle message**
+- [x] **1.3: Stale closure in showStatus toggle message** ✓
 
   **File:** `src/cli/tui/App.tsx:264-266`
 
-  ```tsx
-  } else if (input === "u") {
-    setShowFullUrl((prev) => !prev);
-    showStatus(showFullUrl ? "Showing path" : "Showing full URL");
-  }
-  ```
-
-  **Issue:** The message is based on the **current** value of `showFullUrl`, not the **next** value. The logic is inverted.
-
-  **Fix:** Calculate new value first, then use it for both setState and showStatus.
+  **Fixed:** Now calculates new value first, then uses it for both setState and showStatus.
 
 ---
 
-- [ ] **1.4: Missing React.memo on list items**
+- [x] **1.4: Missing React.memo on list items** ✓
 
   **File:** `src/cli/tui/components/RequestListItem.tsx`
 
-  **Issue:** `RequestListItem` is rendered for every visible request and is not wrapped in `React.memo`. When any state changes in the parent, all list items re-render.
-
-  **Fix:** Wrap component in `React.memo()`.
+  **Fixed:** Wrapped component in `memo()`.
 
 ---
 
@@ -159,43 +148,25 @@ Comprehensive code review conducted across 8 dimensions using parallel opus agen
 
 ---
 
-- [ ] **3.2: Hardcoded version in HAR export**
+- [x] **3.2: Hardcoded version in HAR export** ✓
 
   **File:** `src/cli/tui/utils/har.ts:192-196`
 
-  ```typescript
-  creator: {
-    name: "htpx",
-    version: "1.0.0",  // Should use getHtpxVersion()
-  },
-  ```
-
-  **Fix:** Import and use `getHtpxVersion()`.
+  **Fixed:** Now imports and uses `getHtpxVersion()`.
 
 ---
 
-- [ ] **3.3: Missing try-catch around URL parsing**
+- [x] **3.3: Missing try-catch around URL parsing** ✓
 
   **File:** `src/cli/tui/hooks/useSaveBinary.ts:28`
 
-  ```typescript
-  const urlPath = new URL(url).pathname;
-  ```
-
-  **Issue:** Will throw if URL is invalid.
-
-  **Fix:** Wrap in try-catch, provide fallback.
+  **Fixed:** Wrapped in try-catch, falls through to content-type detection on invalid URL.
 
 ---
 
-- [ ] **3.4: Dead code - unused components**
+- [x] **3.4: Dead code - unused components** ✓
 
-  **Files:**
-  - `src/cli/tui/components/BodyView.tsx` - unused
-  - `src/cli/tui/components/HeadersView.tsx` - unused
-  - `src/cli/tui/components/Modal.tsx` - incomplete refactoring?
-
-  **Fix:** Delete if truly unused, or integrate if intended.
+  **Fixed:** Deleted `BodyView.tsx` and `HeadersView.tsx`. `Modal.tsx` did not exist.
 
 ---
 
@@ -298,13 +269,9 @@ Comprehensive code review conducted across 8 dimensions using parallel opus agen
 
 ---
 
-- [ ] **4.4: Coverage theatre - types.test.ts**
+- [x] **4.4: Coverage theatre - types.test.ts** ✓
 
-  **File:** `tests/unit/types.test.ts`
-
-  **Issue:** Just creates objects matching TypeScript interfaces. Provides no runtime validation value.
-
-  **Fix:** Delete or convert to actual validation tests.
+  **Fixed:** Deleted `tests/unit/types.test.ts`.
 
 ---
 
@@ -580,12 +547,12 @@ Comprehensive code review conducted across 8 dimensions using parallel opus agen
 
 ## Quick Wins (can fix in minutes)
 
-- [ ] 1.3 - Stale closure in toggle message
-- [ ] 1.4 - Add React.memo to RequestListItem
-- [ ] 3.2 - Use getHtpxVersion() in HAR export
-- [ ] 3.3 - Add try-catch around URL parsing
-- [ ] 3.4 - Delete dead code files
-- [ ] 4.4 - Delete types.test.ts
+- [x] 1.3 - Stale closure in toggle message ✓
+- [x] 1.4 - Add React.memo to RequestListItem ✓
+- [x] 3.2 - Use getHtpxVersion() in HAR export ✓
+- [x] 3.3 - Add try-catch around URL parsing ✓
+- [x] 3.4 - Delete dead code files ✓
+- [x] 4.4 - Delete types.test.ts ✓
 
 ## High Impact (should prioritise)
 
