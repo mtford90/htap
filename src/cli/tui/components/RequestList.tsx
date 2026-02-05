@@ -4,12 +4,12 @@
 
 import React, { forwardRef } from "react";
 import { Box, Text, type DOMElement } from "ink";
-import type { CapturedRequest } from "../../../shared/types.js";
+import type { CapturedRequestSummary } from "../../../shared/types.js";
 import { RequestListItem } from "./RequestListItem.js";
 import { Panel } from "./Panel.js";
 
 interface RequestListProps {
-  requests: CapturedRequest[];
+  requests: CapturedRequestSummary[];
   selectedIndex: number;
   isActive: boolean;
   isHovered?: boolean;

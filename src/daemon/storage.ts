@@ -1,6 +1,6 @@
 import Database from "better-sqlite3";
 import { v4 as uuidv4 } from "uuid";
-import type { CapturedRequest, Session } from "../shared/types.js";
+import type { CapturedRequest, CapturedRequestSummary, Session } from "../shared/types.js";
 import { createLogger, type LogLevel, type Logger } from "../shared/logger.js";
 
 const SCHEMA = `
@@ -291,6 +291,70 @@ export class RequestRepository {
   }
 
   /**
+   * List request summaries (excludes body/header data for performance).
+   * Use this for list views where full request data isn't needed.
+   */
+  listRequestsSummary(
+    options: { sessionId?: string; label?: string; limit?: number; offset?: number } = {}
+  ): CapturedRequestSummary[] {
+    const conditions: string[] = [];
+    const params: (string | number)[] = [];
+
+    if (options.sessionId) {
+      conditions.push("session_id = ?");
+      params.push(options.sessionId);
+    }
+
+    if (options.label) {
+      conditions.push("label = ?");
+      params.push(options.label);
+    }
+
+    const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(" AND ")}` : "";
+    const limit = options.limit ?? 1000;
+    const offset = options.offset ?? 0;
+
+    const stmt = this.db.prepare(`
+      SELECT
+        id,
+        session_id,
+        label,
+        timestamp,
+        method,
+        url,
+        host,
+        path,
+        response_status,
+        duration_ms,
+        COALESCE(LENGTH(request_body), 0) as request_body_size,
+        COALESCE(LENGTH(response_body), 0) as response_body_size
+      FROM requests
+      ${whereClause}
+      ORDER BY timestamp DESC
+      LIMIT ? OFFSET ?
+    `);
+
+    params.push(limit, offset);
+
+    const rows = stmt.all(...params) as DbRequestSummaryRow[];
+
+    return rows.map((row) => ({
+      id: row.id,
+      sessionId: row.session_id,
+      label: row.label ?? undefined,
+      timestamp: row.timestamp,
+      method: row.method,
+      url: row.url,
+      host: row.host,
+      path: row.path,
+      responseStatus: row.response_status ?? undefined,
+      durationMs: row.duration_ms ?? undefined,
+      requestBodySize: row.request_body_size,
+      responseBodySize: row.response_body_size,
+    }));
+  }
+
+  /**
    * Count requests, optionally filtered by session or label.
    */
   countRequests(options: { sessionId?: string; label?: string } = {}): number {
@@ -376,4 +440,19 @@ interface DbRequestRow {
   response_body_truncated: number;
   duration_ms: number | null;
   created_at: number;
+}
+
+interface DbRequestSummaryRow {
+  id: string;
+  session_id: string;
+  label: string | null;
+  timestamp: number;
+  method: string;
+  url: string;
+  host: string;
+  path: string;
+  response_status: number | null;
+  duration_ms: number | null;
+  request_body_size: number;
+  response_body_size: number;
 }

@@ -21,6 +21,27 @@ export interface CapturedRequest {
   durationMs?: number;
 }
 
+/**
+ * Summary version of CapturedRequest for list views.
+ * Excludes body and header data to reduce transfer size.
+ */
+export interface CapturedRequestSummary {
+  id: string;
+  sessionId: string;
+  label?: string;
+  timestamp: number;
+  method: string;
+  url: string;
+  host: string;
+  path: string;
+  responseStatus?: number;
+  durationMs?: number;
+  /** Size of request body in bytes (without transferring the body itself) */
+  requestBodySize: number;
+  /** Size of response body in bytes (without transferring the body itself) */
+  responseBodySize: number;
+}
+
 export interface Session {
   id: string;
   label?: string;

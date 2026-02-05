@@ -34,7 +34,7 @@ export const SECTION_RESPONSE = 2;
 export const SECTION_RESPONSE_BODY = 3;
 
 interface AccordionPanelProps {
-  request: CapturedRequest | undefined;
+  request: CapturedRequest | null | undefined;
   width: number;
   height: number;
   isActive: boolean;

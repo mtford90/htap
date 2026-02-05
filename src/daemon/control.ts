@@ -1,7 +1,12 @@
 import * as net from "node:net";
 import * as fs from "node:fs";
 import type { RequestRepository } from "./storage.js";
-import type { CapturedRequest, DaemonStatus, Session } from "../shared/types.js";
+import type {
+  CapturedRequest,
+  CapturedRequestSummary,
+  DaemonStatus,
+  Session,
+} from "../shared/types.js";
 import { createLogger, type LogLevel, type Logger } from "../shared/logger.js";
 
 export interface ControlServerOptions {
@@ -84,10 +89,22 @@ export function createControlServer(options: ControlServerOptions): ControlServe
     },
 
     /**
-     * List captured requests.
+     * List captured requests (full data including bodies).
      */
     listRequests: (params): CapturedRequest[] => {
       return storage.listRequests({
+        sessionId: params["sessionId"] as string | undefined,
+        label: params["label"] as string | undefined,
+        limit: params["limit"] as number | undefined,
+        offset: params["offset"] as number | undefined,
+      });
+    },
+
+    /**
+     * List request summaries (excludes body/header data for performance).
+     */
+    listRequestsSummary: (params): CapturedRequestSummary[] => {
+      return storage.listRequestsSummary({
         sessionId: params["sessionId"] as string | undefined,
         label: params["label"] as string | undefined,
         limit: params["limit"] as number | undefined,
@@ -346,7 +363,7 @@ export class ControlClient {
   }
 
   /**
-   * List captured requests.
+   * List captured requests (full data including bodies).
    */
   async listRequests(options?: {
     sessionId?: string;
@@ -355,6 +372,18 @@ export class ControlClient {
     offset?: number;
   }): Promise<CapturedRequest[]> {
     return this.request<CapturedRequest[]>("listRequests", options);
+  }
+
+  /**
+   * List request summaries (excludes body/header data for performance).
+   */
+  async listRequestsSummary(options?: {
+    sessionId?: string;
+    label?: string;
+    limit?: number;
+    offset?: number;
+  }): Promise<CapturedRequestSummary[]> {
+    return this.request<CapturedRequestSummary[]>("listRequestsSummary", options);
   }
 
   /**

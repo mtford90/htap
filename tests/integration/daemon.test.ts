@@ -276,6 +276,147 @@ describe("daemon integration", () => {
       expect(count).toBe(1);
     });
 
+    it("lists request summaries via control API", async () => {
+      const session = storage.registerSession("test", process.pid);
+      const requestBody = Buffer.from('{"name":"test"}');
+      const responseBody = Buffer.from('{"id":1,"name":"test"}');
+
+      const requestId = storage.saveRequest({
+        sessionId: session.id,
+        timestamp: Date.now(),
+        method: "POST",
+        url: "https://api.example.com/users",
+        host: "api.example.com",
+        path: "/users",
+        requestHeaders: { "content-type": "application/json" },
+        requestBody,
+      });
+
+      storage.updateRequestResponse(requestId, {
+        status: 201,
+        headers: { "content-type": "application/json" },
+        body: responseBody,
+        durationMs: 150,
+      });
+
+      const proxy = await createProxy({
+        caKeyPath: paths.caKeyFile,
+        caCertPath: paths.caCertFile,
+        storage,
+        sessionId: session.id,
+      });
+      cleanup.push(proxy.stop);
+
+      const controlServer = createControlServer({
+        socketPath: paths.controlSocketFile,
+        storage,
+        proxyPort: proxy.port,
+        version: "1.0.0",
+      });
+      cleanup.push(controlServer.close);
+
+      const client = new ControlClient(paths.controlSocketFile);
+
+      // Get summaries
+      const summaries = await client.listRequestsSummary();
+      expect(summaries).toHaveLength(1);
+
+      const summary = summaries[0];
+      expect(summary?.method).toBe("POST");
+      expect(summary?.path).toBe("/users");
+      expect(summary?.responseStatus).toBe(201);
+      expect(summary?.durationMs).toBe(150);
+
+      // Should have body sizes
+      expect(summary?.requestBodySize).toBe(requestBody.length);
+      expect(summary?.responseBodySize).toBe(responseBody.length);
+
+      // Should NOT have body/header data (type checking ensures this)
+      expect("requestBody" in summary).toBe(false);
+      expect("responseBody" in summary).toBe(false);
+    });
+
+    it("gets individual request with full data via control API", async () => {
+      const session = storage.registerSession("test", process.pid);
+      const requestBody = Buffer.from('{"name":"test"}');
+      const responseBody = Buffer.from('{"id":1}');
+
+      const requestId = storage.saveRequest({
+        sessionId: session.id,
+        timestamp: Date.now(),
+        method: "POST",
+        url: "https://api.example.com/users",
+        host: "api.example.com",
+        path: "/users",
+        requestHeaders: { "content-type": "application/json" },
+        requestBody,
+      });
+
+      storage.updateRequestResponse(requestId, {
+        status: 201,
+        headers: { "content-type": "application/json" },
+        body: responseBody,
+        durationMs: 100,
+      });
+
+      const proxy = await createProxy({
+        caKeyPath: paths.caKeyFile,
+        caCertPath: paths.caCertFile,
+        storage,
+        sessionId: session.id,
+      });
+      cleanup.push(proxy.stop);
+
+      const controlServer = createControlServer({
+        socketPath: paths.controlSocketFile,
+        storage,
+        proxyPort: proxy.port,
+        version: "1.0.0",
+      });
+      cleanup.push(controlServer.close);
+
+      const client = new ControlClient(paths.controlSocketFile);
+
+      // Get full request data
+      const request = await client.getRequest(requestId);
+      expect(request).not.toBeNull();
+      expect(request?.method).toBe("POST");
+      expect(request?.responseStatus).toBe(201);
+
+      // Should have headers
+      expect(request?.requestHeaders).toEqual({ "content-type": "application/json" });
+      expect(request?.responseHeaders).toEqual({ "content-type": "application/json" });
+
+      // Should have body data (as Buffer after revival)
+      expect(request?.requestBody).toEqual(requestBody);
+      expect(request?.responseBody).toEqual(responseBody);
+    });
+
+    it("returns null for non-existent request via control API", async () => {
+      const session = storage.registerSession("test", process.pid);
+
+      const proxy = await createProxy({
+        caKeyPath: paths.caKeyFile,
+        caCertPath: paths.caCertFile,
+        storage,
+        sessionId: session.id,
+      });
+      cleanup.push(proxy.stop);
+
+      const controlServer = createControlServer({
+        socketPath: paths.controlSocketFile,
+        storage,
+        proxyPort: proxy.port,
+        version: "1.0.0",
+      });
+      cleanup.push(controlServer.close);
+
+      const client = new ControlClient(paths.controlSocketFile);
+
+      const request = await client.getRequest("non-existent-id");
+      expect(request).toBeNull();
+    });
+
     it("registers sessions via control API", async () => {
       const proxy = await createProxy({
         caKeyPath: paths.caKeyFile,

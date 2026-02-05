@@ -335,4 +335,127 @@ describe("RequestRepository", () => {
       expect(count).toBe(0);
     });
   });
+
+  describe("listRequestsSummary", () => {
+    let sessionId: string;
+
+    beforeEach(() => {
+      const session = repo.registerSession("test", 1);
+      sessionId = session.id;
+    });
+
+    it("returns summaries without body data", () => {
+      const requestBody = Buffer.from('{"name":"test"}');
+      const responseBody = Buffer.from('{"id":1}');
+
+      const id = repo.saveRequest({
+        sessionId,
+        timestamp: Date.now(),
+        method: "POST",
+        url: "https://api.example.com/users",
+        host: "api.example.com",
+        path: "/users",
+        requestHeaders: { "Content-Type": "application/json" },
+        requestBody,
+      });
+
+      repo.updateRequestResponse(id, {
+        status: 201,
+        headers: { "Content-Type": "application/json" },
+        body: responseBody,
+        durationMs: 100,
+      });
+
+      const summaries = repo.listRequestsSummary();
+
+      expect(summaries).toHaveLength(1);
+      const summary = summaries[0];
+      expect(summary).toBeDefined();
+
+      // Should have metadata
+      expect(summary?.id).toBe(id);
+      expect(summary?.method).toBe("POST");
+      expect(summary?.url).toBe("https://api.example.com/users");
+      expect(summary?.responseStatus).toBe(201);
+      expect(summary?.durationMs).toBe(100);
+
+      // Should have body sizes
+      expect(summary?.requestBodySize).toBe(requestBody.length);
+      expect(summary?.responseBodySize).toBe(responseBody.length);
+
+      // Should NOT have body data (these fields don't exist on summary type)
+      if (summary) {
+        expect("requestBody" in summary).toBe(false);
+        expect("responseBody" in summary).toBe(false);
+        expect("requestHeaders" in summary).toBe(false);
+        expect("responseHeaders" in summary).toBe(false);
+      }
+    });
+
+    it("returns zero for null body sizes", () => {
+      repo.saveRequest({
+        sessionId,
+        timestamp: Date.now(),
+        method: "GET",
+        url: "https://api.example.com/users",
+        host: "api.example.com",
+        path: "/users",
+        requestHeaders: {},
+      });
+
+      const summaries = repo.listRequestsSummary();
+
+      expect(summaries[0]?.requestBodySize).toBe(0);
+      expect(summaries[0]?.responseBodySize).toBe(0);
+    });
+
+    it("filters by session", () => {
+      const otherSession = repo.registerSession("other", 2);
+
+      repo.saveRequest({
+        sessionId,
+        timestamp: Date.now(),
+        method: "GET",
+        url: "https://api.example.com/a",
+        host: "api.example.com",
+        path: "/a",
+        requestHeaders: {},
+      });
+
+      repo.saveRequest({
+        sessionId: otherSession.id,
+        timestamp: Date.now(),
+        method: "GET",
+        url: "https://api.example.com/b",
+        host: "api.example.com",
+        path: "/b",
+        requestHeaders: {},
+      });
+
+      const summaries = repo.listRequestsSummary({ sessionId });
+
+      expect(summaries).toHaveLength(1);
+      expect(summaries[0]?.path).toBe("/a");
+    });
+
+    it("supports pagination", () => {
+      for (let i = 0; i < 5; i++) {
+        repo.saveRequest({
+          sessionId,
+          timestamp: Date.now() + i,
+          method: "GET",
+          url: `https://api.example.com/${i}`,
+          host: "api.example.com",
+          path: `/${i}`,
+          requestHeaders: {},
+        });
+      }
+
+      const page1 = repo.listRequestsSummary({ limit: 2 });
+      const page2 = repo.listRequestsSummary({ limit: 2, offset: 2 });
+
+      expect(page1).toHaveLength(2);
+      expect(page2).toHaveLength(2);
+    });
+  });
 });
