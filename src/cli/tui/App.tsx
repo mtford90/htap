@@ -2,12 +2,14 @@
  * Root TUI component for browsing captured HTTP traffic.
  */
 
-import React, { useState, useCallback, useRef } from "react";
+import React, { useState, useCallback, useRef, useMemo } from "react";
 import { Box, Text, useInput, useApp, useStdin } from "ink";
 import { MouseProvider, useOnClick, useOnWheel, useOnMouseEnter, useOnMouseLeave } from "@ink-tools/ink-mouse";
 import { useStdoutDimensions } from "./hooks/useStdoutDimensions.js";
 import { useRequests } from "./hooks/useRequests.js";
 import { useExport } from "./hooks/useExport.js";
+import { useSaveBinary, generateFilename } from "./hooks/useSaveBinary.js";
+import { formatSize } from "./utils/formatters.js";
 import { RequestList } from "./components/RequestList.js";
 import {
   AccordionPanel,
@@ -15,8 +17,10 @@ import {
   SECTION_REQUEST_BODY,
   SECTION_RESPONSE,
   SECTION_RESPONSE_BODY,
+  isSaveableBody,
 } from "./components/AccordionPanel.js";
 import { StatusBar } from "./components/StatusBar.js";
+import { SaveModal, type SaveLocation } from "./components/SaveModal.js";
 
 interface AppProps {
   /** Enable keyboard input in tests (bypasses TTY check) */
@@ -32,6 +36,7 @@ function AppContent({ __testEnableInput }: AppProps): React.ReactElement {
 
   const { requests, isLoading, error, refresh } = useRequests();
   const { exportCurl, exportHar } = useExport();
+  const { saveBinary } = useSaveBinary();
 
   const [selectedIndex, setSelectedIndex] = useState(0);
   const [activePanel, setActivePanel] = useState<Panel>("list");
@@ -45,6 +50,10 @@ function AppContent({ __testEnableInput }: AppProps): React.ReactElement {
   const [expandedSections, setExpandedSections] = useState<Set<number>>(
     () => new Set([SECTION_REQUEST, SECTION_RESPONSE_BODY]),
   );
+
+  // Save modal state
+  const [showSaveModal, setShowSaveModal] = useState(false);
+  const [savingBodyType, setSavingBodyType] = useState<"request" | "response" | null>(null);
 
   // Refs for mouse interaction
   const listPanelRef = useRef(null);
@@ -108,6 +117,61 @@ function AppContent({ __testEnableInput }: AppProps): React.ReactElement {
     setStatusMessage(message);
     setTimeout(() => setStatusMessage(undefined), 3000);
   }, []);
+
+  // Determine if the currently focused body section is saveable (binary content)
+  const currentBodyIsSaveable = useMemo(() => {
+    if (!selectedRequest || activePanel !== "accordion") return false;
+
+    if (focusedSection === SECTION_REQUEST_BODY) {
+      return isSaveableBody(
+        selectedRequest.requestBody,
+        selectedRequest.requestHeaders["content-type"],
+        selectedRequest.requestBodyTruncated
+      );
+    }
+    if (focusedSection === SECTION_RESPONSE_BODY) {
+      return isSaveableBody(
+        selectedRequest.responseBody,
+        selectedRequest.responseHeaders?.["content-type"],
+        selectedRequest.responseBodyTruncated
+      );
+    }
+    return false;
+  }, [selectedRequest, activePanel, focusedSection]);
+
+  // Handle save from modal
+  const handleSave = useCallback(
+    async (location: SaveLocation, customPath?: string) => {
+      if (!selectedRequest || !savingBodyType) return;
+
+      const isRequestBody = savingBodyType === "request";
+      const body = isRequestBody ? selectedRequest.requestBody : selectedRequest.responseBody;
+      const contentType = isRequestBody
+        ? selectedRequest.requestHeaders["content-type"]
+        : selectedRequest.responseHeaders?.["content-type"];
+
+      if (!body) {
+        showStatus("No body to save");
+        setShowSaveModal(false);
+        setSavingBodyType(null);
+        return;
+      }
+
+      const result = await saveBinary(
+        body,
+        selectedRequest.id,
+        contentType,
+        selectedRequest.url,
+        location,
+        customPath
+      );
+
+      showStatus(result.success ? result.message : `Error: ${result.message}`);
+      setShowSaveModal(false);
+      setSavingBodyType(null);
+    },
+    [selectedRequest, savingBodyType, saveBinary, showStatus]
+  );
 
   // Handle keyboard input (only when raw mode is supported, i.e. running in a TTY)
   useInput(
@@ -200,9 +264,17 @@ function AppContent({ __testEnableInput }: AppProps): React.ReactElement {
       } else if (input === "u") {
         setShowFullUrl((prev) => !prev);
         showStatus(showFullUrl ? "Showing path" : "Showing full URL");
+      } else if (input === "s") {
+        // Save binary content
+        if (currentBodyIsSaveable) {
+          setSavingBodyType(focusedSection === SECTION_REQUEST_BODY ? "request" : "response");
+          setShowSaveModal(true);
+        } else if (activePanel === "accordion" && (focusedSection === SECTION_REQUEST_BODY || focusedSection === SECTION_RESPONSE_BODY)) {
+          showStatus("No binary content to save");
+        }
       }
     },
-    { isActive: __testEnableInput || isRawModeSupported === true },
+    { isActive: (__testEnableInput || isRawModeSupported === true) && !showSaveModal },
   );
 
   // Calculate layout
@@ -249,6 +321,32 @@ function AppContent({ __testEnableInput }: AppProps): React.ReactElement {
         </Box>
         <StatusBar message="Press 'q' to quit, 'r' to retry" />
       </Box>
+    );
+  }
+
+  // Save modal - full screen replacement (terminals don't support true overlays)
+  if (showSaveModal && selectedRequest && savingBodyType) {
+    const isRequestBody = savingBodyType === "request";
+    const body = isRequestBody ? selectedRequest.requestBody : selectedRequest.responseBody;
+    const contentType = isRequestBody
+      ? selectedRequest.requestHeaders["content-type"]
+      : selectedRequest.responseHeaders?.["content-type"];
+    const filename = generateFilename(selectedRequest.id, contentType, selectedRequest.url);
+    const fileSize = formatSize(body?.length);
+
+    return (
+      <SaveModal
+        filename={filename}
+        fileSize={fileSize}
+        width={columns}
+        height={rows}
+        onSave={(location, customPath) => void handleSave(location, customPath)}
+        onClose={() => {
+          setShowSaveModal(false);
+          setSavingBodyType(null);
+        }}
+        isActive={__testEnableInput || isRawModeSupported === true}
+      />
     );
   }
 

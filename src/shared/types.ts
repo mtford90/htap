@@ -13,9 +13,11 @@ export interface CapturedRequest {
   path: string;
   requestHeaders: Record<string, string>;
   requestBody?: Buffer;
+  requestBodyTruncated?: boolean;
   responseStatus?: number;
   responseHeaders?: Record<string, string>;
   responseBody?: Buffer;
+  responseBodyTruncated?: boolean;
   durationMs?: number;
 }
 

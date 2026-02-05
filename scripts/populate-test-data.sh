@@ -129,7 +129,16 @@ make_request GET "https://httpbin.org/status/500" "500 Server Error"
 echo ""
 echo -e "  ${BLUE}--- Other Content Types ---${NC}"
 make_request GET "https://httpbin.org/xml" "XML response"
+
+# Binary content (images, etc.) - for testing binary detection
+echo ""
+echo -e "  ${BLUE}--- Binary Content ---${NC}"
 make_request GET "https://httpbin.org/image/png" "PNG image"
+make_request GET "https://httpbin.org/image/jpeg" "JPEG image"
+make_request GET "https://httpbin.org/image/webp" "WebP image"
+make_request GET "https://httpbin.org/image/svg" "SVG image (text-based)"
+make_request GET "https://www.w3.org/WAI/WCAG21/Techniques/pdf/img/table-word.pdf" "PDF document"
+make_request GET "https://httpbin.org/bytes/8192" "Random bytes (8KB)"
 
 # Additional useful requests
 echo ""

@@ -17,6 +17,7 @@ const KEY_HINTS: KeyHint[] = [
   { key: "Enter", action: "expand" },
   { key: "c", action: "curl" },
   { key: "h", action: "HAR" },
+  { key: "s", action: "save" },
   { key: "u", action: "URL" },
   { key: "q", action: "quit" },
 ];

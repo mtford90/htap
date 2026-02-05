@@ -22,9 +22,11 @@ CREATE TABLE IF NOT EXISTS requests (
     path TEXT NOT NULL,
     request_headers TEXT,
     request_body BLOB,
+    request_body_truncated INTEGER DEFAULT 0,
     response_status INTEGER,
     response_headers TEXT,
     response_body BLOB,
+    response_body_truncated INTEGER DEFAULT 0,
     duration_ms INTEGER,
     created_at INTEGER DEFAULT (unixepoch()),
     FOREIGN KEY (session_id) REFERENCES sessions(id)
@@ -35,6 +37,13 @@ CREATE INDEX IF NOT EXISTS idx_requests_session ON requests(session_id);
 CREATE INDEX IF NOT EXISTS idx_requests_label ON requests(label);
 `;
 
+// Migrations to apply to existing databases
+const MIGRATIONS = [
+  // Add truncation columns if they don't exist
+  `ALTER TABLE requests ADD COLUMN request_body_truncated INTEGER DEFAULT 0`,
+  `ALTER TABLE requests ADD COLUMN response_body_truncated INTEGER DEFAULT 0`,
+];
+
 export class RequestRepository {
   private db: Database.Database;
   private logger: Logger | undefined;
@@ -43,9 +52,23 @@ export class RequestRepository {
     this.db = new Database(dbPath);
     this.db.pragma("journal_mode = WAL");
     this.db.exec(SCHEMA);
+    this.applyMigrations();
 
     if (projectRoot) {
       this.logger = createLogger("storage", projectRoot, logLevel);
+    }
+  }
+
+  /**
+   * Apply database migrations, ignoring errors for already-applied migrations.
+   */
+  private applyMigrations(): void {
+    for (const migration of MIGRATIONS) {
+      try {
+        this.db.exec(migration);
+      } catch {
+        // Column likely already exists, ignore
+      }
     }
   }
 
@@ -153,10 +176,10 @@ export class RequestRepository {
     const stmt = this.db.prepare(`
       INSERT INTO requests (
         id, session_id, label, timestamp, method, url, host, path,
-        request_headers, request_body, response_status, response_headers,
-        response_body, duration_ms
+        request_headers, request_body, request_body_truncated, response_status, response_headers,
+        response_body, response_body_truncated, duration_ms
       )
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `);
 
     stmt.run(
@@ -170,9 +193,11 @@ export class RequestRepository {
       request.path,
       request.requestHeaders ? JSON.stringify(request.requestHeaders) : null,
       request.requestBody ?? null,
+      request.requestBodyTruncated ? 1 : 0,
       request.responseStatus ?? null,
       request.responseHeaders ? JSON.stringify(request.responseHeaders) : null,
       request.responseBody ?? null,
+      request.responseBodyTruncated ? 1 : 0,
       request.durationMs ?? null
     );
 
@@ -196,11 +221,12 @@ export class RequestRepository {
       headers: Record<string, string>;
       body?: Buffer;
       durationMs: number;
+      responseBodyTruncated?: boolean;
     }
   ): void {
     const stmt = this.db.prepare(`
       UPDATE requests
-      SET response_status = ?, response_headers = ?, response_body = ?, duration_ms = ?
+      SET response_status = ?, response_headers = ?, response_body = ?, response_body_truncated = ?, duration_ms = ?
       WHERE id = ?
     `);
 
@@ -208,6 +234,7 @@ export class RequestRepository {
       response.status,
       JSON.stringify(response.headers),
       response.body ?? null,
+      response.responseBodyTruncated ? 1 : 0,
       response.durationMs,
       id
     );
@@ -319,11 +346,13 @@ export class RequestRepository {
         ? (JSON.parse(row.request_headers) as Record<string, string>)
         : {},
       requestBody: row.request_body ?? undefined,
+      requestBodyTruncated: row.request_body_truncated === 1,
       responseStatus: row.response_status ?? undefined,
       responseHeaders: row.response_headers
         ? (JSON.parse(row.response_headers) as Record<string, string>)
         : undefined,
       responseBody: row.response_body ?? undefined,
+      responseBodyTruncated: row.response_body_truncated === 1,
       durationMs: row.duration_ms ?? undefined,
     };
   }
@@ -340,9 +369,11 @@ interface DbRequestRow {
   path: string;
   request_headers: string | null;
   request_body: Buffer | null;
+  request_body_truncated: number;
   response_status: number | null;
   response_headers: string | null;
   response_body: Buffer | null;
+  response_body_truncated: number;
   duration_ms: number | null;
   created_at: number;
 }

@@ -16,6 +16,7 @@ import { Box, Text, type DOMElement } from "ink";
 import type { CapturedRequest } from "../../../shared/types.js";
 import { AccordionSection } from "./AccordionSection.js";
 import { formatSize } from "../utils/formatters.js";
+import { isBinaryContent, getBinaryTypeDescription } from "../utils/binary.js";
 
 // Box drawing characters for the bottom border
 const BOX = {
@@ -92,20 +93,70 @@ function HeadersContent({
 }
 
 /**
+ * Display truncated body message
+ */
+function TruncatedBodyContent({
+  contentLength,
+}: {
+  contentLength: string | undefined;
+}): React.ReactElement {
+  const size = contentLength ? formatSize(parseInt(contentLength, 10)) : "unknown size";
+  return (
+    <Box flexDirection="column" alignItems="center" justifyContent="center">
+      <Text dimColor>Body too large to capture ({size})</Text>
+      <Text dimColor>Content delivered to client</Text>
+    </Box>
+  );
+}
+
+/**
+ * Display binary body message
+ */
+function BinaryBodyContent({
+  body,
+  contentType,
+}: {
+  body: Buffer;
+  contentType: string | undefined;
+}): React.ReactElement {
+  const description = getBinaryTypeDescription(contentType);
+  const size = formatSize(body.length);
+  return (
+    <Box flexDirection="column" alignItems="center" justifyContent="center">
+      <Text dimColor>
+        {description} content ({size})
+      </Text>
+      <Text color="cyan">Press 's' to save</Text>
+    </Box>
+  );
+}
+
+/**
  * Format body for display with JSON pretty-printing
  */
 function BodyContent({
   body,
   contentType,
   maxLines,
+  isTruncated,
+  contentLength,
 }: {
   body: Buffer | undefined;
   contentType?: string;
   maxLines: number;
+  isTruncated?: boolean;
+  contentLength?: string;
 }): React.ReactElement {
+  // All hooks must be called before any conditional returns
+  const binaryCheck = useMemo(
+    () => isBinaryContent(body, contentType),
+    [body, contentType]
+  );
+
+  // Compute text lines (only used for text content, but must be called unconditionally)
   const lines = useMemo(() => {
     if (!body || body.length === 0) {
-      return ["(empty)"];
+      return [];
     }
 
     const bodyStr = body.toString("utf-8");
@@ -129,6 +180,22 @@ function BodyContent({
     return bodyStr.split("\n");
   }, [body, contentType]);
 
+  // Handle truncated bodies
+  if (isTruncated) {
+    return <TruncatedBodyContent contentLength={contentLength} />;
+  }
+
+  // Handle empty bodies
+  if (!body || body.length === 0) {
+    return <Text dimColor>(empty)</Text>;
+  }
+
+  // Handle binary content
+  if (binaryCheck.isBinary) {
+    return <BinaryBodyContent body={body} contentType={contentType} />;
+  }
+
+  // Text content
   const visibleLines = lines.slice(0, maxLines);
   const remaining = lines.length - visibleLines.length;
 
@@ -142,6 +209,20 @@ function BodyContent({
       {remaining > 0 && <Text dimColor>... {remaining} more lines</Text>}
     </Box>
   );
+}
+
+/**
+ * Check if a body section contains binary content that can be saved.
+ */
+export function isSaveableBody(
+  body: Buffer | undefined,
+  contentType: string | undefined,
+  isTruncated: boolean | undefined
+): boolean {
+  if (isTruncated || !body || body.length === 0) {
+    return false;
+  }
+  return isBinaryContent(body, contentType).isBinary;
 }
 
 /**
@@ -282,7 +363,11 @@ export const AccordionPanel = forwardRef<DOMElement, AccordionPanelProps>(functi
             body={request.requestBody}
             contentType={reqContentType}
             maxLines={getContentLines(heights[SECTION_REQUEST_BODY] ?? 1)}
+            isTruncated={request.requestBodyTruncated}
+            contentLength={request.requestHeaders["content-length"]}
           />
+        ) : request.requestBodyTruncated ? (
+          <TruncatedBodyContent contentLength={request.requestHeaders["content-length"]} />
         ) : (
           <Text dimColor>(no body)</Text>
         )}
@@ -325,7 +410,11 @@ export const AccordionPanel = forwardRef<DOMElement, AccordionPanelProps>(functi
             body={request.responseBody}
             contentType={resContentType}
             maxLines={getContentLines(heights[SECTION_RESPONSE_BODY] ?? 1)}
+            isTruncated={request.responseBodyTruncated}
+            contentLength={request.responseHeaders?.["content-length"]}
           />
+        ) : request.responseBodyTruncated ? (
+          <TruncatedBodyContent contentLength={request.responseHeaders?.["content-length"]} />
         ) : (
           <Text dimColor>(no body)</Text>
         )}

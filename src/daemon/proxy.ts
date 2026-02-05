@@ -16,6 +16,9 @@ interface PassThroughResponse {
   body: CompletedBody;
 }
 
+/** Default maximum body size to capture (10MB) */
+export const DEFAULT_MAX_BODY_SIZE = 10 * 1024 * 1024;
+
 export interface ProxyOptions {
   port?: number;
   caKeyPath: string;
@@ -25,6 +28,8 @@ export interface ProxyOptions {
   label?: string;
   projectRoot?: string;
   logLevel?: LogLevel;
+  /** Maximum body size to capture in bytes. Bodies larger than this are not stored but still proxied. */
+  maxBodySize?: number;
 }
 
 export interface ProxyServer {
@@ -43,7 +48,12 @@ export async function createProxy(options: ProxyOptions): Promise<ProxyServer> {
   const logger = projectRoot ? createLogger("proxy", projectRoot, logLevel) : undefined;
 
   // Map to track request info for response correlation
-  const requestInfo = new Map<string, { ourId: string; timestamp: number }>();
+  const requestInfo = new Map<
+    string,
+    { ourId: string; timestamp: number; requestBodyTruncated: boolean }
+  >();
+
+  const maxBodySize = options.maxBodySize ?? DEFAULT_MAX_BODY_SIZE;
 
   const server = mockttp.getLocal({
     https: {
@@ -52,6 +62,8 @@ export async function createProxy(options: ProxyOptions): Promise<ProxyServer> {
     },
     // Record traffic for potential debugging
     recordTraffic: false,
+    // Limit body capture to prevent memory bloat from large files
+    maxBodySize,
   });
 
   await server.start(options.port);
@@ -70,10 +82,16 @@ export async function createProxy(options: ProxyOptions): Promise<ProxyServer> {
       // Convert headers to simple object
       const headers = flattenHeaders(request.headers);
 
+      // Detect if body was truncated due to maxBodySize
+      // Body is truncated if we got an empty buffer but Content-Length indicates data
+      const contentLength = parseInt(headers["content-length"] ?? "0", 10);
+      const requestBodyTruncated = request.body.buffer.length === 0 && contentLength > 0;
+
       logger?.trace("Request received", {
         method: request.method,
         url: request.url,
         headers,
+        bodyTruncated: requestBodyTruncated,
       });
 
       // Save request to storage and track the ID
@@ -87,10 +105,11 @@ export async function createProxy(options: ProxyOptions): Promise<ProxyServer> {
         path: url.pathname + url.search,
         requestHeaders: headers,
         requestBody: request.body.buffer.length > 0 ? request.body.buffer : undefined,
+        requestBodyTruncated,
       });
 
       // Store mapping from mockttp ID to our ID and timestamp
-      requestInfo.set(request.id, { ourId, timestamp });
+      requestInfo.set(request.id, { ourId, timestamp, requestBodyTruncated });
 
       // Return undefined to pass through without modification
       return undefined;
@@ -110,10 +129,15 @@ export async function createProxy(options: ProxyOptions): Promise<ProxyServer> {
       // Convert headers to simple object
       const headers = flattenHeaders(response.headers);
 
+      // Detect if body was truncated due to maxBodySize
+      const contentLength = parseInt(headers["content-length"] ?? "0", 10);
+      const responseBodyTruncated = response.body.buffer.length === 0 && contentLength > 0;
+
       logger?.trace("Response sent", {
         status: response.statusCode,
         durationMs,
         url: request.url,
+        bodyTruncated: responseBodyTruncated,
       });
 
       // Update request with response data using our ID
@@ -122,6 +146,7 @@ export async function createProxy(options: ProxyOptions): Promise<ProxyServer> {
         headers,
         body: response.body.buffer.length > 0 ? response.body.buffer : undefined,
         durationMs,
+        responseBodyTruncated,
       });
 
       // Return undefined to pass through without modification
