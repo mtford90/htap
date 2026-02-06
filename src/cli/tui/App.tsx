@@ -66,6 +66,13 @@ function AppContent({ __testEnableInput }: AppProps): React.ReactElement {
   // Ref for status message timeout cleanup
   const statusTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
+  // Refs for wheel handler to avoid stale closures
+  // (useOnWheel may not update its stored callback on every render)
+  const contentHeightRef = useRef(rows - 2);
+  contentHeightRef.current = rows - 2;
+  const requestsLengthRef = useRef(requests.length);
+  requestsLengthRef.current = requests.length;
+
   // Get the summary for the currently selected request
   const selectedSummary = requests[selectedIndex];
 
@@ -99,9 +106,9 @@ function AppContent({ __testEnableInput }: AppProps): React.ReactElement {
 
   // Handle scroll wheel on list panel - scrolls the view, not the selection
   useOnWheel(listPanelRef, (event) => {
-    // Calculate visible height (accounting for border - 2 lines for top/bottom)
-    const visibleHeight = Math.max(1, contentHeight - 2);
-    const maxOffset = Math.max(0, requests.length - visibleHeight);
+    // Use refs to avoid stale closures if useOnWheel caches the callback
+    const visibleHeight = Math.max(1, contentHeightRef.current - 2);
+    const maxOffset = Math.max(0, requestsLengthRef.current - visibleHeight);
     if (event.button === "wheel-up") {
       setListScrollOffset((prev) => Math.max(prev - 1, 0));
     } else if (event.button === "wheel-down") {

@@ -49,13 +49,11 @@ Comprehensive code review conducted across 8 dimensions using parallel opus agen
 
 ---
 
-- [ ] **1.5: useOnWheel handlers may capture stale values**
+- [x] **1.5: useOnWheel handlers may capture stale values** ✓
 
-  **File:** `src/cli/tui/App.tsx:85-94`
+  **File:** `src/cli/tui/App.tsx`
 
-  **Issue:** The wheel callback captures `contentHeight` and `requests.length` from the closure. If `useOnWheel` stores the callback without updating it, scroll limits could be incorrect.
-
-  **Fix:** Use refs to track current values.
+  **Fixed:** Added `contentHeightRef` and `requestsLengthRef`, synced on every render. Wheel callback reads from refs instead of closure values.
 
 ---
 
@@ -69,57 +67,35 @@ Comprehensive code review conducted across 8 dimensions using parallel opus agen
 
 ---
 
-- [ ] **2.1: JSON.parse without runtime validation**
+- [x] **2.1: JSON.parse without runtime validation** ✓
 
-  **File:** `src/daemon/control.ts:145`
+  **File:** `src/daemon/control.ts`
 
-  ```typescript
-  const message = JSON.parse(messageStr) as ControlMessage;
-  ```
-
-  **Issue:** Direct cast without validation. Malformed input could cause runtime errors.
-
-  **Fix:** Add type guard function `isControlMessage()`.
+  **Fixed:** Added `isControlMessage()` type guard. Parsed JSON is validated before use; invalid messages throw with a descriptive error.
 
 ---
 
-- [ ] **2.2: Unsafe parameter casting in control handlers**
+- [x] **2.2: Unsafe parameter casting in control handlers** ✓
 
-  **File:** `src/daemon/control.ts:74-112`
+  **File:** `src/daemon/control.ts`
 
-  ```typescript
-  const label = params["label"] as string | undefined;
-  const pid = params["pid"] as number | undefined;
-  const id = params["id"] as string;
-  ```
-
-  **Issue:** These assertions trust incoming `params` without validation.
-
-  **Fix:** Create `validateString()`, `validateNumber()`, `requireString()` helpers.
+  **Fixed:** Added `optionalString()`, `optionalNumber()`, `requireString()` validation helpers. All handlers now use runtime type checks instead of `as` casts.
 
 ---
 
-- [ ] **2.3: Database query results cast without guards**
+- [x] **2.3: Database query results cast without guards** ✓
 
-  **File:** `src/daemon/storage.ts:129-131, 251, 288`
+  **File:** `src/daemon/storage.ts`
 
-  **Issue:** `better-sqlite3` returns `unknown`, casts assume schema matches.
-
-  **Fix:** Add minimal validation for critical queries, or accept the risk for internal DB.
+  **Fixed:** Added `DbSessionRow` and `DbCountRow` interfaces. Replaced all inline type assertions with named interfaces for consistency. Risk accepted for internal DB (schema is controlled by the application).
 
 ---
 
-- [ ] **2.4: RequestHandler type too loose**
+- [x] **2.4: RequestHandler type too loose** ✓
 
-  **File:** `src/daemon/control.ts:35`
+  **File:** `src/daemon/control.ts`
 
-  ```typescript
-  type RequestHandler = (params: Record<string, unknown>) => unknown;
-  ```
-
-  **Issue:** Maximally loose - loses all type safety for the control API.
-
-  **Fix:** Create discriminated union types for each endpoint.
+  **Fixed:** Replaced `Record<string, RequestHandler>` with typed `ControlHandlers` interface that enumerates all valid methods. `handleMessage` uses `in` guard before indexing. Params remain `Record<string, unknown>` (wire format) but are validated at runtime by the helpers from 2.2.
 
 ---
 
@@ -171,19 +147,11 @@ Comprehensive code review conducted across 8 dimensions using parallel opus agen
 
 ---
 
-- [ ] **3.7: Missing JSON.parse error handling in storage**
+- [x] **3.7: Missing JSON.parse error handling in storage** ✓
 
-  **File:** `src/daemon/storage.ts:345-346`
+  **File:** `src/daemon/storage.ts`
 
-  ```typescript
-  requestHeaders: row.request_headers
-    ? (JSON.parse(row.request_headers) as Record<string, string>)
-    : {},
-  ```
-
-  **Issue:** No try-catch - corrupted data could crash the application.
-
-  **Fix:** Wrap in try-catch, return empty object on failure.
+  **Fixed:** Added `safeParseHeaders()` method with try-catch, returns empty object on parse failure. Used for both request and response header parsing in `rowToRequest()`.
 
 ---
 

@@ -37,7 +37,55 @@ interface ControlResponse {
   error?: { code: number; message: string };
 }
 
-type RequestHandler = (params: Record<string, unknown>) => unknown;
+type ControlHandler = (params: Record<string, unknown>) => unknown;
+
+/**
+ * Typed handler map — locks down which methods exist and their return types.
+ */
+interface ControlHandlers {
+  status: ControlHandler;
+  registerSession: ControlHandler;
+  listSessions: ControlHandler;
+  listRequests: ControlHandler;
+  listRequestsSummary: ControlHandler;
+  getRequest: ControlHandler;
+  countRequests: ControlHandler;
+  clearRequests: ControlHandler;
+  ping: ControlHandler;
+}
+
+/**
+ * Runtime type guard for incoming control messages.
+ */
+function isControlMessage(value: unknown): value is ControlMessage {
+  return (
+    typeof value === "object" &&
+    value !== null &&
+    typeof (value as Record<string, unknown>)["id"] === "string" &&
+    typeof (value as Record<string, unknown>)["method"] === "string"
+  );
+}
+
+/**
+ * Parameter validation helpers — runtime checks instead of blind casts.
+ */
+function optionalString(params: Record<string, unknown>, key: string): string | undefined {
+  const value = params[key];
+  return typeof value === "string" ? value : undefined;
+}
+
+function optionalNumber(params: Record<string, unknown>, key: string): number | undefined {
+  const value = params[key];
+  return typeof value === "number" ? value : undefined;
+}
+
+function requireString(params: Record<string, unknown>, key: string): string {
+  const value = params[key];
+  if (typeof value !== "string") {
+    throw new Error(`Missing required string parameter: ${key}`);
+  }
+  return value;
+}
 
 /**
  * Create a Unix socket control server for daemon communication.
@@ -55,10 +103,7 @@ export function createControlServer(options: ControlServerOptions): ControlServe
     fs.unlinkSync(socketPath);
   }
 
-  const handlers: Record<string, RequestHandler> = {
-    /**
-     * Get daemon status.
-     */
+  const handlers: ControlHandlers = {
     status: (): DaemonStatus => {
       const sessions = storage.listSessions();
       const requestCount = storage.countRequests();
@@ -72,75 +117,51 @@ export function createControlServer(options: ControlServerOptions): ControlServe
       };
     },
 
-    /**
-     * Register a new session.
-     */
     registerSession: (params): Session => {
-      const label = params["label"] as string | undefined;
-      const pid = params["pid"] as number | undefined;
+      const label = optionalString(params, "label");
+      const pid = optionalNumber(params, "pid");
       return storage.registerSession(label, pid);
     },
 
-    /**
-     * List all sessions.
-     */
     listSessions: (): Session[] => {
       return storage.listSessions();
     },
 
-    /**
-     * List captured requests (full data including bodies).
-     */
     listRequests: (params): CapturedRequest[] => {
       return storage.listRequests({
-        sessionId: params["sessionId"] as string | undefined,
-        label: params["label"] as string | undefined,
-        limit: params["limit"] as number | undefined,
-        offset: params["offset"] as number | undefined,
+        sessionId: optionalString(params, "sessionId"),
+        label: optionalString(params, "label"),
+        limit: optionalNumber(params, "limit"),
+        offset: optionalNumber(params, "offset"),
       });
     },
 
-    /**
-     * List request summaries (excludes body/header data for performance).
-     */
     listRequestsSummary: (params): CapturedRequestSummary[] => {
       return storage.listRequestsSummary({
-        sessionId: params["sessionId"] as string | undefined,
-        label: params["label"] as string | undefined,
-        limit: params["limit"] as number | undefined,
-        offset: params["offset"] as number | undefined,
+        sessionId: optionalString(params, "sessionId"),
+        label: optionalString(params, "label"),
+        limit: optionalNumber(params, "limit"),
+        offset: optionalNumber(params, "offset"),
       });
     },
 
-    /**
-     * Get a specific request by ID.
-     */
     getRequest: (params): CapturedRequest | null => {
-      const id = params["id"] as string;
+      const id = requireString(params, "id");
       return storage.getRequest(id) ?? null;
     },
 
-    /**
-     * Count requests.
-     */
     countRequests: (params): number => {
       return storage.countRequests({
-        sessionId: params["sessionId"] as string | undefined,
-        label: params["label"] as string | undefined,
+        sessionId: optionalString(params, "sessionId"),
+        label: optionalString(params, "label"),
       });
     },
 
-    /**
-     * Clear all requests.
-     */
     clearRequests: (): { success: boolean } => {
       storage.clearRequests();
       return { success: true };
     },
 
-    /**
-     * Ping - used for health checks.
-     */
     ping: (): { pong: boolean } => {
       return { pong: true };
     },
@@ -159,7 +180,11 @@ export function createControlServer(options: ControlServerOptions): ControlServe
         buffer = buffer.slice(newlineIndex + 1);
 
         try {
-          const message = JSON.parse(messageStr) as ControlMessage;
+          const parsed: unknown = JSON.parse(messageStr);
+          if (!isControlMessage(parsed)) {
+            throw new Error("Invalid control message: missing id or method");
+          }
+          const message = parsed;
           logger?.debug("Control message received", { type: message.method });
           const response = handleMessage(message, handlers);
           socket.write(JSON.stringify(response) + "\n");
@@ -208,14 +233,10 @@ export function createControlServer(options: ControlServerOptions): ControlServe
   };
 }
 
-function handleMessage(
-  message: ControlMessage,
-  handlers: Record<string, RequestHandler>
-): ControlResponse {
+function handleMessage(message: ControlMessage, handlers: ControlHandlers): ControlResponse {
   const { id, method, params } = message;
 
-  const handler = handlers[method];
-  if (!handler) {
+  if (!(method in handlers)) {
     return {
       id,
       error: {
@@ -224,6 +245,8 @@ function handleMessage(
       },
     };
   }
+
+  const handler = handlers[method as keyof ControlHandlers];
 
   try {
     const result = handler(params ?? {});

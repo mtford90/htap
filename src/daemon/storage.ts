@@ -68,8 +68,7 @@ export class RequestRepository {
     const currentVersion = this.db.pragma("user_version", { simple: true }) as number;
     if (currentVersion === 0) {
       const hasData =
-        (this.db.prepare("SELECT COUNT(*) as count FROM requests").get() as { count: number })
-          .count > 0;
+        (this.db.prepare("SELECT COUNT(*) as count FROM requests").get() as DbCountRow).count > 0;
       if (!hasData) {
         const lastMigration = MIGRATIONS[MIGRATIONS.length - 1];
         const latestVersion = lastMigration ? lastMigration.version : 0;
@@ -157,9 +156,7 @@ export class RequestRepository {
       WHERE id = ?
     `);
 
-    const row = stmt.get(id) as
-      | { id: string; label: string | null; pid: number; startedAt: number }
-      | undefined;
+    const row = stmt.get(id) as DbSessionRow | undefined;
 
     if (!row) {
       return undefined;
@@ -183,12 +180,7 @@ export class RequestRepository {
       ORDER BY started_at DESC
     `);
 
-    const rows = stmt.all() as {
-      id: string;
-      label: string | null;
-      pid: number;
-      startedAt: number;
-    }[];
+    const rows = stmt.all() as DbSessionRow[];
 
     return rows.map((row) => ({
       id: row.id,
@@ -408,7 +400,7 @@ export class RequestRepository {
       SELECT COUNT(*) as count FROM requests ${whereClause}
     `);
 
-    const result = stmt.get(...params) as { count: number };
+    const result = stmt.get(...params) as DbCountRow;
 
     return result.count;
   }
@@ -427,6 +419,14 @@ export class RequestRepository {
     this.db.close();
   }
 
+  private safeParseHeaders(json: string): Record<string, string> {
+    try {
+      return JSON.parse(json) as Record<string, string>;
+    } catch {
+      return {};
+    }
+  }
+
   private rowToRequest(row: DbRequestRow): CapturedRequest {
     return {
       id: row.id,
@@ -437,14 +437,12 @@ export class RequestRepository {
       url: row.url,
       host: row.host,
       path: row.path,
-      requestHeaders: row.request_headers
-        ? (JSON.parse(row.request_headers) as Record<string, string>)
-        : {},
+      requestHeaders: row.request_headers ? this.safeParseHeaders(row.request_headers) : {},
       requestBody: row.request_body ?? undefined,
       requestBodyTruncated: row.request_body_truncated === 1,
       responseStatus: row.response_status ?? undefined,
       responseHeaders: row.response_headers
-        ? (JSON.parse(row.response_headers) as Record<string, string>)
+        ? this.safeParseHeaders(row.response_headers)
         : undefined,
       responseBody: row.response_body ?? undefined,
       responseBodyTruncated: row.response_body_truncated === 1,
@@ -486,4 +484,15 @@ interface DbRequestSummaryRow {
   duration_ms: number | null;
   request_body_size: number;
   response_body_size: number;
+}
+
+interface DbSessionRow {
+  id: string;
+  label: string | null;
+  pid: number;
+  startedAt: number;
+}
+
+interface DbCountRow {
+  count: number;
 }
