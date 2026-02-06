@@ -8,7 +8,7 @@ Comprehensive code review conducted across 8 dimensions using parallel opus agen
 - [ ] **2. TypeScript Quality** (4 issues)
 - [ ] **3. Code Completeness** (7 issues)
 - [ ] **4. Test Coverage** (5 issues)
-- [ ] **5. Project Organisation** (4 issues)
+- [x] **5. Project Organisation** (4 issues)
 - [ ] **6. Security** (4 issues)
 - [ ] **7. UX/UI Principles** (8 issues)
 - [ ] **8. Performance** (7 issues)
@@ -208,45 +208,27 @@ Comprehensive code review conducted across 8 dimensions using parallel opus agen
 
 ## 5. Project Organisation
 
-- [ ] **5.1: ControlClient in wrong module**
+- [x] **5.1: ControlClient in wrong module** ✓
 
-  **File:** `src/daemon/control.ts:266-380`
-
-  **Issue:** `ControlClient` is used by CLI/TUI but lives in `daemon/`. Should be in `shared/control-client.ts`.
-
-  **Fix:** Move to `shared/control-client.ts`, update imports.
+  **Fixed:** Moved `ControlClient`, `reviveBuffers`, and shared types (`ControlMessage`, `ControlResponse`) to `src/shared/control-client.ts`. `daemon/control.ts` re-exports `ControlClient` for backward compat and imports shared types. All CLI/TUI/test imports updated.
 
 ---
 
-- [ ] **5.2: shared/daemon.ts imports from daemon/**
+- [x] **5.2: shared/daemon.ts imports from daemon/** ✓
 
-  **File:** `src/shared/daemon.ts:6`
-
-  ```typescript
-  import { ControlClient } from "../daemon/control.js";
-  ```
-
-  **Issue:** "Shared" module depends on "daemon" module - confusing dependency direction.
-
-  **Fix:** Will be resolved by 5.1.
+  **Fixed:** Resolved by 5.1 — `shared/daemon.ts` now imports from `./control-client.js`.
 
 ---
 
-- [ ] **5.3: AccordionPanel.tsx doing too much (451 lines)**
+- [x] **5.3: AccordionPanel.tsx doing too much (451 lines)** ✓
 
-  **File:** `src/cli/tui/components/AccordionPanel.tsx`
-
-  Contains: section height calculation, HTTP status text mapping, content type formatting, binary content detection, headers display, body display, truncation handling.
-
-  **Fix:** Extract helpers to utils, extract sub-components.
+  **Fixed:** Extracted `HeadersContent`, `BodyContent`, `TruncatedBodyContent`, `BinaryBodyContent` to `components/AccordionContent.tsx`. Moved `shortContentType` to `utils/formatters.ts`. AccordionPanel reduced to ~230 lines.
 
 ---
 
-- [ ] **5.4: Repeated patterns across CLI commands**
+- [x] **5.4: Repeated patterns across CLI commands** ✓
 
-  Project root finding and error message formatting patterns repeated in: `clear.ts`, `debug-dump.ts`, `restart.ts`, `status.ts`, `stop.ts`
-
-  **Fix:** Create `requireProjectRoot()` and `getErrorMessage()` helpers.
+  **Fixed:** Created `src/cli/commands/helpers.ts` with `requireProjectRoot()` and `getErrorMessage()`. Updated `clear.ts`, `debug-dump.ts`, `restart.ts`, `status.ts`, `stop.ts`, and `intercept.ts` to use them.
 
 ---
 

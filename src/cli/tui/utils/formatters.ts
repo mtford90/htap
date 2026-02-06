@@ -199,3 +199,20 @@ export function getStatusText(status: number | undefined): string {
   }
   return HTTP_STATUS_TEXT[status] ?? "";
 }
+
+/**
+ * Extract short content type for display (e.g., "application/json" -> "json")
+ */
+export function shortContentType(contentType: string | undefined): string {
+  if (!contentType) return "";
+  // Extract the main type (before any parameters like charset)
+  const mainType = contentType.split(";")[0]?.trim() ?? "";
+  // For common types, show just the subtype
+  if (mainType.startsWith("application/")) {
+    return mainType.replace("application/", "");
+  }
+  if (mainType.startsWith("text/")) {
+    return mainType.replace("text/", "");
+  }
+  return mainType;
+}

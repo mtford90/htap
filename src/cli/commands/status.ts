@@ -1,18 +1,13 @@
 import { Command } from "commander";
-import { findProjectRoot, getHtpxPaths } from "../../shared/project.js";
+import { getHtpxPaths } from "../../shared/project.js";
 import { isDaemonRunning } from "../../shared/daemon.js";
-import { ControlClient } from "../../daemon/control.js";
+import { ControlClient } from "../../shared/control-client.js";
+import { requireProjectRoot, getErrorMessage } from "./helpers.js";
 
 export const statusCommand = new Command("status")
   .description("Show daemon status")
   .action(async () => {
-    // Find project root
-    const projectRoot = findProjectRoot();
-    if (!projectRoot) {
-      console.log("Not in a project directory (no .htpx or .git found)");
-      process.exit(1);
-    }
-
+    const projectRoot = requireProjectRoot();
     const paths = getHtpxPaths(projectRoot);
 
     // Check if daemon is running
@@ -32,8 +27,7 @@ export const statusCommand = new Command("status")
       console.log(`  Sessions: ${status.sessionCount}`);
       console.log(`  Requests captured: ${status.requestCount}`);
     } catch (err) {
-      const message = err instanceof Error ? err.message : "Unknown error";
-      console.error(`Error querying daemon: ${message}`);
+      console.error(`Error querying daemon: ${getErrorMessage(err)}`);
       process.exit(1);
     }
   });

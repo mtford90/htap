@@ -98,7 +98,7 @@ describe("logging integration", () => {
       cleanup.push(controlServer.close);
 
       // Import and use control client
-      const { ControlClient } = await import("../../src/daemon/control.js");
+      const { ControlClient } = await import("../../src/shared/control-client.js");
       const client = new ControlClient(paths.controlSocketFile);
       await client.ping();
 

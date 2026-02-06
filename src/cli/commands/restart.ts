@@ -1,5 +1,4 @@
 import { Command } from "commander";
-import { findProjectRoot } from "../../shared/project.js";
 import {
   isDaemonRunning,
   restartDaemon,
@@ -8,6 +7,7 @@ import {
 } from "../../shared/daemon.js";
 import { parseVerbosity } from "../../shared/logger.js";
 import { getHtpxVersion } from "../../shared/version.js";
+import { requireProjectRoot, getErrorMessage } from "./helpers.js";
 
 export const restartCommand = new Command("restart")
   .description("Restart the daemon")
@@ -16,12 +16,7 @@ export const restartCommand = new Command("restart")
     const verbosity = globalOpts.verbose ?? 0;
     const logLevel = parseVerbosity(verbosity);
 
-    const projectRoot = findProjectRoot();
-
-    if (!projectRoot) {
-      console.error("Not in a project directory (no .htpx or .git found)");
-      process.exit(1);
-    }
+    const projectRoot = requireProjectRoot();
 
     try {
       const cliVersion = getHtpxVersion();
@@ -42,8 +37,7 @@ export const restartCommand = new Command("restart")
         console.log(`Daemon started on port ${port}`);
       }
     } catch (err) {
-      const message = err instanceof Error ? err.message : "Unknown error";
-      console.error(`Failed to restart daemon: ${message}`);
+      console.error(`Failed to restart daemon: ${getErrorMessage(err)}`);
       process.exit(1);
     }
   });

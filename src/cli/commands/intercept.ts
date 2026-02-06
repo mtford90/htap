@@ -1,8 +1,9 @@
 import { Command } from "commander";
 import { findOrCreateProjectRoot, ensureHtpxDir, getHtpxPaths } from "../../shared/project.js";
 import { startDaemon } from "../../shared/daemon.js";
-import { ControlClient } from "../../daemon/control.js";
+import { ControlClient } from "../../shared/control-client.js";
 import { parseVerbosity } from "../../shared/logger.js";
+import { getErrorMessage } from "./helpers.js";
 
 /**
  * Format environment variable exports for shell evaluation.
@@ -89,8 +90,7 @@ export const interceptCommand = new Command("intercept")
       console.log(`# Proxy: ${proxyUrl}`);
       console.log(`# Session: ${session.id}`);
     } catch (err) {
-      const message = err instanceof Error ? err.message : "Unknown error";
-      console.error(`# htpx error: ${message}`);
+      console.error(`# htpx error: ${getErrorMessage(err)}`);
       process.exit(1);
     }
   });

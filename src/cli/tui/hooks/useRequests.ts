@@ -4,7 +4,7 @@
 
 import { useState, useEffect, useCallback, useRef } from "react";
 import type { CapturedRequest, CapturedRequestSummary } from "../../../shared/types.js";
-import { ControlClient } from "../../../daemon/control.js";
+import { ControlClient } from "../../../shared/control-client.js";
 import { findProjectRoot, getHtpxPaths } from "../../../shared/project.js";
 
 interface UseRequestsOptions {

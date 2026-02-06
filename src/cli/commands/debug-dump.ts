@@ -2,14 +2,10 @@ import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
 import { Command } from "commander";
-import {
-  findProjectRoot,
-  getHtpxPaths,
-  readDaemonPid,
-  isProcessRunning,
-} from "../../shared/project.js";
+import { getHtpxPaths, readDaemonPid, isProcessRunning } from "../../shared/project.js";
 import { readProxyPort } from "../../shared/project.js";
 import { getHtpxVersion } from "../../shared/version.js";
+import { requireProjectRoot, getErrorMessage } from "./helpers.js";
 
 interface DebugDump {
   timestamp: string;
@@ -111,13 +107,7 @@ function generateDumpFilename(): string {
 export const debugDumpCommand = new Command("debug-dump")
   .description("Collect diagnostic information for debugging")
   .action(() => {
-    const projectRoot = findProjectRoot();
-
-    if (!projectRoot) {
-      console.error("Not in a project directory (no .htpx or .git found)");
-      process.exit(1);
-    }
-
+    const projectRoot = requireProjectRoot();
     const paths = getHtpxPaths(projectRoot);
     const dump = collectDebugInfo(projectRoot);
 
@@ -134,8 +124,7 @@ export const debugDumpCommand = new Command("debug-dump")
       fs.writeFileSync(filepath, JSON.stringify(dump, null, 2), "utf-8");
       console.log(`Debug dump written to: ${filepath}`);
     } catch (err) {
-      const message = err instanceof Error ? err.message : "Unknown error";
-      console.error(`Failed to write debug dump: ${message}`);
+      console.error(`Failed to write debug dump: ${getErrorMessage(err)}`);
       process.exit(1);
     }
   });

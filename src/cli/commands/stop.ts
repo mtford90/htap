@@ -1,14 +1,9 @@
 import { Command } from "commander";
-import { findProjectRoot } from "../../shared/project.js";
 import { isDaemonRunning, stopDaemon } from "../../shared/daemon.js";
+import { requireProjectRoot, getErrorMessage } from "./helpers.js";
 
 export const stopCommand = new Command("stop").description("Stop the daemon").action(async () => {
-  // Find project root
-  const projectRoot = findProjectRoot();
-  if (!projectRoot) {
-    console.log("Not in a project directory (no .htpx or .git found)");
-    process.exit(1);
-  }
+  const projectRoot = requireProjectRoot();
 
   // Check if daemon is running
   const running = await isDaemonRunning(projectRoot);
@@ -21,8 +16,7 @@ export const stopCommand = new Command("stop").description("Stop the daemon").ac
     await stopDaemon(projectRoot);
     console.log("Daemon stopped");
   } catch (err) {
-    const message = err instanceof Error ? err.message : "Unknown error";
-    console.error(`Error stopping daemon: ${message}`);
+    console.error(`Error stopping daemon: ${getErrorMessage(err)}`);
     process.exit(1);
   }
 });

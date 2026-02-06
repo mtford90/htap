@@ -3,7 +3,7 @@ import * as path from "node:path";
 import { spawn } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import { getHtpxPaths, readDaemonPid, isProcessRunning, ensureHtpxDir } from "./project.js";
-import { ControlClient } from "../daemon/control.js";
+import { ControlClient } from "./control-client.js";
 import type { LogLevel } from "./logger.js";
 import { getHtpxVersion } from "./version.js";
 

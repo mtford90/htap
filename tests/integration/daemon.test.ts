@@ -7,7 +7,8 @@ import * as zlib from "node:zlib";
 import { generateCACertificate } from "mockttp";
 import { RequestRepository } from "../../src/daemon/storage.js";
 import { createProxy } from "../../src/daemon/proxy.js";
-import { createControlServer, ControlClient } from "../../src/daemon/control.js";
+import { createControlServer } from "../../src/daemon/control.js";
+import { ControlClient } from "../../src/shared/control-client.js";
 import { ensureHtpxDir, getHtpxPaths } from "../../src/shared/project.js";
 import { getHtpxVersion } from "../../src/shared/version.js";
 
