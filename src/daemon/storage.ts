@@ -63,7 +63,8 @@ export class RequestRepository {
     this.db.pragma("journal_mode = WAL");
     this.db.exec(SCHEMA);
 
-    // New databases already have the latest schema — mark as current
+    // Fresh databases already have the latest schema — stamp to latest version
+    // so migrations don't try to re-apply what's already in the CREATE TABLE.
     const currentVersion = this.db.pragma("user_version", { simple: true }) as number;
     if (currentVersion === 0) {
       const hasData =

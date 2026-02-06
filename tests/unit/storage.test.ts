@@ -556,7 +556,9 @@ describe("RequestRepository", () => {
       const errorDir = fs.mkdtempSync(path.join(os.tmpdir(), "htpx-error-test-"));
       const errorDbPath = path.join(errorDir, "error.db");
 
-      // Create an old-schema DB with data so migrations will run
+      // Create an old-schema DB with data and only ONE of the truncation columns.
+      // The column detection requires BOTH to stamp as v1, so migration v1 will run
+      // and fail on the duplicate column — verifying errors propagate.
       const rawDb = new Database(errorDbPath);
       rawDb.exec(OLD_SCHEMA);
       rawDb.exec(`
@@ -567,18 +569,8 @@ describe("RequestRepository", () => {
         INSERT INTO requests (id, session_id, timestamp, method, url, host, path)
         VALUES ('r1', 's1', 1000, 'GET', 'http://example.com', 'example.com', '/')
       `);
-
-      // Apply the real migrations first so we can test with a bad one
-      // Set version to 1 so real migrations pass, then add a broken migration at version 2
-      rawDb.pragma("user_version = 0");
-
-      // Corrupt the DB by making the requests table read-only isn't feasible,
-      // but we can test by manually creating a scenario where migration SQL is invalid.
-      // We'll apply migration v1 manually, then test that a hypothetical bad v2 would fail.
+      // Add only the first column — migration v1 will try to add it again and fail
       rawDb.exec("ALTER TABLE requests ADD COLUMN request_body_truncated INTEGER DEFAULT 0");
-      rawDb.exec("ALTER TABLE requests ADD COLUMN response_body_truncated INTEGER DEFAULT 0");
-      // Don't set user_version — so RequestRepository will try to apply migration v1 again
-      // This simulates a real error (duplicate column)
       rawDb.close();
 
       expect(() => new RequestRepository(errorDbPath)).toThrow();
