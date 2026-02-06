@@ -7,6 +7,8 @@ import { readProxyPort } from "../../shared/project.js";
 import { getHtpxVersion } from "../../shared/version.js";
 import { requireProjectRoot, getErrorMessage } from "./helpers.js";
 
+const DEBUG_LOG_LINES = 200;
+
 interface DebugDump {
   timestamp: string;
   htpxVersion: string;
@@ -84,7 +86,7 @@ export function collectDebugInfo(projectRoot: string | undefined): DebugDump {
     try {
       const content = fs.readFileSync(paths.logFile, "utf-8");
       const lines = content.trim().split("\n");
-      dump.recentLogs = lines.slice(-200); // Last 200 lines
+      dump.recentLogs = lines.slice(-DEBUG_LOG_LINES);
     } catch {
       // Ignore errors reading log file
     }

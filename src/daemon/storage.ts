@@ -3,6 +3,8 @@ import { v4 as uuidv4 } from "uuid";
 import type { CapturedRequest, CapturedRequestSummary, Session } from "../shared/types.js";
 import { createLogger, type LogLevel, type Logger } from "../shared/logger.js";
 
+const DEFAULT_QUERY_LIMIT = 1000;
+
 const SCHEMA = `
 CREATE TABLE IF NOT EXISTS sessions (
     id TEXT PRIMARY KEY,
@@ -296,7 +298,7 @@ export class RequestRepository {
     }
 
     const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(" AND ")}` : "";
-    const limit = options.limit ?? 1000;
+    const limit = options.limit ?? DEFAULT_QUERY_LIMIT;
     const offset = options.offset ?? 0;
 
     const stmt = this.db.prepare(`
@@ -334,7 +336,7 @@ export class RequestRepository {
     }
 
     const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(" AND ")}` : "";
-    const limit = options.limit ?? 1000;
+    const limit = options.limit ?? DEFAULT_QUERY_LIMIT;
     const offset = options.offset ?? 0;
 
     const stmt = this.db.prepare(`

@@ -7,6 +7,9 @@ import type { CapturedRequest, CapturedRequestSummary } from "../../../shared/ty
 import { ControlClient } from "../../../shared/control-client.js";
 import { findProjectRoot, getHtpxPaths } from "../../../shared/project.js";
 
+const DEFAULT_QUERY_LIMIT = 1000;
+const DEFAULT_POLL_INTERVAL_MS = 2000;
+
 interface UseRequestsOptions {
   pollInterval?: number;
 }
@@ -27,7 +30,7 @@ interface UseRequestsResult {
  * Hook to fetch and poll for captured requests.
  */
 export function useRequests(options: UseRequestsOptions = {}): UseRequestsResult {
-  const { pollInterval = 2000 } = options;
+  const { pollInterval = DEFAULT_POLL_INTERVAL_MS } = options;
 
   const [requests, setRequests] = useState<CapturedRequestSummary[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -68,7 +71,7 @@ export function useRequests(options: UseRequestsOptions = {}): UseRequestsResult
       // Only fetch list if count changed or we have no requests yet
       if (count !== lastCountRef.current || requestsLengthRef.current === 0) {
         const newRequests = await client.listRequestsSummary({
-          limit: 1000,
+          limit: DEFAULT_QUERY_LIMIT,
         });
         setRequests(newRequests);
         lastCountRef.current = count;
@@ -114,7 +117,7 @@ export function useRequests(options: UseRequestsOptions = {}): UseRequestsResult
       return [];
     }
     try {
-      return await client.listRequests({ limit: 1000 });
+      return await client.listRequests({ limit: DEFAULT_QUERY_LIMIT });
     } catch {
       return [];
     }

@@ -1,6 +1,8 @@
 import * as net from "node:net";
 import type { CapturedRequest, CapturedRequestSummary, DaemonStatus, Session } from "./types.js";
 
+const CONTROL_TIMEOUT_MS = 5000;
+
 /**
  * JSON-RPC style message format for control API.
  */
@@ -106,7 +108,7 @@ export class ControlClient {
         reject(err);
       });
 
-      socket.setTimeout(5000, () => {
+      socket.setTimeout(CONTROL_TIMEOUT_MS, () => {
         socket.destroy();
         reject(new Error("Control request timed out"));
       });
