@@ -163,25 +163,11 @@ Comprehensive code review conducted across 8 dimensions using parallel opus agen
 
 ---
 
-- [ ] **3.6: Silent error swallowing in migrations**
+- [x] **3.6: Silent error swallowing in migrations** ✓
 
   **File:** `src/daemon/storage.ts:65-72`
 
-  ```typescript
-  private applyMigrations(): void {
-    for (const migration of MIGRATIONS) {
-      try {
-        this.db.exec(migration);
-      } catch {
-        // Column likely already exists, ignore
-      }
-    }
-  }
-  ```
-
-  **Issue:** Silently ignores ALL errors, not just "column already exists". Could mask real migration failures.
-
-  **Fix:** Implement proper migration tracking table, or at least check error message.
+  **Fixed:** Replaced with version-tracked migration system using SQLite's `PRAGMA user_version`. Migrations are versioned objects, run in a transaction (rollback on failure), and real errors propagate. New databases are stamped to latest version to skip already-baked-in migrations.
 
 ---
 
@@ -532,4 +518,4 @@ Comprehensive code review conducted across 8 dimensions using parallel opus agen
 - [x] 1.1 - setTimeout memory leak fix ✓ (already fixed)
 - [x] 1.2 - useRequests callback stability ✓ (already fixed)
 - [x] 3.1 - Extract & complete getStatusText() ✓
-- [ ] 3.6 - Proper migration system
+- [x] 3.6 - Proper migration system ✓

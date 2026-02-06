@@ -37,11 +37,21 @@ CREATE INDEX IF NOT EXISTS idx_requests_session ON requests(session_id);
 CREATE INDEX IF NOT EXISTS idx_requests_label ON requests(label);
 `;
 
-// Migrations to apply to existing databases
-const MIGRATIONS = [
-  // Add truncation columns if they don't exist
-  `ALTER TABLE requests ADD COLUMN request_body_truncated INTEGER DEFAULT 0`,
-  `ALTER TABLE requests ADD COLUMN response_body_truncated INTEGER DEFAULT 0`,
+interface Migration {
+  version: number;
+  description: string;
+  sql: string;
+}
+
+const MIGRATIONS: Migration[] = [
+  {
+    version: 1,
+    description: "Add body truncation tracking columns",
+    sql: `
+      ALTER TABLE requests ADD COLUMN request_body_truncated INTEGER DEFAULT 0;
+      ALTER TABLE requests ADD COLUMN response_body_truncated INTEGER DEFAULT 0;
+    `,
+  },
 ];
 
 export class RequestRepository {
@@ -52,6 +62,20 @@ export class RequestRepository {
     this.db = new Database(dbPath);
     this.db.pragma("journal_mode = WAL");
     this.db.exec(SCHEMA);
+
+    // New databases already have the latest schema — mark as current
+    const currentVersion = this.db.pragma("user_version", { simple: true }) as number;
+    if (currentVersion === 0) {
+      const hasData =
+        (this.db.prepare("SELECT COUNT(*) as count FROM requests").get() as { count: number })
+          .count > 0;
+      if (!hasData) {
+        const lastMigration = MIGRATIONS[MIGRATIONS.length - 1];
+        const latestVersion = lastMigration ? lastMigration.version : 0;
+        this.db.pragma(`user_version = ${latestVersion}`);
+      }
+    }
+
     this.applyMigrations();
 
     if (projectRoot) {
@@ -60,16 +84,22 @@ export class RequestRepository {
   }
 
   /**
-   * Apply database migrations, ignoring errors for already-applied migrations.
+   * Apply pending database migrations using SQLite's user_version pragma for tracking.
    */
   private applyMigrations(): void {
-    for (const migration of MIGRATIONS) {
-      try {
-        this.db.exec(migration);
-      } catch {
-        // Column likely already exists, ignore
+    const currentVersion = this.db.pragma("user_version", { simple: true }) as number;
+
+    const pending = MIGRATIONS.filter((m) => m.version > currentVersion);
+    if (pending.length === 0) return;
+
+    const applyAll = this.db.transaction(() => {
+      for (const migration of pending) {
+        this.db.exec(migration.sql);
+        this.db.pragma(`user_version = ${migration.version}`);
       }
-    }
+    });
+
+    applyAll();
   }
 
   /**
