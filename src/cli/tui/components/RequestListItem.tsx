@@ -2,9 +2,9 @@
  * Single request row in the request list.
  */
 
-import React, { useRef, useState, memo } from "react";
+import React, { useRef, memo } from "react";
 import { Box, Text, type DOMElement } from "ink";
-import { useOnClick, useOnMouseEnter, useOnMouseLeave } from "@ink-tools/ink-mouse";
+import { useOnClick } from "@ink-tools/ink-mouse";
 import type { CapturedRequestSummary } from "../../../shared/types.js";
 import { formatMethod, formatDuration, truncate } from "../utils/formatters.js";
 
@@ -63,19 +63,12 @@ export const RequestListItem = memo(function RequestListItem({
   onClick,
 }: RequestListItemProps): React.ReactElement {
   const ref = useRef<DOMElement>(null);
-  const [isHovered, setIsHovered] = useState(false);
 
-  // Register mouse event handlers
   useOnClick(ref, () => {
     if (onClick) {
       onClick();
     }
   });
-  useOnMouseEnter(ref, () => setIsHovered(true));
-  useOnMouseLeave(ref, () => setIsHovered(false));
-
-  // Determine visual state: selected takes precedence, then hovered
-  const isHighlighted = isSelected || isHovered;
 
   const methodWidth = 7;
   const statusWidth = 4;
@@ -89,16 +82,8 @@ export const RequestListItem = memo(function RequestListItem({
   const statusText = request.responseStatus?.toString() ?? "...";
   const duration = formatDuration(request.durationMs);
 
-  // Indicator: selected shows ❯, hovered shows ›, otherwise empty
-  let indicator = "  ";
-  let indicatorColour: string | undefined;
-  if (isSelected) {
-    indicator = "❯ ";
-    indicatorColour = "cyan";
-  } else if (isHovered) {
-    indicator = "› ";
-    indicatorColour = "gray";
-  }
+  const indicator = isSelected ? "❯ " : "  ";
+  const indicatorColour = isSelected ? "cyan" : undefined;
 
   return (
     <Box ref={ref}>
@@ -107,9 +92,16 @@ export const RequestListItem = memo(function RequestListItem({
       <Text> </Text>
       <Text color={getStatusColour(request.responseStatus)}>{statusText.padStart(3)}</Text>
       <Text> </Text>
-      <Text dimColor={!isHighlighted}>{displayPath}</Text>
+      <Text dimColor={!isSelected}>{displayPath}</Text>
       <Box flexGrow={1} />
       <Text dimColor>{duration.padStart(durationWidth)}</Text>
     </Box>
+  );
+}, (prevProps, nextProps) => {
+  return (
+    prevProps.request === nextProps.request &&
+    prevProps.isSelected === nextProps.isSelected &&
+    prevProps.width === nextProps.width &&
+    prevProps.showFullUrl === nextProps.showFullUrl
   );
 });
