@@ -6,12 +6,26 @@ import { parseVerbosity } from "../../shared/logger.js";
 import { getErrorMessage } from "./helpers.js";
 
 /**
+ * Escape a string for safe use inside double-quoted shell context.
+ * Within double quotes, `\`, `"`, `$`, `` ` ``, and `!` are interpreted by the shell.
+ */
+function escapeDoubleQuoted(str: string): string {
+  return str
+    .replace(/\\/g, "\\\\")
+    .replace(/"/g, '\\"')
+    .replace(/\$/g, "\\$")
+    .replace(/`/g, "\\`")
+    .replace(/!/g, "\\!");
+}
+
+/**
  * Format environment variable exports for shell evaluation.
- * Each line is a shell export statement.
+ * Each line is a shell export statement. Values are escaped for
+ * safe use in double-quoted context.
  */
 export function formatEnvVars(vars: Record<string, string>): string {
   return Object.entries(vars)
-    .map(([key, value]) => `export ${key}="${value}"`)
+    .map(([key, value]) => `export ${key}="${escapeDoubleQuoted(value)}"`)
     .join("\n");
 }
 

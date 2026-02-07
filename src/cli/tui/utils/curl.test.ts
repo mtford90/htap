@@ -233,4 +233,76 @@ describe("generateCurl", () => {
     // Verify it doesn't crash and produces output
     expect(curl.length).toBeGreaterThan(0);
   });
+
+  describe("shell metacharacter safety", () => {
+    it("should safely wrap dollar signs in single quotes", () => {
+      const request = createMockRequest({
+        url: "https://example.com/api?q=$(whoami)",
+      });
+      const curl = generateCurl(request);
+
+      // $ is not interpreted inside single quotes — just check it's preserved literally
+      expect(curl).toContain("$(whoami)");
+      expect(curl).toMatch(/^curl/);
+    });
+
+    it("should safely wrap backticks in single quotes", () => {
+      const request = createMockRequest({
+        url: "https://example.com/api?q=`id`",
+      });
+      const curl = generateCurl(request);
+
+      expect(curl).toContain("`id`");
+    });
+
+    it("should safely wrap backslashes in single quotes", () => {
+      const request = createMockRequest({
+        method: "POST",
+        requestBody: Buffer.from("path\\to\\file"),
+      });
+      const curl = generateCurl(request);
+
+      expect(curl).toContain("path\\to\\file");
+    });
+
+    it("should safely wrap exclamation marks in single quotes", () => {
+      const request = createMockRequest({
+        requestHeaders: { "X-Custom": "hello!world" },
+      });
+      const curl = generateCurl(request);
+
+      expect(curl).toContain("hello!world");
+    });
+
+    it("should strip null bytes from values", () => {
+      const request = createMockRequest({
+        url: "https://example.com/\0evil",
+      });
+      const curl = generateCurl(request);
+
+      expect(curl).not.toContain("\0");
+      expect(curl).toContain("https://example.com/evil");
+    });
+
+    it("should strip null bytes from headers", () => {
+      const request = createMockRequest({
+        requestHeaders: { "X-Custom": "before\0after" },
+      });
+      const curl = generateCurl(request);
+
+      expect(curl).not.toContain("\0");
+      expect(curl).toContain("beforeafter");
+    });
+
+    it("should strip null bytes from body", () => {
+      const request = createMockRequest({
+        method: "POST",
+        requestBody: Buffer.from("data\0more"),
+      });
+      const curl = generateCurl(request);
+
+      expect(curl).not.toContain("\0");
+      expect(curl).toContain("datamore");
+    });
+  });
 });

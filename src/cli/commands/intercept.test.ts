@@ -50,4 +50,36 @@ describe("formatEnvVars", () => {
     expect(result).toContain("export HTPX_SESSION_ID=");
     expect(result).toContain("export HTPX_LABEL=");
   });
+
+  describe("shell injection prevention", () => {
+    it("escapes dollar signs (command substitution)", () => {
+      const result = formatEnvVars({ HTPX_LABEL: "$(rm -rf /)" });
+      expect(result).toBe('export HTPX_LABEL="\\$(rm -rf /)"');
+    });
+
+    it("escapes backticks (legacy command substitution)", () => {
+      const result = formatEnvVars({ HTPX_LABEL: "`whoami`" });
+      expect(result).toBe('export HTPX_LABEL="\\`whoami\\`"');
+    });
+
+    it("escapes double quotes", () => {
+      const result = formatEnvVars({ HTPX_LABEL: 'say "hello"' });
+      expect(result).toBe('export HTPX_LABEL="say \\"hello\\""');
+    });
+
+    it("escapes backslashes", () => {
+      const result = formatEnvVars({ HTPX_LABEL: "path\\to\\file" });
+      expect(result).toBe('export HTPX_LABEL="path\\\\to\\\\file"');
+    });
+
+    it("escapes exclamation marks (history expansion)", () => {
+      const result = formatEnvVars({ HTPX_LABEL: "hello!world" });
+      expect(result).toBe('export HTPX_LABEL="hello\\!world"');
+    });
+
+    it("escapes multiple dangerous characters combined", () => {
+      const result = formatEnvVars({ HTPX_LABEL: '$(cmd) `cmd` "quoted" \\path!' });
+      expect(result).toBe('export HTPX_LABEL="\\$(cmd) \\`cmd\\` \\"quoted\\" \\\\path\\!"');
+    });
+  });
 });

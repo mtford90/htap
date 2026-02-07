@@ -18,10 +18,17 @@ const EXCLUDED_HEADERS = new Set([
 
 /**
  * Escape a string for use in a shell single-quoted context.
- * Single quotes are handled by ending the quote, adding an escaped single quote, and reopening.
+ *
+ * Within single quotes, the shell does not interpret any special characters
+ * (`$`, `` ` ``, `\`, `!`, newlines, etc.) — the only character that cannot
+ * appear inside single quotes is the single quote itself. We handle that by
+ * ending the quote, inserting an escaped single quote, and reopening.
+ *
+ * Null bytes are stripped because some shells (e.g. bash) silently truncate
+ * strings at `\0`, which could cause the remainder of a value to be lost.
  */
 function shellEscape(str: string): string {
-  return str.replace(/'/g, "'\"'\"'");
+  return str.replace(/\0/g, "").replace(/'/g, "'\"'\"'");
 }
 
 /**

@@ -7,7 +7,11 @@ import type {
   DaemonStatus,
   Session,
 } from "../shared/types.js";
-import type { ControlMessage, ControlResponse } from "../shared/control-client.js";
+import {
+  MAX_BUFFER_SIZE,
+  type ControlMessage,
+  type ControlResponse,
+} from "../shared/control-client.js";
 import { createLogger, type LogLevel, type Logger } from "../shared/logger.js";
 
 export { ControlClient } from "../shared/control-client.js";
@@ -160,6 +164,12 @@ export function createControlServer(options: ControlServerOptions): ControlServe
 
     socket.on("data", (data) => {
       buffer += data.toString();
+
+      if (buffer.length > MAX_BUFFER_SIZE) {
+        logger?.error("Control socket buffer exceeded maximum size, dropping connection");
+        socket.destroy();
+        return;
+      }
 
       // Process complete messages (newline-delimited JSON)
       let newlineIndex: number;

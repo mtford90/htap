@@ -3,8 +3,8 @@ import type { CapturedRequest, CapturedRequestSummary, DaemonStatus, Session } f
 
 const CONTROL_TIMEOUT_MS = 5000;
 
-/** Maximum buffer size before disconnecting (1MB) */
-const MAX_BUFFER_SIZE = 1024 * 1024;
+/** Maximum buffer size per connection before disconnecting (1 MB). Shared by both client and server. */
+export const MAX_BUFFER_SIZE = 1024 * 1024;
 
 /**
  * JSON-RPC style message format for control API.
