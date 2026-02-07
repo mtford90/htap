@@ -28,9 +28,12 @@
 - [ ] **WebSocket support** - Capture and display WebSocket traffic
 - [ ] **Aggregate mode** - Instead of showing requests one-by-one, aggregate by method, domain, path, etc.
 - [ ] **Launch Chromium** - Spawn Chromium instance pre-configured to use the proxy
-- [ ] landing page - searchable docs
-  - [ ] llms.txt
-  - [ ] searchable docs?
+
+## Landing page & docs
+
+- [ ] llms.txt
+- [ ] searchable docs?
+- [ ] use cases e.g. ai can analyse requests being sent, get full picture
 
 ## Bugs
 
