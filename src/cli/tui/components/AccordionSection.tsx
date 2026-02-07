@@ -50,7 +50,7 @@ export function buildDividerLine(
   rightValue?: string,
 ): string {
   const indicator = isExpanded ? "▼" : "▶";
-  const focusMarker = isFocused ? "●" : " ";
+  const focusMarker = isFocused ? "»" : " ";
   const titleWithSpaces = ` ${focusMarker} ${indicator} ${title} `;
 
   const leftCorner = isFirst ? BOX.topLeft : BOX.midLeft;
@@ -84,7 +84,7 @@ export function AccordionSection({
   // When collapsed, only show the divider line
   // Use wrap="truncate" to prevent ink from wrapping the text
   if (!isExpanded) {
-    return <Text color={borderColour} wrap="truncate">{dividerLine}</Text>;
+    return <Text color={borderColour} bold={isFocused} wrap="truncate">{dividerLine}</Text>;
   }
 
   // When expanded, show divider + content with left/right borders
@@ -92,7 +92,7 @@ export function AccordionSection({
 
   return (
     <Box flexDirection="column" width={width} height={height}>
-      <Text color={borderColour}>{dividerLine}</Text>
+      <Text color={borderColour} bold={isFocused}>{dividerLine}</Text>
       <Box
         flexDirection="column"
         width={width}

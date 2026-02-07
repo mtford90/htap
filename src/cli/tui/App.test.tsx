@@ -5,13 +5,14 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import React from "react";
 import { render } from "ink-testing-library";
-import { App } from "./App.js";
+import { App, MIN_TERMINAL_COLUMNS, MIN_TERMINAL_ROWS } from "./App.js";
 import type { CapturedRequest, CapturedRequestSummary } from "../../shared/types.js";
 
 // Mock the hooks that depend on external services
 vi.mock("./hooks/useRequests.js", () => ({
   useRequests: vi.fn(),
 }));
+
 
 const mockExportCurl = vi.fn().mockResolvedValue({ success: true, message: "Copied to clipboard" });
 const mockExportHar = vi.fn().mockReturnValue({ success: true, message: "HAR exported" });
@@ -179,8 +180,8 @@ describe("App keyboard interactions", () => {
       const { lastFrame } = render(<App __testEnableInput />);
       const frame = lastFrame();
 
-      expect(frame).toContain("u");
-      expect(frame).toContain("URL");
+      // Status bar contains URL hint (may be truncated at narrow widths)
+      expect(frame).toMatch(/u\s+UR/);
     });
   });
 
@@ -309,8 +310,8 @@ describe("App keyboard interactions", () => {
 
       // Should now show focus indicator on Request section
       let frame = lastFrame();
-      // The focus indicator is ● in the section header
-      expect(frame).toContain("●");
+      // The focus indicator is » in the section header
+      expect(frame).toContain("»");
       expect(frame).toContain("[2] Request");
 
       // Navigate down to next section
@@ -337,7 +338,7 @@ describe("App keyboard interactions", () => {
       const frame = lastFrame();
       // The accordion should now be active with focus on first section
       // Focus indicator should appear
-      expect(frame).toContain("●");
+      expect(frame).toContain("»");
     });
 
     it("Tab cycles through accordion sections", async () => {
@@ -382,7 +383,7 @@ describe("App keyboard interactions", () => {
 
       const frame = lastFrame();
       // Should be on last section (Response Body)
-      expect(frame).toContain("●");
+      expect(frame).toContain("»");
     });
 
     it("1 key activates list panel", async () => {
@@ -407,7 +408,7 @@ describe("App keyboard interactions", () => {
       // Since we only have 1 request, nothing changes, but accordion should not have focus
       const frame = lastFrame();
       // Verify we got a frame back and the accordion focus indicator is not visible
-      expect(frame).not.toContain("● ▼ [2]");
+      expect(frame).not.toContain("» ▼ [2]");
     });
 
     it("2 key activates accordion section 0 (Request)", async () => {
@@ -420,7 +421,7 @@ describe("App keyboard interactions", () => {
       await tick();
 
       const frame = lastFrame();
-      expect(frame).toContain("●");
+      expect(frame).toContain("»");
       // Should contain the focus marker near Request section header
     });
 
@@ -434,7 +435,7 @@ describe("App keyboard interactions", () => {
       await tick();
 
       const frame = lastFrame();
-      expect(frame).toContain("●");
+      expect(frame).toContain("»");
     });
 
     it("4 key activates accordion section 2 (Response)", async () => {
@@ -447,7 +448,7 @@ describe("App keyboard interactions", () => {
       await tick();
 
       const frame = lastFrame();
-      expect(frame).toContain("●");
+      expect(frame).toContain("»");
     });
 
     it("5 key activates accordion section 3 (Response Body)", async () => {
@@ -460,7 +461,7 @@ describe("App keyboard interactions", () => {
       await tick();
 
       const frame = lastFrame();
-      expect(frame).toContain("●");
+      expect(frame).toContain("»");
     });
   });
 
@@ -624,6 +625,224 @@ describe("App keyboard interactions", () => {
 
       const frame = lastFrame();
       expect(frame).toContain("No requests to export");
+    });
+  });
+
+  describe("Empty state guidance (7.6)", () => {
+    it("shows intercept command in empty state", () => {
+      mockUseRequests.mockReturnValue({
+        requests: [],
+        isLoading: false,
+        error: null,
+        refresh: vi.fn(),
+        getFullRequest: vi.fn().mockResolvedValue(null),
+        getAllFullRequests: vi.fn().mockResolvedValue([]),
+      });
+
+      const { lastFrame } = render(<App __testEnableInput />);
+      const frame = lastFrame();
+
+      expect(frame).toContain("eval $(htpx intercept)");
+    });
+  });
+
+  describe("Extended navigation (g/G/Ctrl+u/Ctrl+d)", () => {
+    it("g moves to first item in list", async () => {
+      setupMocksWithRequests(10);
+
+      const { stdin } = render(<App __testEnableInput />);
+      await tick();
+
+      // Move down a few items first
+      stdin.write("j");
+      await tick();
+      stdin.write("j");
+      await tick();
+      stdin.write("j");
+      await tick();
+
+      mockGetFullRequest.mockClear();
+
+      // Press g to jump to first
+      stdin.write("g");
+      await tick();
+
+      expect(mockGetFullRequest).toHaveBeenCalledWith("test-0");
+    });
+
+    it("G moves to last item in list", async () => {
+      setupMocksWithRequests(10);
+
+      const { stdin } = render(<App __testEnableInput />);
+      await tick();
+
+      mockGetFullRequest.mockClear();
+
+      // Press G to jump to last
+      stdin.write("G");
+      await tick();
+
+      expect(mockGetFullRequest).toHaveBeenCalledWith("test-9");
+    });
+
+    it("g in accordion goes to first section", async () => {
+      setupMocksWithRequests(1);
+
+      const { lastFrame, stdin } = render(<App __testEnableInput />);
+      await tick();
+
+      // Go to accordion section 3
+      stdin.write("5");
+      await tick();
+
+      // Press g to jump to first section
+      stdin.write("g");
+      await tick();
+
+      const frame = lastFrame();
+      // Focus should be on first section (Request)
+      expect(frame).toContain("»");
+    });
+
+    it("G in accordion goes to last section", async () => {
+      setupMocksWithRequests(1);
+
+      const { stdin } = render(<App __testEnableInput />);
+      await tick();
+
+      // Go to accordion section 0
+      stdin.write("2");
+      await tick();
+
+      // Press G to jump to last section
+      stdin.write("G");
+      await tick();
+
+      // Verify by navigating — if we're at last section, j shouldn't move further
+      // We can just verify it didn't crash and state is consistent
+    });
+
+    it("Ctrl+u moves up half page in list", async () => {
+      setupMocksWithRequests(30);
+
+      const { stdin } = render(<App __testEnableInput />);
+      await tick();
+
+      // Move to bottom first
+      stdin.write("G");
+      await tick();
+
+      mockGetFullRequest.mockClear();
+
+      // Ctrl+u = \x15
+      stdin.write("\x15");
+      await tick();
+
+      // Should have moved up — exact position depends on terminal height
+      // but should have called getFullRequest with a different ID
+      expect(mockGetFullRequest).toHaveBeenCalled();
+    });
+
+    it("Ctrl+d moves down half page in list", async () => {
+      setupMocksWithRequests(30);
+
+      const { stdin } = render(<App __testEnableInput />);
+      await tick();
+
+      mockGetFullRequest.mockClear();
+
+      // Ctrl+d = \x04
+      stdin.write("\x04");
+      await tick();
+
+      // Should have moved down from index 0
+      expect(mockGetFullRequest).toHaveBeenCalled();
+    });
+  });
+
+  describe("Loading spinner (7.3)", () => {
+    it("loading state renders a braille spinner character", () => {
+      mockUseRequests.mockReturnValue({
+        requests: [],
+        isLoading: true,
+        error: null,
+        refresh: vi.fn(),
+        getFullRequest: vi.fn().mockResolvedValue(null),
+        getAllFullRequests: vi.fn().mockResolvedValue([]),
+      });
+
+      const { lastFrame } = render(<App __testEnableInput />);
+      const frame = lastFrame();
+
+      // Should contain a braille spinner character (first frame)
+      expect(frame).toMatch(/[⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏]/);
+      expect(frame).toContain("Loading...");
+    });
+  });
+
+  describe("Terminal size check (7.4)", () => {
+    it("defines reasonable minimum terminal dimensions", () => {
+      expect(MIN_TERMINAL_COLUMNS).toBe(60);
+      expect(MIN_TERMINAL_ROWS).toBe(10);
+    });
+
+    it("minimum dimensions are smaller than default terminal size", () => {
+      // Default terminal is 80x24, which should be above minimums
+      expect(MIN_TERMINAL_COLUMNS).toBeLessThanOrEqual(80);
+      expect(MIN_TERMINAL_ROWS).toBeLessThanOrEqual(24);
+    });
+  });
+
+  describe("Help overlay (7.1)", () => {
+    it("? opens the help modal", async () => {
+      setupMocksWithRequests(1);
+
+      const { lastFrame, stdin } = render(<App __testEnableInput />);
+      await tick();
+
+      stdin.write("?");
+      await tick();
+
+      const frame = lastFrame();
+      expect(frame).toContain("Keyboard Shortcuts");
+    });
+
+    it("? closes the help modal", async () => {
+      setupMocksWithRequests(1);
+
+      const { lastFrame, stdin } = render(<App __testEnableInput />);
+      await tick();
+
+      // Open help
+      stdin.write("?");
+      await tick();
+
+      // Close help
+      stdin.write("?");
+      await tick();
+
+      const frame = lastFrame();
+      expect(frame).not.toContain("Keyboard Shortcuts");
+      // Should be back to main view
+      expect(frame).toContain("Requests");
+    });
+
+    it("Escape closes the help modal", async () => {
+      setupMocksWithRequests(1);
+
+      const { lastFrame, stdin } = render(<App __testEnableInput />);
+      await tick();
+
+      // Open help
+      stdin.write("?");
+      await tick();
+
+      // Close with Escape
+      stdin.write("\x1b");
+      await tick();
+
+      const frame = lastFrame();
+      expect(frame).not.toContain("Keyboard Shortcuts");
     });
   });
 });

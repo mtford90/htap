@@ -8,6 +8,7 @@ import { MouseProvider, useOnClick, useOnWheel, useOnMouseEnter, useOnMouseLeave
 import { useStdoutDimensions } from "./hooks/useStdoutDimensions.js";
 import { useRequests } from "./hooks/useRequests.js";
 import { useExport } from "./hooks/useExport.js";
+import { useSpinner } from "./hooks/useSpinner.js";
 import { useSaveBinary, generateFilename } from "./hooks/useSaveBinary.js";
 import { formatSize } from "./utils/formatters.js";
 import { RequestList } from "./components/RequestList.js";
@@ -21,6 +22,7 @@ import {
 } from "./components/AccordionPanel.js";
 import { StatusBar } from "./components/StatusBar.js";
 import { SaveModal, type SaveLocation } from "./components/SaveModal.js";
+import { HelpModal } from "./components/HelpModal.js";
 import type { CapturedRequest } from "../../shared/types.js";
 
 interface AppProps {
@@ -30,6 +32,9 @@ interface AppProps {
 
 type Panel = "list" | "accordion";
 
+export const MIN_TERMINAL_COLUMNS = 60;
+export const MIN_TERMINAL_ROWS = 10;
+
 function AppContent({ __testEnableInput }: AppProps): React.ReactElement {
   const { exit } = useApp();
   const { isRawModeSupported } = useStdin();
@@ -38,6 +43,7 @@ function AppContent({ __testEnableInput }: AppProps): React.ReactElement {
   const { requests, isLoading, error, refresh, getFullRequest, getAllFullRequests } = useRequests();
   const { exportCurl, exportHar } = useExport();
   const { saveBinary } = useSaveBinary();
+  const spinnerFrame = useSpinner(isLoading && requests.length === 0);
 
   const [selectedIndex, setSelectedIndex] = useState(0);
   const [activePanel, setActivePanel] = useState<Panel>("list");
@@ -51,6 +57,9 @@ function AppContent({ __testEnableInput }: AppProps): React.ReactElement {
   const [expandedSections, setExpandedSections] = useState<Set<number>>(
     () => new Set([SECTION_REQUEST, SECTION_RESPONSE_BODY]),
   );
+
+  // Help modal state
+  const [showHelp, setShowHelp] = useState(false);
 
   // Save modal state
   const [showSaveModal, setShowSaveModal] = useState(false);
@@ -227,6 +236,32 @@ function AppContent({ __testEnableInput }: AppProps): React.ReactElement {
           // Navigate sections in accordion
           setFocusedSection((prev) => Math.max(prev - 1, 0));
         }
+      } else if (input === "g" && !key.shift) {
+        // Jump to first item/section
+        if (activePanel === "list") {
+          setSelectedIndex(0);
+        } else {
+          setFocusedSection(SECTION_REQUEST);
+        }
+      } else if (input === "G") {
+        // Jump to last item/section
+        if (activePanel === "list") {
+          setSelectedIndex(Math.max(0, requestsLengthRef.current - 1));
+        } else {
+          setFocusedSection(SECTION_RESPONSE_BODY);
+        }
+      } else if (input === "u" && key.ctrl) {
+        // Half-page up (list only)
+        if (activePanel === "list") {
+          const halfPage = Math.floor(contentHeightRef.current / 2);
+          setSelectedIndex((prev) => Math.max(prev - halfPage, 0));
+        }
+      } else if (input === "d" && key.ctrl) {
+        // Half-page down (list only)
+        if (activePanel === "list") {
+          const halfPage = Math.floor(contentHeightRef.current / 2);
+          setSelectedIndex((prev) => Math.min(prev + halfPage, requestsLengthRef.current - 1));
+        }
       } else if (key.tab) {
         // Tab cycles through all 5 panels: 1 (list), 2, 3, 4, 5 (accordion sections)
         if (key.shift) {
@@ -300,10 +335,12 @@ function AppContent({ __testEnableInput }: AppProps): React.ReactElement {
         } else {
           showStatus("No requests to export");
         }
-      } else if (input === "u") {
+      } else if (input === "u" && !key.ctrl) {
         const newShowFullUrl = !showFullUrl;
         setShowFullUrl(newShowFullUrl);
         showStatus(newShowFullUrl ? "Showing full URL" : "Showing path only");
+      } else if (input === "?") {
+        setShowHelp(true);
       } else if (input === "s") {
         // Save binary content
         if (currentBodyIsSaveable) {
@@ -314,7 +351,7 @@ function AppContent({ __testEnableInput }: AppProps): React.ReactElement {
         }
       }
     },
-    { isActive: (__testEnableInput || isRawModeSupported === true) && !showSaveModal },
+    { isActive: (__testEnableInput || isRawModeSupported === true) && !showSaveModal && !showHelp },
   );
 
   // Calculate layout
@@ -340,12 +377,27 @@ function AppContent({ __testEnableInput }: AppProps): React.ReactElement {
     }
   }, [selectedIndex, contentHeight, listScrollOffset]);
 
+  // Terminal size check — re-evaluates on resize via useStdoutDimensions
+  if (columns < MIN_TERMINAL_COLUMNS || rows < MIN_TERMINAL_ROWS) {
+    return (
+      <Box flexDirection="column" alignItems="center" justifyContent="center" height={rows} width={columns}>
+        <Text color="red" bold>Terminal too small</Text>
+        <Text> </Text>
+        <Text>Current: {columns}x{rows}</Text>
+        <Text>Required: {MIN_TERMINAL_COLUMNS}x{MIN_TERMINAL_ROWS}</Text>
+        <Text> </Text>
+        <Text dimColor>Please resize your terminal.</Text>
+      </Box>
+    );
+  }
+
   // Loading state
   if (isLoading && requests.length === 0) {
     return (
       <Box flexDirection="column" height={rows}>
         <Box flexGrow={1} alignItems="center" justifyContent="center">
-          <Text>Loading...</Text>
+          <Text color="cyan">{spinnerFrame}</Text>
+          <Text> Loading...</Text>
         </Box>
         <StatusBar />
       </Box>
@@ -385,6 +437,18 @@ function AppContent({ __testEnableInput }: AppProps): React.ReactElement {
           setShowSaveModal(false);
           setSavingBodyType(null);
         }}
+        isActive={__testEnableInput || isRawModeSupported === true}
+      />
+    );
+  }
+
+  // Help modal - full screen replacement
+  if (showHelp) {
+    return (
+      <HelpModal
+        width={columns}
+        height={rows}
+        onClose={() => setShowHelp(false)}
         isActive={__testEnableInput || isRawModeSupported === true}
       />
     );

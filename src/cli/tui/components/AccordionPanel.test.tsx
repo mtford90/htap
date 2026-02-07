@@ -148,12 +148,12 @@ describe("AccordionPanel", () => {
   });
 
   describe("Focus indicator", () => {
-    it("shows focus indicator (●) on focused section when active", () => {
+    it("shows focus indicator (») on focused section when active", () => {
       const request = createMockRequest();
       const { lastFrame } = render(<AccordionPanel {...defaultProps} request={request} />);
       const frame = lastFrame();
 
-      expect(frame).toContain("●");
+      expect(frame).toContain("»");
     });
 
     it("does not show focus indicator when panel is not active", () => {
@@ -162,10 +162,10 @@ describe("AccordionPanel", () => {
       const { lastFrame } = render(<AccordionPanel {...props} request={request} />);
       const frame = lastFrame();
 
-      // Focus indicator should not appear (space instead of ●)
+      // Focus indicator should not appear (space instead of »)
       // Note: The buildDividerLine adds a space for non-focused sections
-      // so we check that ● specifically is not present
-      expect(frame).not.toContain("●");
+      // so we check that » specifically is not present
+      expect(frame).not.toContain("»");
     });
 
     it("focus indicator moves with focusedSection", () => {
@@ -180,8 +180,8 @@ describe("AccordionPanel", () => {
       const { lastFrame: frame2 } = render(<AccordionPanel {...props2} request={request} />);
 
       // Both frames should have focus indicator, but in different positions
-      expect(frame1()).toContain("●");
-      expect(frame2()).toContain("●");
+      expect(frame1()).toContain("»");
+      expect(frame2()).toContain("»");
     });
   });
 
