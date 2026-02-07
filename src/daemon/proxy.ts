@@ -69,6 +69,11 @@ export async function createProxy(options: ProxyOptions): Promise<ProxyServer> {
   await server.start(options.port);
 
   // Set up passthrough rule that captures all traffic
+  // Clean up requestInfo entries for requests that are aborted before completion
+  await server.on("abort", (req) => {
+    requestInfo.delete(req.id);
+  });
+
   await server.forAnyRequest().thenPassThrough({
     // Ignore certificate errors when connecting to upstream servers
     ignoreHostHttpsErrors: true,

@@ -90,6 +90,7 @@ describe("debug-dump integration", () => {
     logger.info("Test message 1", { key: "value1" });
     logger.warn("Test message 2", { key: "value2" });
     logger.error("Test message 3", { key: "value3" });
+    logger.close();
 
     const dump = collectDebugInfo(tempDir);
 

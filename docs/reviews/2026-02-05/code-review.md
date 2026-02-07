@@ -11,7 +11,7 @@ Comprehensive code review conducted across 8 dimensions using parallel opus agen
 - [x] **5. Project Organisation** (4 issues)
 - [ ] **6. Security** (4 issues)
 - [ ] **7. UX/UI Principles** (8 issues)
-- [ ] **8. Performance** (7 issues)
+- [x] **8. Performance** (7 issues)
 
 ---
 
@@ -384,43 +384,35 @@ Comprehensive code review conducted across 8 dimensions using parallel opus agen
 
 ---
 
-- [ ] **8.4: requestInfo Map never cleaned for failed requests**
+- [x] **8.4: requestInfo Map never cleaned for failed requests** ✓
 
   **File:** `src/daemon/proxy.ts:51, 109, 117`
 
-  **Issue:** Entry is set in `beforeRequest`, only deleted in `beforeResponse`. Failed/dropped connections leave orphaned entries.
-
-  **Fix:** Add periodic cleanup (every 60s) removing entries older than 5 minutes.
+  **Fixed:** Added `server.on('abort')` handler that deletes the orphaned `requestInfo` entry when a request is aborted before completion.
 
 ---
 
-- [ ] **8.5: Synchronous logging blocks event loop**
+- [x] **8.5: Synchronous logging blocks event loop** ✓
 
   **File:** `src/shared/logger.ts:70-72, 105-117`
 
-  **Issue:** Every log entry performs `fs.appendFileSync()`.
-
-  **Fix:** Buffer and flush periodically, or use async/stream.
+  **Fixed:** Replaced synchronous `appendFileSync`/`statSync` with buffered async writes using `fs.WriteStream`. Log lines are buffered and flushed on a 100ms timer. Added `close()` method for graceful shutdown with synchronous final flush.
 
 ---
 
-- [ ] **8.6: New socket per control request**
+- [x] **8.6: New socket per control request** ✓
 
-  **File:** `src/daemon/control.ts:278-319`
+  **File:** `src/shared/control-client.ts`
 
-  **Issue:** Each request creates new socket connection. TUI polls every 2 seconds.
-
-  **Fix:** Implement connection pooling or persistent connection (lower priority).
+  **Fixed:** Replaced per-request socket creation with persistent connection + request multiplexing by ID. Lazy connect with deduplication, automatic reconnect on disconnect, bounded receive buffer (1MB). Added `close()` method. Updated all call sites to close clients when done.
 
 ---
 
-- [ ] **8.7: Per-item mouse handlers**
+- [x] **8.7: Per-item mouse handlers** — SKIPPED
 
   **File:** `src/cli/tui/components/RequestListItem.tsx:65-75`
 
-  **Issue:** Each item creates 3 mouse event handlers. With 50+ visible items = 150+ listeners.
-
-  **Fix:** Move mouse tracking to parent, use event delegation.
+  **Rationale:** 50 click listeners in a terminal app is not a real bottleneck. `RequestListItem` is already wrapped in `memo()` preventing most re-renders. The fix (move click to parent with coordinate-based hit-testing) adds stale-closure complexity for marginal gain.
 
 ---
 

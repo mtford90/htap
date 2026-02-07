@@ -21,6 +21,7 @@ describe("Logger", () => {
     it("writes JSON log entries to file", () => {
       const logger = new Logger("daemon", logFile, "trace");
       logger.info("Test message");
+      logger.close();
 
       const content = fs.readFileSync(logFile, "utf-8");
       const entry = JSON.parse(content.trim());
@@ -34,6 +35,7 @@ describe("Logger", () => {
       const logger = new Logger("daemon", logFile, "trace");
       logger.info("First message");
       logger.info("Second message");
+      logger.close();
 
       const content = fs.readFileSync(logFile, "utf-8");
       const lines = content.trim().split("\n");
@@ -46,6 +48,7 @@ describe("Logger", () => {
 
       const logger = new Logger("daemon", logFile, "trace");
       logger.info("Test message");
+      logger.close();
 
       expect(fs.existsSync(logFile)).toBe(true);
     });
@@ -53,6 +56,7 @@ describe("Logger", () => {
     it("includes timestamp in ISO 8601 format", () => {
       const logger = new Logger("daemon", logFile, "trace");
       logger.info("Test message");
+      logger.close();
 
       const content = fs.readFileSync(logFile, "utf-8");
       const entry = JSON.parse(content.trim());
@@ -63,6 +67,7 @@ describe("Logger", () => {
     it("includes level, component, and message", () => {
       const logger = new Logger("proxy", logFile, "trace");
       logger.warn("Warning message");
+      logger.close();
 
       const content = fs.readFileSync(logFile, "utf-8");
       const entry = JSON.parse(content.trim());
@@ -75,6 +80,7 @@ describe("Logger", () => {
     it("includes optional data field when provided", () => {
       const logger = new Logger("daemon", logFile, "trace");
       logger.info("Request received", { method: "GET", url: "/api/test" });
+      logger.close();
 
       const content = fs.readFileSync(logFile, "utf-8");
       const entry = JSON.parse(content.trim());
@@ -85,6 +91,7 @@ describe("Logger", () => {
     it("omits data field when not provided", () => {
       const logger = new Logger("daemon", logFile, "trace");
       logger.info("Simple message");
+      logger.close();
 
       const content = fs.readFileSync(logFile, "utf-8");
       const entry = JSON.parse(content.trim());
@@ -101,6 +108,7 @@ describe("Logger", () => {
         const testFile = path.join(tempDir, `${level}.log`);
         const logger = new Logger("daemon", testFile, level);
         logger.error("Error message");
+        logger.close();
 
         expect(fs.existsSync(testFile)).toBe(true);
         const content = fs.readFileSync(testFile, "utf-8");
@@ -115,6 +123,7 @@ describe("Logger", () => {
         const testFile = path.join(tempDir, `warn-${level}.log`);
         const logger = new Logger("daemon", testFile, level);
         logger.warn("Warning message");
+        logger.close();
         expect(fs.existsSync(testFile)).toBe(true);
       }
 
@@ -122,6 +131,7 @@ describe("Logger", () => {
       const shouldNotLogFile = path.join(tempDir, "warn-error.log");
       const logger = new Logger("daemon", shouldNotLogFile, "error");
       logger.warn("Warning message");
+      logger.close();
       expect(fs.existsSync(shouldNotLogFile)).toBe(false);
     });
 
@@ -132,6 +142,7 @@ describe("Logger", () => {
         const testFile = path.join(tempDir, `info-${level}.log`);
         const logger = new Logger("daemon", testFile, level);
         logger.info("Info message");
+        logger.close();
         expect(fs.existsSync(testFile)).toBe(true);
       }
 
@@ -141,6 +152,7 @@ describe("Logger", () => {
         const testFile = path.join(tempDir, `info-not-${level}.log`);
         const logger = new Logger("daemon", testFile, level);
         logger.info("Info message");
+        logger.close();
         expect(fs.existsSync(testFile)).toBe(false);
       }
     });
@@ -152,6 +164,7 @@ describe("Logger", () => {
         const testFile = path.join(tempDir, `debug-${level}.log`);
         const logger = new Logger("daemon", testFile, level);
         logger.debug("Debug message");
+        logger.close();
         expect(fs.existsSync(testFile)).toBe(true);
       }
 
@@ -161,6 +174,7 @@ describe("Logger", () => {
         const testFile = path.join(tempDir, `debug-not-${level}.log`);
         const logger = new Logger("daemon", testFile, level);
         logger.debug("Debug message");
+        logger.close();
         expect(fs.existsSync(testFile)).toBe(false);
       }
     });
@@ -170,6 +184,7 @@ describe("Logger", () => {
       const traceFile = path.join(tempDir, "trace-trace.log");
       const traceLogger = new Logger("daemon", traceFile, "trace");
       traceLogger.trace("Trace message");
+      traceLogger.close();
       expect(fs.existsSync(traceFile)).toBe(true);
 
       // Should not log at any other level
@@ -178,6 +193,7 @@ describe("Logger", () => {
         const testFile = path.join(tempDir, `trace-not-${level}.log`);
         const logger = new Logger("daemon", testFile, level);
         logger.trace("Trace message");
+        logger.close();
         expect(fs.existsSync(testFile)).toBe(false);
       }
     });
@@ -192,6 +208,7 @@ describe("Logger", () => {
       for (let i = 0; i < 11; i++) {
         logger.info(largeData);
       }
+      logger.close();
 
       // Should have rotated, so we should have both files
       expect(fs.existsSync(logFile)).toBe(true);
@@ -210,6 +227,7 @@ describe("Logger", () => {
       for (let i = 0; i < 11; i++) {
         logger.info(largeData);
       }
+      logger.close();
 
       // The .1 file should no longer contain the old content
       const content = fs.readFileSync(rotatedPath, "utf-8");
@@ -227,6 +245,7 @@ describe("Logger", () => {
       for (let i = 0; i < 11; i++) {
         logger.info(largeData);
       }
+      logger.close();
 
       // The marker should be in the rotated file
       const rotatedContent = fs.readFileSync(logFile + ".1", "utf-8");
@@ -247,6 +266,7 @@ describe("Logger", () => {
 
       // Write a message after rotation
       logger.info("AFTER_ROTATION");
+      logger.close();
 
       // The current log should not contain the pre-rotation message
       // (it should be in .1)
@@ -262,6 +282,7 @@ describe("Logger", () => {
       for (let i = 0; i < 10; i++) {
         logger.info("Small message");
       }
+      logger.close();
 
       // Should not have rotated
       expect(fs.existsSync(logFile)).toBe(true);
@@ -284,6 +305,7 @@ describe("createLogger", () => {
   it("creates logger with correct log file path", () => {
     const logger = createLogger("daemon", tempDir, "trace");
     logger.info("Test message");
+    logger.close();
 
     const expectedPath = path.join(tempDir, ".htpx", "htpx.log");
     expect(fs.existsSync(expectedPath)).toBe(true);

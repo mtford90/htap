@@ -332,6 +332,7 @@ describe("daemon integration", () => {
       const isAlive = await client.ping();
 
       expect(isAlive).toBe(true);
+      client.close();
     });
 
     it("status includes version field", async () => {
@@ -358,6 +359,7 @@ describe("daemon integration", () => {
       const status = await client.status();
 
       expect(status.version).toBe(testVersion);
+      client.close();
     });
 
     it("returns daemon status", async () => {
@@ -398,6 +400,7 @@ describe("daemon integration", () => {
       expect(status.sessionCount).toBe(2);
       expect(status.requestCount).toBe(1);
       expect(status.version).toBe(testVersion);
+      client.close();
     });
 
     it("lists and counts requests via control API", async () => {
@@ -438,6 +441,7 @@ describe("daemon integration", () => {
 
       const count = await client.countRequests();
       expect(count).toBe(1);
+      client.close();
     });
 
     it("lists request summaries via control API", async () => {
@@ -498,6 +502,7 @@ describe("daemon integration", () => {
       // Should NOT have body/header data (type checking ensures this)
       expect("requestBody" in summary).toBe(false);
       expect("responseBody" in summary).toBe(false);
+      client.close();
     });
 
     it("gets individual request with full data via control API", async () => {
@@ -554,6 +559,7 @@ describe("daemon integration", () => {
       // Should have body data (as Buffer after revival)
       expect(request?.requestBody).toEqual(requestBody);
       expect(request?.responseBody).toEqual(responseBody);
+      client.close();
     });
 
     it("returns null for non-existent request via control API", async () => {
@@ -579,6 +585,7 @@ describe("daemon integration", () => {
 
       const request = await client.getRequest("non-existent-id");
       expect(request).toBeNull();
+      client.close();
     });
 
     it("registers sessions via control API", async () => {
@@ -604,6 +611,7 @@ describe("daemon integration", () => {
       expect(session.id).toBeDefined();
       expect(session.label).toBe("my-label");
       expect(session.pid).toBe(12345);
+      client.close();
     });
 
     it("returns error for unknown control method", async () => {
@@ -628,6 +636,7 @@ describe("daemon integration", () => {
       const client = new ControlClient(paths.controlSocketFile);
 
       await expect(client.request("nonExistentMethod")).rejects.toThrow();
+      client.close();
     });
 
     it("clears requests via control API", async () => {
@@ -666,6 +675,7 @@ describe("daemon integration", () => {
 
       const count = await client.countRequests();
       expect(count).toBe(0);
+      client.close();
     });
   });
 });

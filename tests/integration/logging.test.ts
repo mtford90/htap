@@ -66,7 +66,8 @@ describe("logging integration", () => {
 
       // Make request through proxy
       await makeProxiedRequest(proxy.port, `http://127.0.0.1:${testServerAddress.port}/test`);
-      await new Promise((resolve) => setTimeout(resolve, 100));
+      // Wait for buffered log to be flushed
+      await new Promise((resolve) => setTimeout(resolve, 200));
 
       // Check log file exists and contains trace entries
       expect(fs.existsSync(paths.logFile)).toBe(true);
@@ -101,9 +102,10 @@ describe("logging integration", () => {
       const { ControlClient } = await import("../../src/shared/control-client.js");
       const client = new ControlClient(paths.controlSocketFile);
       await client.ping();
+      client.close();
 
-      // Wait for log to be written
-      await new Promise((resolve) => setTimeout(resolve, 50));
+      // Wait for buffered log to be flushed
+      await new Promise((resolve) => setTimeout(resolve, 200));
 
       // Check log file exists and contains control messages
       expect(fs.existsSync(paths.logFile)).toBe(true);
@@ -124,6 +126,9 @@ describe("logging integration", () => {
         path: "/test",
         requestHeaders: {},
       });
+
+      // Wait for buffered log to be flushed
+      await new Promise((resolve) => setTimeout(resolve, 200));
 
       // Check log file contains storage entries
       expect(fs.existsSync(paths.logFile)).toBe(true);
@@ -157,6 +162,9 @@ describe("logging integration", () => {
       });
 
       infoStorage.close();
+
+      // Wait for any buffered log flushes
+      await new Promise((resolve) => setTimeout(resolve, 200));
 
       // Log file should be empty (debug level filtered out)
       const logContent = fs.readFileSync(paths.logFile, "utf-8");
