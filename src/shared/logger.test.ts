@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import * as fs from "node:fs";
 import * as path from "node:path";
 import * as os from "node:os";
-import { Logger, createLogger, parseVerbosity, type LogLevel } from "../../src/shared/logger.js";
+import { Logger, createLogger, parseVerbosity, type LogLevel } from "./logger.js";
 
 describe("Logger", () => {
   let tempDir: string;

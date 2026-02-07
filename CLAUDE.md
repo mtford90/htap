@@ -63,16 +63,22 @@ npm run dev        # Watch mode for development
 - **ink-testing-library** - Component-level TUI testing with keyboard input simulation
 - **cli-testing-library** - Full CLI process spawning for e2e tests
 
+### Test Conventions
+
+**Co-location:** Unit tests live next to the source file they test (e.g. `src/daemon/proxy.test.ts` tests `src/daemon/proxy.ts`). Integration and E2E tests stay in `tests/integration/` and `tests/e2e/` respectively.
+
+**Module grouping:** Test files should map 1:1 to source modules. Don't create separate test files for individual exported functions — group all tests for a module in a single `<module>.test.ts` file.
+
 ### Test Types
 
-#### Unit Tests (`tests/unit/`)
+#### Unit Tests (co-located in `src/`)
 Pure functions with no external dependencies. Fast, isolated, deterministic.
 
 **Use for**: Formatters, utilities, data transformations, SQLite operations (with temp files)
 
-**Examples**: `formatters.test.ts`, `curl.test.ts`, `har.test.ts`, `storage.test.ts`
+**Examples**: `src/daemon/storage.test.ts`, `src/cli/tui/utils/curl.test.ts`, `src/daemon/proxy.test.ts`
 
-#### Component Tests (`tests/unit/tui/`)
+#### Component Tests (co-located in `src/cli/tui/`)
 ink components tested with ink-testing-library. Can simulate keyboard input.
 
 **Use for**: TUI component behaviour, keyboard interactions, state changes
@@ -117,9 +123,9 @@ Full CLI process spawning with cli-testing-library. Tests the complete user flow
 
 ```bash
 npm test                           # All tests
-npm run test:unit                  # Unit tests only
+npm run test:unit                  # Unit tests only (co-located in src/)
 npm run test:int                   # Integration tests only
-npm test -- tests/path/to/file    # Specific file
+npm test -- src/daemon/proxy.test  # Specific file
 npm run test:watch                 # Watch mode
 ```
 

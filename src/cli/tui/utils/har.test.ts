@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
-import { generateHar, generateHarString } from "../../../src/cli/tui/utils/har.js";
-import type { CapturedRequest } from "../../../src/shared/types.js";
+import { generateHar, generateHarString } from "./har.js";
+import type { CapturedRequest } from "../../../shared/types.js";
 
 function createMockRequest(overrides: Partial<CapturedRequest> = {}): CapturedRequest {
   return {
@@ -174,6 +174,118 @@ describe("generateHar", () => {
       expect(entry).toBeDefined();
       expect(entry.response.statusText).toBe(text);
     }
+  });
+
+  it("should handle binary request body", () => {
+    // Non-UTF8 binary data
+    const binaryBody = Buffer.from([0x00, 0xff, 0x80, 0xfe, 0x01]);
+    const request = createMockRequest({
+      method: "POST",
+      requestBody: binaryBody,
+      requestHeaders: { "Content-Type": "application/octet-stream" },
+    });
+
+    const har = generateHar([request]);
+    const entry = har.log.entries[0];
+    expect(entry).toBeDefined();
+
+    // HAR stores body as text - binary data gets converted via toString("utf-8")
+    expect(entry.request.postData).toBeDefined();
+    expect(entry.request.postData?.mimeType).toBe("application/octet-stream");
+    expect(entry.request.postData?.text).toBeDefined();
+    expect(entry.request.bodySize).toBe(binaryBody.length);
+  });
+
+  it("should handle binary response body", () => {
+    const binaryBody = Buffer.from([0x89, 0x50, 0x4e, 0x47]); // PNG header bytes
+    const request = createMockRequest({
+      responseStatus: 200,
+      responseBody: binaryBody,
+      responseHeaders: { "Content-Type": "image/png" },
+    });
+
+    const har = generateHar([request]);
+    const entry = har.log.entries[0];
+    expect(entry).toBeDefined();
+
+    expect(entry.response.content.text).toBeDefined();
+    expect(entry.response.content.size).toBe(binaryBody.length);
+    expect(entry.response.content.mimeType).toBe("image/png");
+  });
+
+  it("should handle truncated request body flag", () => {
+    const request = createMockRequest({
+      method: "POST",
+      requestBody: undefined,
+      requestBodyTruncated: true,
+      requestHeaders: { "Content-Type": "application/json" },
+    });
+
+    const har = generateHar([request]);
+    const entry = har.log.entries[0];
+    expect(entry).toBeDefined();
+
+    // No body stored, so no postData
+    expect(entry.request.postData).toBeUndefined();
+    expect(entry.request.bodySize).toBe(0);
+  });
+
+  it("should handle truncated response body flag", () => {
+    const request = createMockRequest({
+      responseStatus: 200,
+      responseBody: undefined,
+      responseBodyTruncated: true,
+      responseHeaders: { "Content-Type": "application/json" },
+    });
+
+    const har = generateHar([request]);
+    const entry = har.log.entries[0];
+    expect(entry).toBeDefined();
+
+    // No body stored, so no content text
+    expect(entry.response.content.text).toBeUndefined();
+    expect(entry.response.content.size).toBe(0);
+  });
+
+  it("should handle content-type with charset parameter", () => {
+    const request = createMockRequest({
+      requestHeaders: { "content-type": "application/json; charset=utf-8" },
+      requestBody: Buffer.from('{"test":true}'),
+      method: "POST",
+    });
+
+    const har = generateHar([request]);
+    const entry = har.log.entries[0];
+    expect(entry).toBeDefined();
+
+    // Should use the full content-type including charset
+    expect(entry.request.postData?.mimeType).toBe("application/json; charset=utf-8");
+  });
+
+  it("should handle empty request body (zero-length Buffer)", () => {
+    const request = createMockRequest({
+      method: "POST",
+      requestBody: Buffer.alloc(0),
+    });
+
+    const har = generateHar([request]);
+    const entry = har.log.entries[0];
+    expect(entry).toBeDefined();
+
+    // Empty buffer should not produce postData
+    expect(entry.request.postData).toBeUndefined();
+  });
+
+  it("should handle URL without query string", () => {
+    const request = createMockRequest({
+      url: "https://example.com/api/test",
+    });
+
+    const har = generateHar([request]);
+    const entry = har.log.entries[0];
+    expect(entry).toBeDefined();
+
+    expect(entry.request.queryString).toEqual([]);
   });
 });
 

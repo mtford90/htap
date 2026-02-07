@@ -5,7 +5,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import React from "react";
 import { render } from "ink-testing-library";
-import { SaveModal } from "../../../src/cli/tui/components/SaveModal.js";
+import { SaveModal } from "./SaveModal.js";
 
 // Helper to wait for React state updates
 const tick = (ms = 50) => new Promise((resolve) => setTimeout(resolve, ms));

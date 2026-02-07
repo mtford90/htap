@@ -2,13 +2,13 @@ import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import * as fs from "node:fs";
 import * as path from "node:path";
 import * as os from "node:os";
-import { collectDebugInfo } from "../../src/cli/commands/debug-dump.js";
+import { collectDebugInfo } from "./debug-dump.js";
 import {
   ensureHtpxDir,
   getHtpxPaths,
   writeDaemonPid,
   writeProxyPort,
-} from "../../src/shared/project.js";
+} from "../../shared/project.js";
 
 describe("collectDebugInfo", () => {
   let tempDir: string;

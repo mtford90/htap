@@ -1,14 +1,14 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import type { CapturedRequest } from "../../../src/shared/types.js";
+import type { CapturedRequest } from "../../../shared/types.js";
 
 // Mock the clipboard module before importing
 const mockCopyToClipboard = vi.fn();
-vi.mock("../../../src/cli/tui/utils/clipboard.js", () => ({
+vi.mock("../utils/clipboard.js", () => ({
   copyToClipboard: mockCopyToClipboard,
 }));
 
 // Import after mocking
-const { exportCurlToClipboard } = await import("../../../src/cli/tui/hooks/useExport.js");
+const { exportCurlToClipboard } = await import("./useExport.js");
 
 function createMockRequest(overrides: Partial<CapturedRequest> = {}): CapturedRequest {
   return {

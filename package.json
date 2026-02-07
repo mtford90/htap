@@ -16,7 +16,7 @@
     "start": "node dist/cli/index.js",
     "test": "vitest run",
     "test:watch": "vitest",
-    "test:unit": "vitest run --dir tests/unit",
+    "test:unit": "vitest run --dir src",
     "test:int": "vitest run --dir tests/integration",
     "lint": "eslint src tests",
     "lint:fix": "eslint src tests --fix",

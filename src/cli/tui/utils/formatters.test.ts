@@ -8,7 +8,7 @@ import {
   padLeft,
   formatMethod,
   formatStatus,
-} from "../../../src/cli/tui/utils/formatters.js";
+} from "./formatters.js";
 
 describe("formatRelativeTime", () => {
   beforeEach(() => {
@@ -45,6 +45,17 @@ describe("formatRelativeTime", () => {
     const now = Date.now();
     expect(formatRelativeTime(now - 86400000)).toBe("1d ago");
     expect(formatRelativeTime(now - 172800000)).toBe("2d ago");
+  });
+
+  it("should handle timestamp equal to now (0 seconds ago)", () => {
+    const now = Date.now();
+    expect(formatRelativeTime(now)).toBe("0s ago");
+  });
+
+  it("should handle future timestamps (negative diff)", () => {
+    const now = Date.now();
+    // Future timestamp results in negative seconds, Math.floor makes it more negative
+    expect(formatRelativeTime(now + 5000)).toBe("-5s ago");
   });
 });
 
@@ -97,6 +108,18 @@ describe("formatSize", () => {
 
   it("should return dash for undefined", () => {
     expect(formatSize(undefined)).toBe("-");
+  });
+
+  it("should handle very large sizes (TB+)", () => {
+    // 1 TB = 1024^4 = 1099511627776
+    // Since units only go to GB, this should show as GB
+    expect(formatSize(1099511627776)).toBe("1024.0GB");
+  });
+
+  it("should handle negative numbers", () => {
+    // Negative bytes makes no semantic sense but shouldn't crash
+    // The while loop won't execute since -1 < 1024, unitIndex stays 0
+    expect(formatSize(-1)).toBe("-1B");
   });
 });
 

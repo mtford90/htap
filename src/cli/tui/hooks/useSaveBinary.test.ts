@@ -2,15 +2,15 @@ import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import * as fs from "node:fs";
 import * as path from "node:path";
 import * as os from "node:os";
-import { generateFilename, saveBinaryContent } from "../../../src/cli/tui/hooks/useSaveBinary.js";
+import { generateFilename, saveBinaryContent } from "./useSaveBinary.js";
 
 // Mock clipboard - it uses child_process which is hard to test
-vi.mock("../../../src/cli/tui/utils/clipboard.js", () => ({
+vi.mock("../utils/clipboard.js", () => ({
   copyToClipboard: vi.fn().mockResolvedValue(undefined),
 }));
 
 // Mock project root finding
-vi.mock("../../../src/shared/project.js", () => ({
+vi.mock("../../../shared/project.js", () => ({
   findOrCreateProjectRoot: vi.fn().mockReturnValue("/mock/project"),
   ensureHtpxDir: vi.fn().mockReturnValue("/mock/project/.htpx"),
 }));

@@ -11,8 +11,8 @@ import {
   SECTION_REQUEST_BODY,
   SECTION_RESPONSE,
   SECTION_RESPONSE_BODY,
-} from "../../../src/cli/tui/components/AccordionPanel.js";
-import type { CapturedRequest } from "../../../src/shared/types.js";
+} from "./AccordionPanel.js";
+import type { CapturedRequest } from "../../../shared/types.js";
 
 const createMockRequest = (overrides: Partial<CapturedRequest> = {}): CapturedRequest => ({
   id: "test-1",

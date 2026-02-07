@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { isBinaryContent, getBinaryTypeDescription } from "../../../src/cli/tui/utils/binary.js";
+import { isBinaryContent, getBinaryTypeDescription } from "./binary.js";
 
 describe("isBinaryContent", () => {
   describe("content-type based detection", () => {

@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
-import { generateCurl } from "../../../src/cli/tui/utils/curl.js";
-import type { CapturedRequest } from "../../../src/shared/types.js";
+import { generateCurl } from "./curl.js";
+import type { CapturedRequest } from "../../../shared/types.js";
 
 function createMockRequest(overrides: Partial<CapturedRequest> = {}): CapturedRequest {
   return {
@@ -71,7 +71,7 @@ describe("generateCurl", () => {
     });
     const curl = generateCurl(request);
 
-    expect(curl).toContain("-d '{\"name\":\"test\"}'");
+    expect(curl).toContain('-d \'{"name":"test"}\'');
   });
 
   it("should escape single quotes in URL", () => {
@@ -133,5 +133,104 @@ describe("generateCurl", () => {
 
     expect(curl).toContain("-X PATCH");
     expect(curl).toContain("-d '{\"update\":true}'");
+  });
+
+  it("should handle binary request body", () => {
+    const binaryBody = Buffer.from([0x00, 0xff, 0x80, 0xfe]);
+    const request = createMockRequest({
+      method: "POST",
+      requestBody: binaryBody,
+    });
+    const curl = generateCurl(request);
+
+    // Binary data gets toString("utf-8") - should still produce -d flag
+    expect(curl).toContain("-d '");
+  });
+
+  it("should handle newlines in request body", () => {
+    const request = createMockRequest({
+      method: "POST",
+      requestBody: Buffer.from("line1\nline2\nline3"),
+    });
+    const curl = generateCurl(request);
+
+    expect(curl).toContain("-d 'line1\nline2\nline3'");
+  });
+
+  it("should handle empty Buffer (zero-length)", () => {
+    const request = createMockRequest({
+      method: "POST",
+      requestBody: Buffer.alloc(0),
+    });
+    const curl = generateCurl(request);
+
+    // Empty buffer should not produce -d flag
+    expect(curl).not.toContain("-d ");
+  });
+
+  it("should handle undefined requestBody", () => {
+    const request = createMockRequest({
+      method: "POST",
+      requestBody: undefined,
+    });
+    const curl = generateCurl(request);
+
+    expect(curl).not.toContain("-d ");
+  });
+
+  it("should handle PUT method", () => {
+    const request = createMockRequest({ method: "PUT" });
+    const curl = generateCurl(request);
+    expect(curl).toContain("-X PUT");
+  });
+
+  it("should handle HEAD method", () => {
+    const request = createMockRequest({ method: "HEAD" });
+    const curl = generateCurl(request);
+    expect(curl).toContain("-X HEAD");
+  });
+
+  it("should handle OPTIONS method", () => {
+    const request = createMockRequest({ method: "OPTIONS" });
+    const curl = generateCurl(request);
+    expect(curl).toContain("-X OPTIONS");
+  });
+
+  it("should exclude Transfer-Encoding header", () => {
+    const request = createMockRequest({
+      requestHeaders: {
+        "Transfer-Encoding": "chunked",
+      },
+    });
+    const curl = generateCurl(request);
+    expect(curl).not.toContain("Transfer-Encoding");
+  });
+
+  it("should handle case-insensitive excluded headers", () => {
+    const request = createMockRequest({
+      requestHeaders: {
+        HOST: "example.com",
+        "CONTENT-LENGTH": "100",
+        "ACCEPT-ENCODING": "gzip",
+      },
+    });
+    const curl = generateCurl(request);
+
+    expect(curl).not.toContain("HOST:");
+    expect(curl).not.toContain("CONTENT-LENGTH:");
+    expect(curl).not.toContain("ACCEPT-ENCODING:");
+  });
+
+  it("should handle multiple single quotes in body", () => {
+    const request = createMockRequest({
+      method: "POST",
+      requestBody: Buffer.from("it's a 'test' isn't it"),
+    });
+    const curl = generateCurl(request);
+
+    // Each ' becomes '"'"'
+    expect(curl).toContain("-d '");
+    // Verify it doesn't crash and produces output
+    expect(curl.length).toBeGreaterThan(0);
   });
 });

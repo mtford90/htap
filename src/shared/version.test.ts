@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { getHtpxVersion } from "../../src/shared/version.js";
+import { getHtpxVersion } from "./version.js";
 
 describe("version", () => {
   describe("getHtpxVersion", () => {

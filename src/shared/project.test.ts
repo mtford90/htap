@@ -14,7 +14,7 @@ import {
   writeDaemonPid,
   removeDaemonPid,
   isProcessRunning,
-} from "../../src/shared/project.js";
+} from "./project.js";
 
 describe("project utilities", () => {
   let tempDir: string;

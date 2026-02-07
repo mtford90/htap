@@ -5,18 +5,18 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import React from "react";
 import { render } from "ink-testing-library";
-import { App } from "../../../src/cli/tui/App.js";
-import type { CapturedRequest, CapturedRequestSummary } from "../../../src/shared/types.js";
+import { App } from "./App.js";
+import type { CapturedRequest, CapturedRequestSummary } from "../../shared/types.js";
 
 // Mock the hooks that depend on external services
-vi.mock("../../../src/cli/tui/hooks/useRequests.js", () => ({
+vi.mock("./hooks/useRequests.js", () => ({
   useRequests: vi.fn(),
 }));
 
 const mockExportCurl = vi.fn().mockResolvedValue({ success: true, message: "Copied to clipboard" });
 const mockExportHar = vi.fn().mockReturnValue({ success: true, message: "HAR exported" });
 
-vi.mock("../../../src/cli/tui/hooks/useExport.js", () => ({
+vi.mock("./hooks/useExport.js", () => ({
   useExport: () => ({
     exportCurl: mockExportCurl,
     exportHar: mockExportHar,
@@ -24,7 +24,7 @@ vi.mock("../../../src/cli/tui/hooks/useExport.js", () => ({
 }));
 
 // Import the mocked hook so we can control its return value
-import { useRequests } from "../../../src/cli/tui/hooks/useRequests.js";
+import { useRequests } from "./hooks/useRequests.js";
 const mockUseRequests = vi.mocked(useRequests);
 
 const createMockSummary = (overrides: Partial<CapturedRequestSummary> = {}): CapturedRequestSummary => ({

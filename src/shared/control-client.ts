@@ -23,7 +23,7 @@ export interface ControlResponse {
  * JSON.stringify(Buffer) produces { type: 'Buffer', data: [...] }
  * This converts them back to actual Buffer instances.
  */
-function reviveBuffers<T>(obj: T): T {
+export function reviveBuffers<T>(obj: T): T {
   if (obj === null || obj === undefined) {
     return obj;
   }

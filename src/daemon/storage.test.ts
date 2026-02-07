@@ -3,7 +3,7 @@ import * as fs from "node:fs";
 import * as path from "node:path";
 import * as os from "node:os";
 import Database from "better-sqlite3";
-import { RequestRepository } from "../../src/daemon/storage.js";
+import { RequestRepository } from "./storage.js";
 
 describe("RequestRepository", () => {
   let tempDir: string;

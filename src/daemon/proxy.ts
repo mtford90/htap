@@ -177,7 +177,7 @@ export async function createProxy(options: ProxyOptions): Promise<ProxyServer> {
 /**
  * Flatten mockttp headers (which may have array values) to simple string values.
  */
-function flattenHeaders(headers: Headers): Record<string, string> {
+export function flattenHeaders(headers: Headers): Record<string, string> {
   const result: Record<string, string> = {};
 
   for (const [key, value] of Object.entries(headers)) {

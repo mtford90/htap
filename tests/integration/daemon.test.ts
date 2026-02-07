@@ -184,6 +184,127 @@ describe("daemon integration", () => {
       // Stored headers should not include content-encoding since the body is decoded
       expect(captured?.responseHeaders?.["content-encoding"]).toBeUndefined();
     });
+
+    it("captures POST requests with JSON body", async () => {
+      const testServer = http.createServer((req, res) => {
+        let body = "";
+        req.on("data", (chunk) => (body += chunk));
+        req.on("end", () => {
+          res.writeHead(201, { "Content-Type": "application/json" });
+          res.end(JSON.stringify({ received: body }));
+        });
+      });
+
+      await new Promise<void>((resolve) => testServer.listen(0, "127.0.0.1", resolve));
+      const testServerAddress = testServer.address() as { port: number };
+      cleanup.push(() => new Promise((resolve) => testServer.close(() => resolve())));
+
+      const session = storage.registerSession("test", process.pid);
+      const proxy = await createProxy({
+        caKeyPath: paths.caKeyFile,
+        caCertPath: paths.caCertFile,
+        storage,
+        sessionId: session.id,
+      });
+      cleanup.push(proxy.stop);
+
+      // Make POST request through proxy
+      await makeProxiedPostRequest(
+        proxy.port,
+        `http://127.0.0.1:${testServerAddress.port}/api/users`,
+        '{"name":"Alice"}',
+        { "Content-Type": "application/json" }
+      );
+
+      await new Promise((resolve) => setTimeout(resolve, 100));
+
+      const requests = storage.listRequests();
+      const captured = requests.find((r) => r.path === "/api/users");
+      expect(captured).toBeDefined();
+      expect(captured?.method).toBe("POST");
+      expect(captured?.requestBody?.toString("utf-8")).toBe('{"name":"Alice"}');
+      expect(captured?.responseStatus).toBe(201);
+      expect(captured?.responseBody).toBeDefined();
+    });
+
+    it("captures PUT requests with body", async () => {
+      const testServer = http.createServer((req, res) => {
+        let body = "";
+        req.on("data", (chunk) => (body += chunk));
+        req.on("end", () => {
+          res.writeHead(200, { "Content-Type": "application/json" });
+          res.end(JSON.stringify({ updated: true }));
+        });
+      });
+
+      await new Promise<void>((resolve) => testServer.listen(0, "127.0.0.1", resolve));
+      const testServerAddress = testServer.address() as { port: number };
+      cleanup.push(() => new Promise((resolve) => testServer.close(() => resolve())));
+
+      const session = storage.registerSession("test", process.pid);
+      const proxy = await createProxy({
+        caKeyPath: paths.caKeyFile,
+        caCertPath: paths.caCertFile,
+        storage,
+        sessionId: session.id,
+      });
+      cleanup.push(proxy.stop);
+
+      await makeProxiedPostRequest(
+        proxy.port,
+        `http://127.0.0.1:${testServerAddress.port}/api/users/1`,
+        '{"name":"Bob"}',
+        { "Content-Type": "application/json" },
+        "PUT"
+      );
+
+      await new Promise((resolve) => setTimeout(resolve, 100));
+
+      const requests = storage.listRequests();
+      const captured = requests.find((r) => r.path === "/api/users/1");
+      expect(captured).toBeDefined();
+      expect(captured?.method).toBe("PUT");
+      expect(captured?.requestBody?.toString("utf-8")).toBe('{"name":"Bob"}');
+    });
+
+    it("captures multiple rapid sequential requests", async () => {
+      let requestCount = 0;
+      const testServer = http.createServer((req, res) => {
+        requestCount++;
+        res.writeHead(200);
+        res.end(`response-${requestCount}`);
+      });
+
+      await new Promise<void>((resolve) => testServer.listen(0, "127.0.0.1", resolve));
+      const testServerAddress = testServer.address() as { port: number };
+      cleanup.push(() => new Promise((resolve) => testServer.close(() => resolve())));
+
+      const session = storage.registerSession("test", process.pid);
+      const proxy = await createProxy({
+        caKeyPath: paths.caKeyFile,
+        caCertPath: paths.caCertFile,
+        storage,
+        sessionId: session.id,
+      });
+      cleanup.push(proxy.stop);
+
+      const baseUrl = `http://127.0.0.1:${testServerAddress.port}`;
+
+      // Fire off multiple requests rapidly
+      await Promise.all([
+        makeProxiedRequest(proxy.port, `${baseUrl}/api/one`),
+        makeProxiedRequest(proxy.port, `${baseUrl}/api/two`),
+        makeProxiedRequest(proxy.port, `${baseUrl}/api/three`),
+      ]);
+
+      await new Promise((resolve) => setTimeout(resolve, 200));
+
+      const requests = storage.listRequests();
+      const capturedPaths = requests.map((r) => r.path);
+      expect(capturedPaths).toContain("/api/one");
+      expect(capturedPaths).toContain("/api/two");
+      expect(capturedPaths).toContain("/api/three");
+    });
   });
 
   describe("control server", () => {
@@ -484,6 +605,68 @@ describe("daemon integration", () => {
       expect(session.label).toBe("my-label");
       expect(session.pid).toBe(12345);
     });
+
+    it("returns error for unknown control method", async () => {
+      const session = storage.registerSession("test", process.pid);
+
+      const proxy = await createProxy({
+        caKeyPath: paths.caKeyFile,
+        caCertPath: paths.caCertFile,
+        storage,
+        sessionId: session.id,
+      });
+      cleanup.push(proxy.stop);
+
+      const controlServer = createControlServer({
+        socketPath: paths.controlSocketFile,
+        storage,
+        proxyPort: proxy.port,
+        version: "1.0.0",
+      });
+      cleanup.push(controlServer.close);
+
+      const client = new ControlClient(paths.controlSocketFile);
+
+      await expect(client.request("nonExistentMethod")).rejects.toThrow();
+    });
+
+    it("clears requests via control API", async () => {
+      const session = storage.registerSession("test", process.pid);
+
+      storage.saveRequest({
+        sessionId: session.id,
+        timestamp: Date.now(),
+        method: "GET",
+        url: "https://example.com/",
+        host: "example.com",
+        path: "/",
+        requestHeaders: {},
+      });
+
+      expect(storage.countRequests()).toBe(1);
+
+      const proxy = await createProxy({
+        caKeyPath: paths.caKeyFile,
+        caCertPath: paths.caCertFile,
+        storage,
+        sessionId: session.id,
+      });
+      cleanup.push(proxy.stop);
+
+      const controlServer = createControlServer({
+        socketPath: paths.controlSocketFile,
+        storage,
+        proxyPort: proxy.port,
+        version: "1.0.0",
+      });
+      cleanup.push(controlServer.close);
+
+      const client = new ControlClient(paths.controlSocketFile);
+      await client.clearRequests();
+
+      const count = await client.countRequests();
+      expect(count).toBe(0);
+    });
   });
 });
 
@@ -514,6 +697,43 @@ function makeProxiedRequest(
     });
 
     req.on("error", reject);
+    req.end();
+  });
+}
+
+/**
+ * Helper to make an HTTP request with a body through a proxy.
+ */
+function makeProxiedPostRequest(
+  proxyPort: number,
+  url: string,
+  body: string,
+  headers: Record<string, string> = {},
+  method = "POST"
+): Promise<{ statusCode: number; body: string }> {
+  return new Promise((resolve, reject) => {
+    const parsedUrl = new URL(url);
+
+    const options: http.RequestOptions = {
+      hostname: "127.0.0.1",
+      port: proxyPort,
+      path: url,
+      method,
+      headers: {
+        Host: parsedUrl.host,
+        "Content-Length": String(Buffer.byteLength(body)),
+        ...headers,
+      },
+    };
+
+    const req = http.request(options, (res) => {
+      let responseBody = "";
+      res.on("data", (chunk) => (responseBody += chunk));
+      res.on("end", () => resolve({ statusCode: res.statusCode ?? 0, body: responseBody }));
+    });
+
+    req.on("error", reject);
+    req.write(body);
     req.end();
   });
 }
