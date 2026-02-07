@@ -37,6 +37,17 @@
 
 ## Landing page & docs
 
+### Messaging pillars
+
+- **Workspace-isolated** — per-project `.htpx/` directory, no cross-project bleed
+- **Lives in your terminal** — TUI, not another GUI app; fits your existing workflow
+- **AI-native** — MCP integration, AI writes your mocks, inspects your traffic
+- **Config-as-code** — mocks and interceptors are TypeScript files, not GUI toggles
+- **Zero-config** — `eval $(htpx intercept)` and go; auto-starts daemon, auto-generates certs
+- **Developer-first** — built for how you already work, not bolted on
+
+### Content
+
 - [ ] llms.txt
 - [ ] searchable docs?
 - [ ] use cases e.g. ai can analyse requests being sent, get full picture
