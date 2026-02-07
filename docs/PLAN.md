@@ -28,25 +28,13 @@
 - [ ] **WebSocket support** - Capture and display WebSocket traffic
 - [ ] **Aggregate mode** - Instead of showing requests one-by-one, aggregate by method, domain, path, etc.
 - [ ] **Launch Chromium** - Spawn Chromium instance pre-configured to use the proxy
+- [ ] landing page - searchable docs
+  - [ ] llms.txt
+  - [ ] searchable docs?
 
 ## Bugs
 
 - [ ] i can't save json - save only seems to work for binary files
-
----
-
-## Technical Debt
-
-Items identified in [code review (2026-02-05)](reviews/2026-02-05/code-review.md):
-
-- [ ] **Proper migration system** - Current approach silently catches all errors; implement migration tracking table
-- [ ] **Add TUI component tests** - Critical gap; zero ink-testing-library tests exist
-- [ ] **Implement `listRequestsSummary()`** - Fixes 3 performance issues (SELECT *, IPC bloat, poll transfers)
-- [ ] **Extract `getStatusText()`** - Duplicated in har.ts and AccordionPanel.tsx; incomplete coverage
-- [ ] **Move `ControlClient` to shared/** - Currently in daemon/ but used by CLI/TUI
-- [ ] **Fix `useRequests` callback stability** - Causes re-render cascade on every fetch
-- [ ] **Fix setTimeout memory leak in App.tsx** - Store and clear timeout refs
-- [ ] **Add `?` help overlay** - No way to discover keyboard shortcuts
 
 ---
 

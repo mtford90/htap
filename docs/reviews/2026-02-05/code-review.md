@@ -4,10 +4,10 @@ Comprehensive code review conducted across 8 dimensions using parallel opus agen
 
 ## Progress
 
-- [ ] **1. React/Ink Best Practices** (5 issues)
-- [ ] **2. TypeScript Quality** (4 issues)
-- [ ] **3. Code Completeness** (7 issues)
-- [ ] **4. Test Coverage** (5 issues)
+- [x] **1. React/Ink Best Practices** (5 issues)
+- [x] **2. TypeScript Quality** (4 issues)
+- [x] **3. Code Completeness** (7 issues)
+- [x] **4. Test Coverage** (5 issues)
 - [x] **5. Project Organisation** (4 issues)
 - [ ] **6. Security** (4 issues)
 - [ ] **7. UX/UI Principles** (8 issues)
@@ -129,13 +129,9 @@ Comprehensive code review conducted across 8 dimensions using parallel opus agen
 
 ---
 
-- [ ] **3.5: Magic numbers throughout**
+- [x] **3.5: Magic numbers throughout** ✓
 
-  - `1000` - request limit (useRequests.ts:60, storage.ts:276)
-  - `5000` - control timeout (control.ts:315)
-  - `200` - log lines (debug-dump.ts:91)
-
-  **Fix:** Extract to named constants.
+  **Fixed:** Extracted to named constants: `DEFAULT_QUERY_LIMIT` (storage.ts, useRequests.ts), `CONTROL_TIMEOUT_MS` (control-client.ts), `DEFAULT_POLL_INTERVAL_MS` (useRequests.ts), `DEBUG_LOG_LINES` (debug-dump.ts).
 
 ---
 
@@ -166,37 +162,21 @@ Comprehensive code review conducted across 8 dimensions using parallel opus agen
 
 ---
 
-- [ ] **4.1: Missing unit tests for utilities**
+- [x] **4.1: Missing unit tests for utilities** ✓
 
-  - `src/cli/tui/utils/clipboard.ts` - no tests
-  - `src/cli/tui/hooks/useRequests.ts` - no tests
-  - `src/daemon/control.ts` - `reviveBuffers()` not tested
-  - `src/daemon/proxy.ts` - `flattenHeaders()` not tested
-
-  **Fix:** Add unit tests for each.
+  **Fixed:** Added co-located unit tests for `clipboard.ts` (14 tests), `reviveBuffers` in `control-client.test.ts` (16 tests), `flattenHeaders` in `proxy.test.ts` (10 tests).
 
 ---
 
-- [ ] **4.2: Missing integration tests**
+- [x] **4.2: Missing integration tests** ✓
 
-  - POST/PUT requests with bodies
-  - HTTPS request interception
-  - Daemon lifecycle edge cases (stale PID, concurrent starts, crash recovery)
-  - Control API error handling
-
-  **Fix:** Add integration tests in `tests/integration/`.
+  **Fixed:** Added integration tests for POST/PUT with bodies, concurrent requests, unknown control method errors, and clear requests via control API in `tests/integration/daemon.test.ts` (12→17 tests).
 
 ---
 
-- [ ] **4.3: Edge cases not tested**
+- [x] **4.3: Edge cases not tested** ✓
 
-  **Formatters:** `formatRelativeTime()` with negative/zero timestamps, `formatSize()` with very large numbers
-
-  **HAR:** Binary body handling, truncated body flag
-
-  **Curl:** Binary request body, newlines in body
-
-  **Fix:** Add edge case tests to existing test files.
+  **Fixed:** Added edge case tests to formatters (zero/negative timestamps, TB+ sizes), HAR (binary bodies, truncated flags, charset handling), and curl (binary body, newlines, PUT/HEAD/OPTIONS methods, case-insensitive headers).
 
 ---
 
@@ -249,13 +229,9 @@ Comprehensive code review conducted across 8 dimensions using parallel opus agen
 
 ---
 
-- [ ] **6.1: Sensitive headers stored unredacted**
+- [x] **6.1: Sensitive headers stored unredacted** — SKIPPED
 
-  **File:** `src/daemon/storage.ts:14-37, 173-212`
-
-  **Issue:** All HTTP headers stored in plain text including `Authorization`, `Cookie`, API keys.
-
-  **Fix:** Add option to redact sensitive headers in display/export (future feature).
+  **Rationale:** This is a local debugging/interception tool (like Charles Proxy, mitmproxy). Storing full headers is by design — redacting auth headers would defeat the purpose for debugging auth issues. The DB is local to the project directory with the same security model as `.env` files.
 
 ---
 

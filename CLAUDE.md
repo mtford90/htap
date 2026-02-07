@@ -145,6 +145,58 @@ npm run typecheck && npm run lint && npm test
 | `src/shared/project.ts` | Project root detection, .htpx paths |
 | `src/shared/daemon.ts` | Daemon lifecycle management |
 
+## Code Quality Guidelines
+
+Rules derived from the [2026-02-05 code review](docs/reviews/2026-02-05/code-review.md). Follow these when writing new code.
+
+### React/Ink
+
+- **Always clean up timers and subscriptions.** Every `setTimeout`, `setInterval`, or event listener set inside a component or hook MUST have a corresponding cleanup in a `useEffect` return or equivalent. Store timer IDs in refs and clear them on unmount.
+- **Use refs for values accessed in stable callbacks.** When a `useCallback` with an empty dependency array (or an event handler that shouldn't change identity) needs the latest value of state/props, sync that value into a ref via a separate effect. Never close over stale state in scroll/wheel/keyboard handlers.
+- **Wrap list item components in `React.memo()`.** Any component rendered inside a `.map()` or list should be memoised to avoid unnecessary re-renders.
+- **Calculate new state before using it.** When toggling state and also calling a side-effect with the new value, compute the new value first, then pass it to both `setState` and the side-effect — don't read state after setting it (stale closure).
+
+### TypeScript
+
+- **Never trust `JSON.parse` output.** Always validate parsed JSON with a type guard or validation helper before using it. This applies to IPC messages, API responses, and stored data.
+- **Never use `as` casts on external data.** Data from the network, database, or user input must be validated at runtime. Use validation helpers (`requireString()`, `optionalNumber()`, etc.) instead of type assertions.
+- **Use typed handler maps, not `Record<string, Handler>`.** Define explicit interfaces enumerating valid keys. Use `in` guards before indexing into handler maps.
+- **Use named interfaces for database row shapes.** Even for internal databases, define `DbFooRow` interfaces rather than inline type assertions.
+
+### Code Completeness
+
+- **No magic numbers.** Extract numeric literals into named constants (e.g. `DEFAULT_QUERY_LIMIT`, `CONTROL_TIMEOUT_MS`). This includes timeouts, limits, port numbers, buffer sizes, etc.
+- **No hardcoded versions.** Always read versions programmatically (e.g. from `package.json` or a `getVersion()` helper).
+- **Wrap fallible operations in try-catch.** `URL` constructors, `JSON.parse`, file system operations — anything that can throw on bad input needs error handling.
+- **Don't swallow errors silently.** Catch blocks must either re-throw, log meaningfully, or return a sensible default with a comment explaining why silence is acceptable.
+- **Delete dead code.** Don't leave unused components, functions, or imports in the codebase. If it's not referenced, remove it.
+
+### Security
+
+- **Sanitise user-provided strings** that will be interpolated into shell commands, filenames, or SQL. Use proper escaping libraries rather than hand-rolled regex.
+- **Bound all buffers.** Any buffer that accumulates data from an external source (sockets, streams) must have a maximum size. Disconnect or error when exceeded.
+- **Use parameterised queries** for all SQL (already done — keep it that way).
+
+### Performance
+
+- **Only fetch what you need from the database.** Use column lists instead of `SELECT *`. For list views, create summary queries that exclude large fields (bodies, headers).
+- **Clean up Maps/Sets that track in-flight operations.** If entries are added on request start and removed on completion, add periodic cleanup for entries where completion never fires (timeouts, dropped connections).
+- **Prefer async I/O on the hot path.** Avoid `fs.*Sync` methods in code that runs frequently (e.g. logging). Use buffered writes or streams instead.
+- **Minimise listener count in lists.** Use event delegation on the parent rather than attaching per-item handlers when rendering large lists.
+
+### Project Organisation
+
+- **Respect the module boundary: `shared/` must not import from `daemon/` or `cli/`.** Shared code is consumed by both layers; it cannot depend on either.
+- **Keep components under ~250 lines.** When a component grows beyond this, extract sub-components or content renderers into separate files.
+- **Extract repeated patterns into helpers.** If the same error-handling, setup, or teardown pattern appears in 3+ places, extract it (e.g. `requireProjectRoot()`, `getErrorMessage()`).
+
+### Testing
+
+- **Every new TUI component or keyboard shortcut needs a component test** using ink-testing-library.
+- **Every new utility/formatter function needs unit tests**, including edge cases (zero values, negative numbers, empty strings, boundary values).
+- **Don't write "coverage theatre" tests** that simply assert types exist or interfaces compile. Tests must exercise behaviour.
+- **Test error paths, not just happy paths.** Include tests for malformed input, missing data, timeouts, and concurrent operations.
+
 ## Development Notes
 
 - The daemon runs as a child process and communicates via Unix socket
