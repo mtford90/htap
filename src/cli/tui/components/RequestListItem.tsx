@@ -19,7 +19,7 @@ interface RequestListItemProps {
 /**
  * Get colour for HTTP status code.
  */
-function getStatusColour(status: number | undefined): string {
+export function getStatusColour(status: number | undefined): string {
   if (status === undefined) {
     return "gray";
   }
@@ -36,9 +36,25 @@ function getStatusColour(status: number | undefined): string {
 }
 
 /**
+ * Get a visual indicator character for an HTTP status code.
+ */
+export function getStatusIndicator(status: number | undefined): string {
+  if (status === undefined) {
+    return " ";
+  }
+  if (status >= 200 && status < 300) {
+    return "✓";
+  }
+  if (status >= 300 && status < 400) {
+    return "→";
+  }
+  return "✗";
+}
+
+/**
  * Get colour for HTTP method.
  */
-function getMethodColour(method: string): string {
+export function getMethodColour(method: string): string {
   switch (method.toUpperCase()) {
     case "GET":
       return "green";
@@ -49,7 +65,7 @@ function getMethodColour(method: string): string {
     case "PATCH":
       return "yellow";
     case "DELETE":
-      return "red";
+      return "magenta";
     default:
       return "white";
   }
@@ -71,7 +87,7 @@ export const RequestListItem = memo(function RequestListItem({
   });
 
   const methodWidth = 7;
-  const statusWidth = 4;
+  const statusWidth = 6;
   const durationWidth = 8;
   const separatorsWidth = 3; // Spaces between columns
 
@@ -80,6 +96,7 @@ export const RequestListItem = memo(function RequestListItem({
   const displayPath = truncate(showFullUrl ? request.url : request.path, pathWidth);
 
   const statusText = request.responseStatus?.toString() ?? "...";
+  const statusIndicator = getStatusIndicator(request.responseStatus);
   const duration = formatDuration(request.durationMs);
 
   const indicator = isSelected ? "❯ " : "  ";
@@ -90,7 +107,7 @@ export const RequestListItem = memo(function RequestListItem({
       <Text color={indicatorColour}>{indicator}</Text>
       <Text color={getMethodColour(request.method)}>{formatMethod(request.method)}</Text>
       <Text> </Text>
-      <Text color={getStatusColour(request.responseStatus)}>{statusText.padStart(3)}</Text>
+      <Text color={getStatusColour(request.responseStatus)}>{statusIndicator}{statusText.padStart(3)}</Text>
       <Text> </Text>
       <Text dimColor={!isSelected}>{displayPath}</Text>
       <Box flexGrow={1} />

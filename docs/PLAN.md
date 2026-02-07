@@ -53,3 +53,4 @@
 - [x] Set up npm publish in CI (auto-publish on `v*` tags)
 - [x] Improve `htpx intercept` UX - detect direct vs eval usage
 - [x] Copy curl to clipboard instead of printing after TUI exit
+- [x] **UX/UI fixes (7.1–7.8)**: Help overlay (?), extended navigation (g/G/Ctrl+u/Ctrl+d), loading spinner, minimum terminal size check, focus indicator (» + bold), empty state guidance, status indicators (✓/→/✗), DELETE method magenta colour

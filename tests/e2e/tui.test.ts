@@ -217,8 +217,8 @@ describe("htpx tui e2e", () => {
         spawnOpts: { env: testEnv },
       });
 
-      // Status bar should show keybinding hints
-      await findByText(/q.*quit|quit.*q/i);
+      // Status bar should show keybinding hints (at 80col, hints are truncated)
+      await findByText(/j\/k/);
     });
 
     it("exits with code 0", async () => {

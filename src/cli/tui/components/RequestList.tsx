@@ -54,8 +54,11 @@ export const RequestList = forwardRef<DOMElement, RequestListProps>(function Req
       height={height}
     >
       {requests.length === 0 ? (
-        <Box paddingX={1} paddingY={1}>
-          <Text dimColor>No requests captured yet</Text>
+        <Box paddingX={1} paddingY={1} flexDirection="column">
+          <Text dimColor>No requests captured yet.</Text>
+          <Text dimColor> </Text>
+          <Text>Run <Text color="cyan">eval $(htpx intercept)</Text> in another terminal</Text>
+          <Text dimColor>to start capturing traffic.</Text>
         </Box>
       ) : (
         <Box flexDirection="column" paddingX={1}>
