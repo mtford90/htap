@@ -3,6 +3,9 @@ import type { CapturedRequest, CapturedRequestSummary, DaemonStatus, Session } f
 
 const CONTROL_TIMEOUT_MS = 5000;
 
+/** Maximum buffer size before disconnecting (1MB) */
+const MAX_BUFFER_SIZE = 1024 * 1024;
+
 /**
  * JSON-RPC style message format for control API.
  */
@@ -16,6 +19,17 @@ export interface ControlResponse {
   id: string;
   result?: unknown;
   error?: { code: number; message: string };
+}
+
+/**
+ * Runtime type guard for incoming control responses.
+ */
+function isControlResponse(value: unknown): value is ControlResponse {
+  return (
+    typeof value === "object" &&
+    value !== null &&
+    typeof (value as Record<string, unknown>)["id"] === "string"
+  );
 }
 
 /**
@@ -56,12 +70,23 @@ export function reviveBuffers<T>(obj: T): T {
   return obj;
 }
 
+interface PendingRequest {
+  resolve: (value: unknown) => void;
+  reject: (reason: Error) => void;
+  timer: ReturnType<typeof setTimeout>;
+}
+
 /**
  * Client for communicating with the control server via Unix socket.
+ * Maintains a persistent connection and multiplexes requests by ID.
  */
 export class ControlClient {
   private socketPath: string;
   private requestId = 0;
+  private socket: net.Socket | null = null;
+  private pending = new Map<string, PendingRequest>();
+  private buffer = "";
+  private connectPromise: Promise<net.Socket> | null = null;
 
   constructor(socketPath: string) {
     this.socketPath = socketPath;
@@ -71,48 +96,37 @@ export class ControlClient {
    * Send a request to the control server and wait for response.
    */
   async request<T>(method: string, params?: Record<string, unknown>): Promise<T> {
-    return new Promise((resolve, reject) => {
-      const socket = net.createConnection(this.socketPath);
-      const id = String(++this.requestId);
-      let buffer = "";
+    const socket = await this.getSocket();
+    const id = String(++this.requestId);
 
-      socket.on("connect", () => {
-        const message: ControlMessage = { id, method, params };
-        socket.write(JSON.stringify(message) + "\n");
-      });
-
-      socket.on("data", (data) => {
-        buffer += data.toString();
-
-        const newlineIndex = buffer.indexOf("\n");
-        if (newlineIndex !== -1) {
-          const responseStr = buffer.slice(0, newlineIndex);
-
-          try {
-            const response = JSON.parse(responseStr) as ControlResponse;
-            socket.end();
-
-            if (response.error) {
-              reject(new Error(response.error.message));
-            } else {
-              resolve(reviveBuffers(response.result) as T);
-            }
-          } catch (err) {
-            socket.end();
-            reject(err);
-          }
-        }
-      });
-
-      socket.on("error", (err) => {
-        reject(err);
-      });
-
-      socket.setTimeout(CONTROL_TIMEOUT_MS, () => {
-        socket.destroy();
+    return new Promise<T>((resolve, reject) => {
+      const timer = setTimeout(() => {
+        this.pending.delete(id);
         reject(new Error("Control request timed out"));
+      }, CONTROL_TIMEOUT_MS);
+
+      this.pending.set(id, {
+        resolve: resolve as (value: unknown) => void,
+        reject,
+        timer,
       });
+
+      const message: ControlMessage = { id, method, params };
+      socket.write(JSON.stringify(message) + "\n");
     });
+  }
+
+  /**
+   * Close the persistent socket and reject any pending requests.
+   */
+  close(): void {
+    if (this.socket) {
+      this.socket.end();
+      this.socket = null;
+    }
+    this.connectPromise = null;
+    this.buffer = "";
+    this.rejectAllPending(new Error("Client closed"));
   }
 
   /**
@@ -184,5 +198,118 @@ export class ControlClient {
    */
   async clearRequests(): Promise<void> {
     await this.request<{ success: boolean }>("clearRequests");
+  }
+
+  /**
+   * Lazily connect, reuse existing socket, deduplicate concurrent connect attempts.
+   */
+  private getSocket(): Promise<net.Socket> {
+    if (this.socket && !this.socket.destroyed) {
+      return Promise.resolve(this.socket);
+    }
+
+    // Deduplicate concurrent connection attempts
+    if (this.connectPromise) {
+      return this.connectPromise;
+    }
+
+    this.connectPromise = new Promise<net.Socket>((resolve, reject) => {
+      const socket = net.createConnection(this.socketPath);
+
+      socket.on("connect", () => {
+        this.socket = socket;
+        this.connectPromise = null;
+        this.buffer = "";
+        resolve(socket);
+      });
+
+      socket.on("data", (data) => {
+        this.handleData(data);
+      });
+
+      socket.on("error", (err) => {
+        // If we're still connecting, reject the connect promise
+        if (this.connectPromise) {
+          this.connectPromise = null;
+          reject(err);
+        }
+        this.handleDisconnect(err);
+      });
+
+      socket.on("close", () => {
+        this.handleDisconnect(new Error("Socket closed"));
+      });
+
+      socket.setTimeout(CONTROL_TIMEOUT_MS, () => {
+        if (this.connectPromise) {
+          this.connectPromise = null;
+          socket.destroy();
+          reject(new Error("Control connection timed out"));
+        }
+      });
+    });
+
+    return this.connectPromise;
+  }
+
+  /**
+   * Parse newline-delimited responses and resolve/reject matching pending requests.
+   */
+  private handleData(data: Buffer | string): void {
+    this.buffer += data.toString();
+
+    // Guard against unbounded buffer growth
+    if (this.buffer.length > MAX_BUFFER_SIZE) {
+      this.socket?.destroy();
+      this.handleDisconnect(new Error("Response buffer exceeded maximum size"));
+      return;
+    }
+
+    let newlineIndex: number;
+    while ((newlineIndex = this.buffer.indexOf("\n")) !== -1) {
+      const responseStr = this.buffer.slice(0, newlineIndex);
+      this.buffer = this.buffer.slice(newlineIndex + 1);
+
+      try {
+        const parsed: unknown = JSON.parse(responseStr);
+        if (!isControlResponse(parsed)) {
+          continue;
+        }
+
+        const pending = this.pending.get(parsed.id);
+        if (!pending) {
+          continue;
+        }
+
+        this.pending.delete(parsed.id);
+        clearTimeout(pending.timer);
+
+        if (parsed.error) {
+          pending.reject(new Error(parsed.error.message));
+        } else {
+          pending.resolve(reviveBuffers(parsed.result));
+        }
+      } catch {
+        // Skip malformed messages
+      }
+    }
+  }
+
+  /**
+   * Handle socket disconnection — null socket, reject all pending, next request reconnects.
+   */
+  private handleDisconnect(err: Error): void {
+    this.socket = null;
+    this.connectPromise = null;
+    this.buffer = "";
+    this.rejectAllPending(err);
+  }
+
+  private rejectAllPending(err: Error): void {
+    for (const [id, pending] of this.pending) {
+      clearTimeout(pending.timer);
+      pending.reject(err);
+      this.pending.delete(id);
+    }
   }
 }

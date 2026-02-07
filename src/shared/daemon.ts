@@ -39,7 +39,11 @@ export async function isDaemonRunning(projectRoot: string): Promise<boolean> {
 
   // Verify the daemon is actually responding
   const client = new ControlClient(paths.controlSocketFile);
-  return client.ping();
+  try {
+    return await client.ping();
+  } finally {
+    client.close();
+  }
 }
 
 /**
@@ -59,6 +63,8 @@ export async function getDaemonVersion(projectRoot: string): Promise<string | nu
     return status.version;
   } catch {
     return null;
+  } finally {
+    client.close();
   }
 }
 
@@ -197,8 +203,12 @@ async function waitForDaemon(projectRoot: string, timeoutMs: number): Promise<nu
       if (!isNaN(port)) {
         // Verify daemon is responding
         const client = new ControlClient(paths.controlSocketFile);
-        if (await client.ping()) {
-          return port;
+        try {
+          if (await client.ping()) {
+            return port;
+          }
+        } finally {
+          client.close();
         }
       }
     }

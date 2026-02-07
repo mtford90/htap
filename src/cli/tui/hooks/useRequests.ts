@@ -50,6 +50,10 @@ export function useRequests(options: UseRequestsOptions = {}): UseRequestsResult
     }
     const paths = getHtpxPaths(projectRoot);
     clientRef.current = new ControlClient(paths.controlSocketFile);
+
+    return () => {
+      clientRef.current?.close();
+    };
   }, []);
 
   // Keep ref in sync with requests length

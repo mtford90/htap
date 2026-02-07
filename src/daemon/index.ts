@@ -115,6 +115,7 @@ async function main() {
       }
 
       logger.info("Shutdown complete");
+      logger.close();
       process.exit(0);
     } catch (err) {
       logger.error("Error during shutdown", {
