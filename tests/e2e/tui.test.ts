@@ -10,7 +10,7 @@
  */
 
 import { describe, it, expect, beforeAll, afterAll, beforeEach, afterEach } from "vitest";
-import { render, cleanup, configure } from "cli-testing-library";
+import { render, cleanup, configure, waitFor } from "cli-testing-library";
 import "cli-testing-library/vitest";
 import * as fs from "node:fs";
 import * as path from "node:path";
@@ -227,12 +227,12 @@ describe("htpx tui e2e", () => {
         spawnOpts: { env: testEnv },
       });
 
-      // Wait for process to exit
-      await new Promise((resolve) => setTimeout(resolve, 1000));
-
-      const exitStatus = result.hasExit();
-      expect(exitStatus).not.toBeNull();
-      expect(exitStatus?.exitCode).toBe(0);
+      // Poll until process exits rather than using a fixed sleep
+      await waitFor(() => {
+        const exitStatus = result.hasExit();
+        expect(exitStatus).not.toBeNull();
+        expect(exitStatus?.exitCode).toBe(0);
+      });
     });
   });
 
