@@ -1,5 +1,5 @@
 /**
- * Hook for saving binary content to disk.
+ * Hook for saving body content to disk.
  */
 
 import { useCallback } from "react";
@@ -8,16 +8,17 @@ import * as path from "node:path";
 import * as os from "node:os";
 import { copyToClipboard } from "../utils/clipboard.js";
 import { findOrCreateProjectRoot, ensureHtpxDir } from "../../../shared/project.js";
-import type { SaveLocation } from "../components/SaveModal.js";
 
-export interface SaveResult {
+export type SaveLocation = "exports" | "downloads" | "custom";
+
+export interface ExportResult {
   success: boolean;
   message: string;
   filePath?: string;
 }
 
 /**
- * Generate a filename for binary content based on request metadata.
+ * Generate a filename for body content based on request metadata.
  */
 export function generateFilename(
   requestId: string,
@@ -38,7 +39,6 @@ export function generateFilename(
   }
 
   if (!extension && contentType) {
-    // Derive extension from content type
     extension = getExtensionFromContentType(contentType);
   }
 
@@ -56,6 +56,17 @@ function getExtensionFromContentType(contentType: string): string {
   const type = contentType.split(";")[0]?.trim().toLowerCase() ?? "";
 
   const mappings: Record<string, string> = {
+    // Text
+    "application/json": "json",
+    "text/html": "html",
+    "text/css": "css",
+    "text/javascript": "js",
+    "application/javascript": "js",
+    "text/xml": "xml",
+    "application/xml": "xml",
+    "text/plain": "txt",
+    "text/csv": "csv",
+
     // Images
     "image/jpeg": "jpg",
     "image/png": "png",
@@ -136,7 +147,6 @@ function resolveTargetDir(location: SaveLocation, customPath?: string): string {
         ? path.join(os.homedir(), customPath.slice(1))
         : customPath;
       const resolvedPath = path.resolve(expandedPath);
-      // Ensure directory exists
       if (!fs.existsSync(resolvedPath)) {
         fs.mkdirSync(resolvedPath, { recursive: true });
       }
@@ -146,14 +156,14 @@ function resolveTargetDir(location: SaveLocation, customPath?: string): string {
 }
 
 /**
- * Save binary content to disk.
+ * Save body content to disk.
  */
-export async function saveBinaryContent(
+export async function saveBodyContent(
   body: Buffer,
   filename: string,
   location: SaveLocation,
   customPath?: string
-): Promise<SaveResult> {
+): Promise<ExportResult> {
   try {
     const targetDir = resolveTargetDir(location, customPath);
     const filePath = path.join(targetDir, filename);
@@ -184,22 +194,22 @@ export async function saveBinaryContent(
   }
 }
 
-interface UseSaveBinaryResult {
-  saveBinary: (
+interface UseBodyExportResult {
+  saveBody: (
     body: Buffer,
     requestId: string,
     contentType: string | undefined,
     url: string,
     location: SaveLocation,
     customPath?: string
-  ) => Promise<SaveResult>;
+  ) => Promise<ExportResult>;
 }
 
 /**
- * Hook providing binary save functionality.
+ * Hook providing body export/save functionality.
  */
-export function useSaveBinary(): UseSaveBinaryResult {
-  const saveBinary = useCallback(
+export function useBodyExport(): UseBodyExportResult {
+  const saveBody = useCallback(
     async (
       body: Buffer,
       requestId: string,
@@ -207,12 +217,12 @@ export function useSaveBinary(): UseSaveBinaryResult {
       url: string,
       location: SaveLocation,
       customPath?: string
-    ): Promise<SaveResult> => {
+    ): Promise<ExportResult> => {
       const filename = generateFilename(requestId, contentType, url);
-      return saveBinaryContent(body, filename, location, customPath);
+      return saveBodyContent(body, filename, location, customPath);
     },
     []
   );
 
-  return { saveBinary };
+  return { saveBody };
 }

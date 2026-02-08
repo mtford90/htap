@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import * as fs from "node:fs";
 import * as path from "node:path";
 import * as os from "node:os";
-import { generateFilename, saveBinaryContent } from "./useSaveBinary.js";
+import { generateFilename, saveBodyContent } from "./useBodyExport.js";
 
 // Mock clipboard - it uses child_process which is hard to test
 vi.mock("../utils/clipboard.js", () => ({
@@ -40,6 +40,18 @@ describe("generateFilename", () => {
     expect(generateFilename("id", "audio/mpeg", "https://x.com/f")).toMatch(/\.mp3$/);
   });
 
+  it("should handle text content types", () => {
+    expect(generateFilename("id", "application/json", "https://x.com/f")).toMatch(/\.json$/);
+    expect(generateFilename("id", "text/html", "https://x.com/f")).toMatch(/\.html$/);
+    expect(generateFilename("id", "text/css", "https://x.com/f")).toMatch(/\.css$/);
+    expect(generateFilename("id", "text/javascript", "https://x.com/f")).toMatch(/\.js$/);
+    expect(generateFilename("id", "application/javascript", "https://x.com/f")).toMatch(/\.js$/);
+    expect(generateFilename("id", "text/xml", "https://x.com/f")).toMatch(/\.xml$/);
+    expect(generateFilename("id", "application/xml", "https://x.com/f")).toMatch(/\.xml$/);
+    expect(generateFilename("id", "text/plain", "https://x.com/f")).toMatch(/\.txt$/);
+    expect(generateFilename("id", "text/csv", "https://x.com/f")).toMatch(/\.csv$/);
+  });
+
   it("should include short request ID and timestamp", () => {
     const filename = generateFilename(
       "abc12345-6789-0000-1111-222233334444",
@@ -62,7 +74,7 @@ describe("generateFilename", () => {
   });
 });
 
-describe("saveBinaryContent", () => {
+describe("saveBodyContent", () => {
   let tempDir: string;
 
   beforeEach(() => {
@@ -81,7 +93,7 @@ describe("saveBinaryContent", () => {
     const body = Buffer.from("test binary content");
     const filename = "test-file.bin";
 
-    const result = await saveBinaryContent(body, filename, "custom", tempDir);
+    const result = await saveBodyContent(body, filename, "custom", tempDir);
 
     expect(result.success).toBe(true);
     expect(result.filePath).toBe(path.join(tempDir, filename));
@@ -96,7 +108,7 @@ describe("saveBinaryContent", () => {
     const filename = "test.bin";
     const nestedDir = path.join(tempDir, "nested", "path");
 
-    const result = await saveBinaryContent(body, filename, "custom", nestedDir);
+    const result = await saveBodyContent(body, filename, "custom", nestedDir);
 
     expect(result.success).toBe(true);
     expect(fs.existsSync(nestedDir)).toBe(true);
@@ -110,7 +122,7 @@ describe("saveBinaryContent", () => {
     const filename = "test.bin";
 
     // This will fail to save but shouldn't throw
-    const result = await saveBinaryContent(body, filename, "custom", "~/nonexistent-htpx-test-dir");
+    const result = await saveBodyContent(body, filename, "custom", "~/nonexistent-htpx-test-dir");
 
     // Should succeed (creates directory)
     expect(result.success).toBe(true);
@@ -127,7 +139,7 @@ describe("saveBinaryContent", () => {
     const body = Buffer.from("test");
     const filename = "test.bin";
 
-    const result = await saveBinaryContent(body, filename, "custom", undefined);
+    const result = await saveBodyContent(body, filename, "custom", undefined);
 
     expect(result.success).toBe(false);
     expect(result.message).toBe("Custom path required");
@@ -137,7 +149,7 @@ describe("saveBinaryContent", () => {
     const body = Buffer.from("test");
     const filename = "test.bin";
 
-    const result = await saveBinaryContent(body, filename, "custom", tempDir);
+    const result = await saveBodyContent(body, filename, "custom", tempDir);
 
     expect(result.success).toBe(true);
     expect(result.message).toContain("path copied");

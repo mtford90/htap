@@ -1,30 +1,34 @@
 /**
- * Full-screen save dialog for binary content.
+ * Full-screen export dialog for body content.
  *
  * Replaces the main TUI when active (terminals don't support true overlays).
  *
- * Provides three options:
- * [1] .htpx/exports/ - Project exports folder
- * [2] ~/Downloads/ - Downloads folder
- * [3] Custom path... - Text input
+ * Provides five options:
+ * [1] Copy to clipboard
+ * [2] .htpx/exports/ - Project exports folder
+ * [3] ~/Downloads/ - Downloads folder
+ * [4] Custom path... - Text input
+ * [5] Open externally - Default app
  */
 
 import React, { useState } from "react";
 import { Box, Text, useInput } from "ink";
 
-export type SaveLocation = "exports" | "downloads" | "custom";
+export type ExportAction = "clipboard" | "exports" | "downloads" | "custom" | "open-external";
 
-export interface SaveModalProps {
-  /** Filename being saved */
+export interface ExportModalProps {
+  /** Filename being exported */
   filename: string;
   /** File size for display */
   fileSize: string;
+  /** Whether the body is binary content */
+  isBinary: boolean;
   /** Screen width */
   width: number;
   /** Screen height */
   height: number;
-  /** Called when user selects a location */
-  onSave: (location: SaveLocation, customPath?: string) => void;
+  /** Called when user selects an export action */
+  onExport: (action: ExportAction, customPath?: string) => void;
   /** Called when modal should close */
   onClose: () => void;
   /** Whether input is active (for testing) */
@@ -33,7 +37,7 @@ export interface SaveModalProps {
 
 interface Option {
   key: string;
-  location: SaveLocation;
+  action: ExportAction;
   label: string;
   description: string;
 }
@@ -41,33 +45,46 @@ interface Option {
 const OPTIONS: Option[] = [
   {
     key: "1",
-    location: "exports",
+    action: "clipboard",
+    label: "Copy to clipboard",
+    description: "Copy body text to clipboard",
+  },
+  {
+    key: "2",
+    action: "exports",
     label: ".htpx/exports/",
     description: "Project exports folder",
   },
   {
-    key: "2",
-    location: "downloads",
+    key: "3",
+    action: "downloads",
     label: "~/Downloads/",
     description: "Downloads folder",
   },
   {
-    key: "3",
-    location: "custom",
+    key: "4",
+    action: "custom",
     label: "Custom path...",
     description: "Enter a custom directory",
   },
+  {
+    key: "5",
+    action: "open-external",
+    label: "Open externally",
+    description: "Open in default app",
+  },
 ];
 
-export function SaveModal({
+export function ExportModal({
   filename,
   fileSize,
+  isBinary,
   width,
   height,
-  onSave,
+  onExport,
   onClose,
   isActive = true,
-}: SaveModalProps): React.ReactElement {
+}: ExportModalProps): React.ReactElement {
   const [selectedIndex, setSelectedIndex] = useState(0);
   const [showCustomInput, setShowCustomInput] = useState(false);
   const [customPath, setCustomPath] = useState("");
@@ -75,10 +92,9 @@ export function SaveModal({
   useInput(
     (input, key) => {
       if (showCustomInput) {
-        // Handle custom path input
         if (key.return) {
           if (customPath.trim()) {
-            onSave("custom", customPath.trim());
+            onExport("custom", customPath.trim());
           }
         } else if (key.backspace || key.delete) {
           setCustomPath((prev) => prev.slice(0, -1));
@@ -91,7 +107,6 @@ export function SaveModal({
         return;
       }
 
-      // Handle option selection
       if (key.escape) {
         onClose();
       } else if (input === "j" || key.downArrow) {
@@ -99,18 +114,22 @@ export function SaveModal({
       } else if (input === "k" || key.upArrow) {
         setSelectedIndex((prev) => Math.max(prev - 1, 0));
       } else if (input === "1") {
-        onSave("exports");
+        onExport("clipboard");
       } else if (input === "2") {
-        onSave("downloads");
+        onExport("exports");
       } else if (input === "3") {
+        onExport("downloads");
+      } else if (input === "4") {
         setShowCustomInput(true);
+      } else if (input === "5") {
+        onExport("open-external");
       } else if (key.return) {
         const option = OPTIONS[selectedIndex];
         if (option) {
-          if (option.location === "custom") {
+          if (option.action === "custom") {
             setShowCustomInput(true);
           } else {
-            onSave(option.location);
+            onExport(option.action);
           }
         }
       }
@@ -129,7 +148,7 @@ export function SaveModal({
       {/* Title */}
       <Box marginBottom={1}>
         <Text color="cyan" bold>
-          Save Binary Content
+          Export Body Content
         </Text>
       </Box>
 
@@ -141,7 +160,6 @@ export function SaveModal({
       </Box>
 
       {showCustomInput ? (
-        // Custom path input mode
         <Box flexDirection="column" alignItems="center">
           <Text>Enter directory path:</Text>
           <Box marginTop={1}>
@@ -154,10 +172,9 @@ export function SaveModal({
           </Box>
         </Box>
       ) : (
-        // Option selection mode
         <Box flexDirection="column">
           <Box marginBottom={1}>
-            <Text>Select save location:</Text>
+            <Text>Select export action:</Text>
           </Box>
 
           {OPTIONS.map((option, index) => (
@@ -173,6 +190,9 @@ export function SaveModal({
                 {option.label}
               </Text>
               <Text dimColor> - {option.description}</Text>
+              {option.action === "clipboard" && isBinary && (
+                <Text dimColor italic> (binary — will copy raw bytes)</Text>
+              )}
             </Box>
           ))}
 
