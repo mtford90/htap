@@ -337,6 +337,192 @@ describe("RequestRepository", () => {
     });
   });
 
+  describe("filtering", () => {
+    let sessionId: string;
+
+    beforeEach(() => {
+      const session = repo.registerSession("test", 1);
+      sessionId = session.id;
+    });
+
+    /**
+     * Insert a batch of requests covering different methods and status codes
+     * to give the filter tests something to work with.
+     */
+    function seedRequests(): void {
+      const entries = [
+        { method: "GET", url: "https://api.example.com/users", path: "/users", status: 200 },
+        { method: "GET", url: "https://api.example.com/posts", path: "/posts", status: 200 },
+        { method: "POST", url: "https://api.example.com/users", path: "/users", status: 201 },
+        { method: "PUT", url: "https://api.example.com/users/1", path: "/users/1", status: 200 },
+        { method: "DELETE", url: "https://api.example.com/users/1", path: "/users/1", status: 404 },
+        { method: "GET", url: "https://api.example.com/health", path: "/health", status: 301 },
+        { method: "POST", url: "https://api.example.com/login", path: "/login", status: 500 },
+      ];
+
+      for (const entry of entries) {
+        const id = repo.saveRequest({
+          sessionId,
+          timestamp: Date.now(),
+          method: entry.method,
+          url: entry.url,
+          host: "api.example.com",
+          path: entry.path,
+          requestHeaders: {},
+        });
+        repo.updateRequestResponse(id, {
+          status: entry.status,
+          headers: {},
+          durationMs: 10,
+        });
+      }
+    }
+
+    it("filters by single method", () => {
+      seedRequests();
+      const results = repo.listRequests({ filter: { methods: ["POST"] } });
+      expect(results).toHaveLength(2);
+      expect(results.every((r) => r.method === "POST")).toBe(true);
+    });
+
+    it("filters by multiple methods", () => {
+      seedRequests();
+      const results = repo.listRequests({ filter: { methods: ["GET", "DELETE"] } });
+      expect(results).toHaveLength(4);
+      expect(results.every((r) => r.method === "GET" || r.method === "DELETE")).toBe(true);
+    });
+
+    it("filters by status range 2xx", () => {
+      seedRequests();
+      const results = repo.listRequests({ filter: { statusRange: "2xx" } });
+      expect(results).toHaveLength(4);
+      expect(
+        results.every(
+          (r) => r.responseStatus !== undefined && r.responseStatus >= 200 && r.responseStatus < 300
+        )
+      ).toBe(true);
+    });
+
+    it("filters by status range 4xx", () => {
+      seedRequests();
+      const results = repo.listRequests({ filter: { statusRange: "4xx" } });
+      expect(results).toHaveLength(1);
+      expect(results[0]?.responseStatus).toBe(404);
+    });
+
+    it("filters by text search matching URL", () => {
+      seedRequests();
+      const results = repo.listRequests({ filter: { search: "users" } });
+      expect(results).toHaveLength(4);
+      expect(results.every((r) => r.url.includes("users"))).toBe(true);
+    });
+
+    it("filters by text search matching path", () => {
+      seedRequests();
+      const results = repo.listRequests({ filter: { search: "/health" } });
+      expect(results).toHaveLength(1);
+      expect(results[0]?.path).toBe("/health");
+    });
+
+    it("combines method + status + search filters", () => {
+      seedRequests();
+      const results = repo.listRequests({
+        filter: { methods: ["GET"], statusRange: "2xx", search: "users" },
+      });
+      expect(results).toHaveLength(1);
+      expect(results[0]?.method).toBe("GET");
+      expect(results[0]?.path).toBe("/users");
+      expect(results[0]?.responseStatus).toBe(200);
+    });
+
+    it("escapes SQL wildcards in search term", () => {
+      // Insert a request with a literal % in the URL
+      const id = repo.saveRequest({
+        sessionId,
+        timestamp: Date.now(),
+        method: "GET",
+        url: "https://api.example.com/search?q=100%25done",
+        host: "api.example.com",
+        path: "/search?q=100%25done",
+        requestHeaders: {},
+      });
+      repo.updateRequestResponse(id, { status: 200, headers: {}, durationMs: 10 });
+
+      // Also insert a request that should NOT match
+      const id2 = repo.saveRequest({
+        sessionId,
+        timestamp: Date.now(),
+        method: "GET",
+        url: "https://api.example.com/other",
+        host: "api.example.com",
+        path: "/other",
+        requestHeaders: {},
+      });
+      repo.updateRequestResponse(id2, { status: 200, headers: {}, durationMs: 10 });
+
+      // Searching for literal '%' should only match the URL containing it
+      const results = repo.listRequests({ filter: { search: "%" } });
+      expect(results).toHaveLength(1);
+      expect(results[0]?.url).toContain("%");
+    });
+
+    it("escapes underscore wildcard in search term", () => {
+      const id = repo.saveRequest({
+        sessionId,
+        timestamp: Date.now(),
+        method: "GET",
+        url: "https://api.example.com/my_endpoint",
+        host: "api.example.com",
+        path: "/my_endpoint",
+        requestHeaders: {},
+      });
+      repo.updateRequestResponse(id, { status: 200, headers: {}, durationMs: 10 });
+
+      const id2 = repo.saveRequest({
+        sessionId,
+        timestamp: Date.now(),
+        method: "GET",
+        url: "https://api.example.com/myXendpoint",
+        host: "api.example.com",
+        path: "/myXendpoint",
+        requestHeaders: {},
+      });
+      repo.updateRequestResponse(id2, { status: 200, headers: {}, durationMs: 10 });
+
+      // Searching for '_' should only match the URL containing a literal underscore
+      const results = repo.listRequests({ filter: { search: "_" } });
+      expect(results).toHaveLength(1);
+      expect(results[0]?.url).toContain("_");
+    });
+
+    it("returns all results with empty filter", () => {
+      seedRequests();
+      const allResults = repo.listRequests({});
+      const filteredResults = repo.listRequests({ filter: {} });
+      expect(filteredResults).toHaveLength(allResults.length);
+    });
+
+    it("returns all results with undefined filter", () => {
+      seedRequests();
+      const allResults = repo.listRequests({});
+      const filteredResults = repo.listRequests({ filter: undefined });
+      expect(filteredResults).toHaveLength(allResults.length);
+    });
+
+    it("works with listRequestsSummary", () => {
+      seedRequests();
+      const results = repo.listRequestsSummary({ filter: { methods: ["POST"] } });
+      expect(results).toHaveLength(2);
+      expect(results.every((r) => r.method === "POST")).toBe(true);
+    });
+
+    it("works with countRequests", () => {
+      seedRequests();
+      const count = repo.countRequests({ filter: { methods: ["POST"] } });
+      expect(count).toBe(2);
+    });
+  });
+
   describe("listRequestsSummary", () => {
     let sessionId: string;
 
@@ -520,10 +706,10 @@ describe("RequestRepository", () => {
       expect(request?.requestBodyTruncated).toBe(false);
       expect(request?.responseBodyTruncated).toBe(false);
 
-      // Verify user_version was set
+      // Verify user_version was set to latest migration
       const checkDb = new Database(migrationDbPath);
       const version = checkDb.pragma("user_version", { simple: true });
-      expect(version).toBe(1);
+      expect(version).toBe(2);
       checkDb.close();
 
       migratedRepo.close();
@@ -534,7 +720,7 @@ describe("RequestRepository", () => {
       // The default repo from beforeEach is a fresh DB
       const checkDb = new Database(dbPath);
       const version = checkDb.pragma("user_version", { simple: true });
-      expect(version).toBe(1);
+      expect(version).toBe(2);
       checkDb.close();
     });
 

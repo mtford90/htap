@@ -5,7 +5,7 @@ import { Command } from "commander";
 import { getHtpxPaths, readDaemonPid, isProcessRunning } from "../../shared/project.js";
 import { readProxyPort } from "../../shared/project.js";
 import { getHtpxVersion } from "../../shared/version.js";
-import { requireProjectRoot, getErrorMessage } from "./helpers.js";
+import { requireProjectRoot, getErrorMessage, getGlobalOptions } from "./helpers.js";
 
 const DEBUG_LOG_LINES = 200;
 
@@ -108,8 +108,9 @@ function generateDumpFilename(): string {
 
 export const debugDumpCommand = new Command("debug-dump")
   .description("Collect diagnostic information for debugging")
-  .action(() => {
-    const projectRoot = requireProjectRoot();
+  .action((_, command: Command) => {
+    const globalOpts = getGlobalOptions(command);
+    const projectRoot = requireProjectRoot(globalOpts.dir);
     const paths = getHtpxPaths(projectRoot);
     const dump = collectDebugInfo(projectRoot);
 

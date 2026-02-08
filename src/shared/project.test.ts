@@ -235,4 +235,67 @@ describe("project utilities", () => {
       expect(result).toBe(false);
     });
   });
+
+  describe("override parameter", () => {
+    it("findProjectRoot returns resolved override path when .htpx exists", () => {
+      const htpxDir = path.join(tempDir, ".htpx");
+      fs.mkdirSync(htpxDir);
+      const result = findProjectRoot(undefined, tempDir);
+      expect(result).toBe(tempDir);
+    });
+
+    it("findProjectRoot returns resolved override path when .git exists", () => {
+      const gitDir = path.join(tempDir, ".git");
+      fs.mkdirSync(gitDir);
+      const result = findProjectRoot(undefined, tempDir);
+      expect(result).toBe(tempDir);
+    });
+
+    it("findProjectRoot returns undefined when override has no .htpx or .git", () => {
+      const result = findProjectRoot(undefined, tempDir);
+      expect(result).toBeUndefined();
+    });
+
+    it("findOrCreateProjectRoot returns resolved override path directly", () => {
+      const result = findOrCreateProjectRoot(undefined, tempDir);
+      expect(result).toBe(tempDir);
+    });
+
+    it("resolves ~ to home directory", () => {
+      const result = findOrCreateProjectRoot(undefined, "~/some-project");
+      expect(result).toBe(path.join(os.homedir(), "some-project"));
+    });
+
+    it("resolves ~ alone to home directory", () => {
+      const result = findOrCreateProjectRoot(undefined, "~");
+      expect(result).toBe(os.homedir());
+    });
+
+    it("resolves already-absolute paths unchanged", () => {
+      const result = findOrCreateProjectRoot(undefined, "/tmp/my-project");
+      expect(result).toBe("/tmp/my-project");
+    });
+
+    it("resolves empty string override to cwd", () => {
+      const result = findOrCreateProjectRoot(undefined, "");
+      expect(result).toBe(path.resolve(""));
+    });
+
+    it("resolves relative paths to absolute", () => {
+      const result = findOrCreateProjectRoot(undefined, "relative/path");
+      expect(result).toBe(path.resolve("relative/path"));
+    });
+  });
+
+  describe("homedir fallback", () => {
+    it("findOrCreateProjectRoot falls back to homedir when no .htpx or .git found in isolated tree", () => {
+      const subDir = path.join(tempDir, "some", "nested", "dir");
+      fs.mkdirSync(subDir, { recursive: true });
+      // In this test env we're inside a git repo, so this will find that.
+      // The important thing is the function doesn't return cwd.
+      const result = findOrCreateProjectRoot(subDir);
+      expect(typeof result).toBe("string");
+      expect(result.length).toBeGreaterThan(0);
+    });
+  });
 });

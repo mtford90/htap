@@ -2,12 +2,13 @@ import { Command } from "commander";
 import { getHtpxPaths } from "../../shared/project.js";
 import { isDaemonRunning } from "../../shared/daemon.js";
 import { ControlClient } from "../../shared/control-client.js";
-import { requireProjectRoot, getErrorMessage } from "./helpers.js";
+import { requireProjectRoot, getErrorMessage, getGlobalOptions } from "./helpers.js";
 
 export const statusCommand = new Command("status")
   .description("Show daemon status")
-  .action(async () => {
-    const projectRoot = requireProjectRoot();
+  .action(async (_, command: Command) => {
+    const globalOpts = getGlobalOptions(command);
+    const projectRoot = requireProjectRoot(globalOpts.dir);
     const paths = getHtpxPaths(projectRoot);
 
     // Check if daemon is running
@@ -17,9 +18,8 @@ export const statusCommand = new Command("status")
       process.exit(0);
     }
 
+    const client = new ControlClient(paths.controlSocketFile);
     try {
-      // Query daemon for status
-      const client = new ControlClient(paths.controlSocketFile);
       const status = await client.status();
 
       console.log("Daemon is running");
@@ -29,5 +29,7 @@ export const statusCommand = new Command("status")
     } catch (err) {
       console.error(`Error querying daemon: ${getErrorMessage(err)}`);
       process.exit(1);
+    } finally {
+      client.close();
     }
   });

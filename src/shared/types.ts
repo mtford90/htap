@@ -56,3 +56,9 @@ export interface DaemonStatus {
   requestCount: number;
   version: string;
 }
+
+export interface RequestFilter {
+  methods?: string[]; // e.g. ["GET", "POST"]
+  statusRange?: string; // e.g. "2xx", "4xx"
+  search?: string; // substring match on url/path
+}

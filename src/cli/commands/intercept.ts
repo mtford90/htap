@@ -3,7 +3,7 @@ import { findOrCreateProjectRoot, ensureHtpxDir, getHtpxPaths } from "../../shar
 import { startDaemon } from "../../shared/daemon.js";
 import { ControlClient } from "../../shared/control-client.js";
 import { parseVerbosity } from "../../shared/logger.js";
-import { getErrorMessage } from "./helpers.js";
+import { getErrorMessage, getGlobalOptions } from "./helpers.js";
 
 /**
  * Escape a string for safe use inside double-quoted shell context.
@@ -46,12 +46,12 @@ export const interceptCommand = new Command("intercept")
 
     const label = options.label;
     const autoRestart = options.restart;
-    const globalOpts = command.optsWithGlobals() as { verbose?: number };
-    const verbosity = globalOpts.verbose ?? 0;
+    const globalOpts = getGlobalOptions(command);
+    const verbosity = globalOpts.verbose;
     const logLevel = parseVerbosity(verbosity);
 
     // Find project root (auto-creates .htpx if needed)
-    const projectRoot = findOrCreateProjectRoot();
+    const projectRoot = findOrCreateProjectRoot(undefined, globalOpts.dir);
     ensureHtpxDir(projectRoot);
 
     const paths = getHtpxPaths(projectRoot);

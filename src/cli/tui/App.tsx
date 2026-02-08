@@ -21,13 +21,17 @@ import {
   isSaveableBody,
 } from "./components/AccordionPanel.js";
 import { StatusBar } from "./components/StatusBar.js";
+import { FilterBar } from "./components/FilterBar.js";
 import { SaveModal, type SaveLocation } from "./components/SaveModal.js";
 import { HelpModal } from "./components/HelpModal.js";
-import type { CapturedRequest } from "../../shared/types.js";
+import { isFilterActive } from "./utils/filters.js";
+import type { CapturedRequest, RequestFilter } from "../../shared/types.js";
 
 interface AppProps {
   /** Enable keyboard input in tests (bypasses TTY check) */
   __testEnableInput?: boolean;
+  /** Override project root directory (from --dir flag) */
+  projectRoot?: string;
 }
 
 type Panel = "list" | "accordion";
@@ -35,12 +39,16 @@ type Panel = "list" | "accordion";
 export const MIN_TERMINAL_COLUMNS = 60;
 export const MIN_TERMINAL_ROWS = 10;
 
-function AppContent({ __testEnableInput }: AppProps): React.ReactElement {
+function AppContent({ __testEnableInput, projectRoot }: AppProps): React.ReactElement {
   const { exit } = useApp();
   const { isRawModeSupported } = useStdin();
   const [columns, rows] = useStdoutDimensions();
 
-  const { requests, isLoading, error, refresh, getFullRequest, getAllFullRequests } = useRequests();
+  // Filter state
+  const [filter, setFilter] = useState<RequestFilter>({});
+  const [showFilter, setShowFilter] = useState(false);
+
+  const { requests, isLoading, error, refresh, getFullRequest, getAllFullRequests } = useRequests({ filter, projectRoot });
   const { exportCurl, exportHar } = useExport();
   const { saveBinary } = useSaveBinary();
   const spinnerFrame = useSpinner(isLoading && requests.length === 0);
@@ -84,6 +92,12 @@ function AppContent({ __testEnableInput }: AppProps): React.ReactElement {
 
   // Get the summary for the currently selected request
   const selectedSummary = requests[selectedIndex];
+
+  // Handle filter change from the filter bar
+  const handleFilterChange = useCallback((newFilter: RequestFilter) => {
+    setFilter(newFilter);
+    setSelectedIndex(0);
+  }, []);
 
   // Handle item click from the request list
   const handleItemClick = useCallback((index: number) => {
@@ -341,6 +355,8 @@ function AppContent({ __testEnableInput }: AppProps): React.ReactElement {
         showStatus(newShowFullUrl ? "Showing full URL" : "Showing path only");
       } else if (input === "?") {
         setShowHelp(true);
+      } else if (input === "/") {
+        setShowFilter(true);
       } else if (input === "s") {
         // Save binary content
         if (currentBodyIsSaveable) {
@@ -351,14 +367,15 @@ function AppContent({ __testEnableInput }: AppProps): React.ReactElement {
         }
       }
     },
-    { isActive: (__testEnableInput || isRawModeSupported === true) && !showSaveModal && !showHelp },
+    { isActive: (__testEnableInput || isRawModeSupported === true) && !showSaveModal && !showHelp && !showFilter },
   );
 
   // Calculate layout
   const listWidth = Math.floor(columns * 0.4);
   const accordionWidth = columns - listWidth;
-  // Status bar takes 2 rows (border line + content line)
-  const contentHeight = rows - 2;
+  // Status bar takes 2 rows (border line + content line), filter bar takes 2 rows when visible
+  const filterBarHeight = showFilter ? 2 : 0;
+  const contentHeight = rows - 2 - filterBarHeight;
 
   // Keep selection in bounds when requests change
   React.useEffect(() => {
@@ -481,8 +498,19 @@ function AppContent({ __testEnableInput }: AppProps): React.ReactElement {
         />
       </Box>
 
+      {/* Filter bar */}
+      {showFilter && (
+        <FilterBar
+          isActive={(__testEnableInput || isRawModeSupported === true) && showFilter}
+          filter={filter}
+          onFilterChange={handleFilterChange}
+          onClose={() => setShowFilter(false)}
+          width={columns}
+        />
+      )}
+
       {/* Status bar */}
-      <StatusBar message={statusMessage} />
+      <StatusBar message={statusMessage} filterActive={isFilterActive(filter)} />
     </Box>
   );
 }

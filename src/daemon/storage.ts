@@ -1,6 +1,11 @@
 import Database from "better-sqlite3";
 import { v4 as uuidv4 } from "uuid";
-import type { CapturedRequest, CapturedRequestSummary, Session } from "../shared/types.js";
+import type {
+  CapturedRequest,
+  CapturedRequestSummary,
+  RequestFilter,
+  Session,
+} from "../shared/types.js";
 import { createLogger, type LogLevel, type Logger } from "../shared/logger.js";
 
 const DEFAULT_QUERY_LIMIT = 1000;
@@ -37,6 +42,8 @@ CREATE TABLE IF NOT EXISTS requests (
 CREATE INDEX IF NOT EXISTS idx_requests_timestamp ON requests(timestamp DESC);
 CREATE INDEX IF NOT EXISTS idx_requests_session ON requests(session_id);
 CREATE INDEX IF NOT EXISTS idx_requests_label ON requests(label);
+CREATE INDEX IF NOT EXISTS idx_requests_method ON requests(method);
+CREATE INDEX IF NOT EXISTS idx_requests_status ON requests(response_status);
 `;
 
 interface Migration {
@@ -54,7 +61,57 @@ const MIGRATIONS: Migration[] = [
       ALTER TABLE requests ADD COLUMN response_body_truncated INTEGER DEFAULT 0;
     `,
   },
+  {
+    version: 2,
+    description: "Add indices for method and status filtering",
+    sql: `
+      CREATE INDEX IF NOT EXISTS idx_requests_method ON requests(method);
+      CREATE INDEX IF NOT EXISTS idx_requests_status ON requests(response_status);
+    `,
+  },
 ];
+
+const STATUS_RANGE_MULTIPLIER = 100;
+
+/**
+ * Escape SQL LIKE wildcards in user input to prevent unintended pattern matching.
+ */
+function escapeLikeWildcards(input: string): string {
+  return input.replace(/\\/g, "\\\\").replace(/%/g, "\\%").replace(/_/g, "\\_");
+}
+
+/**
+ * Apply RequestFilter conditions to an existing SQL conditions/params array.
+ * Mutates both arrays in place.
+ */
+function applyFilterConditions(
+  conditions: string[],
+  params: (string | number)[],
+  filter: RequestFilter | undefined
+): void {
+  if (!filter) return;
+
+  if (filter.methods && filter.methods.length > 0) {
+    const placeholders = filter.methods.map(() => "?").join(", ");
+    conditions.push(`method IN (${placeholders})`);
+    params.push(...filter.methods);
+  }
+
+  if (filter.statusRange && /^[1-5]xx$/.test(filter.statusRange)) {
+    const firstDigit = parseInt(filter.statusRange.charAt(0), 10);
+    const lower = firstDigit * STATUS_RANGE_MULTIPLIER;
+    const upper = (firstDigit + 1) * STATUS_RANGE_MULTIPLIER;
+    conditions.push("response_status >= ? AND response_status < ?");
+    params.push(lower, upper);
+  }
+
+  if (filter.search) {
+    const escaped = escapeLikeWildcards(filter.search);
+    const pattern = `%${escaped}%`;
+    conditions.push("(url LIKE ? ESCAPE '\\' OR path LIKE ? ESCAPE '\\')");
+    params.push(pattern, pattern);
+  }
+}
 
 export class RequestRepository {
   private db: Database.Database;
@@ -282,7 +339,13 @@ export class RequestRepository {
    * List requests, optionally filtered by session or label.
    */
   listRequests(
-    options: { sessionId?: string; label?: string; limit?: number; offset?: number } = {}
+    options: {
+      sessionId?: string;
+      label?: string;
+      limit?: number;
+      offset?: number;
+      filter?: RequestFilter;
+    } = {}
   ): CapturedRequest[] {
     const conditions: string[] = [];
     const params: (string | number)[] = [];
@@ -296,6 +359,8 @@ export class RequestRepository {
       conditions.push("label = ?");
       params.push(options.label);
     }
+
+    applyFilterConditions(conditions, params, options.filter);
 
     const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(" AND ")}` : "";
     const limit = options.limit ?? DEFAULT_QUERY_LIMIT;
@@ -320,7 +385,13 @@ export class RequestRepository {
    * Use this for list views where full request data isn't needed.
    */
   listRequestsSummary(
-    options: { sessionId?: string; label?: string; limit?: number; offset?: number } = {}
+    options: {
+      sessionId?: string;
+      label?: string;
+      limit?: number;
+      offset?: number;
+      filter?: RequestFilter;
+    } = {}
   ): CapturedRequestSummary[] {
     const conditions: string[] = [];
     const params: (string | number)[] = [];
@@ -334,6 +405,8 @@ export class RequestRepository {
       conditions.push("label = ?");
       params.push(options.label);
     }
+
+    applyFilterConditions(conditions, params, options.filter);
 
     const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(" AND ")}` : "";
     const limit = options.limit ?? DEFAULT_QUERY_LIMIT;
@@ -382,9 +455,11 @@ export class RequestRepository {
   /**
    * Count requests, optionally filtered by session or label.
    */
-  countRequests(options: { sessionId?: string; label?: string } = {}): number {
+  countRequests(
+    options: { sessionId?: string; label?: string; filter?: RequestFilter } = {}
+  ): number {
     const conditions: string[] = [];
-    const params: string[] = [];
+    const params: (string | number)[] = [];
 
     if (options.sessionId) {
       conditions.push("session_id = ?");
@@ -395,6 +470,8 @@ export class RequestRepository {
       conditions.push("label = ?");
       params.push(options.label);
     }
+
+    applyFilterConditions(conditions, params, options.filter);
 
     const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(" AND ")}` : "";
 

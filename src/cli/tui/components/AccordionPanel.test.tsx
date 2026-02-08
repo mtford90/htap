@@ -262,6 +262,68 @@ describe("AccordionPanel", () => {
       expect(frame).toContain("key");
       expect(frame).toContain("value");
     });
+
+    it("pretty-prints +json content types", () => {
+      const request = createMockRequest({
+        responseBody: Buffer.from('{"key":"value"}'),
+        responseHeaders: { "content-type": "application/vnd.api+json" },
+      });
+      const props = {
+        ...defaultProps,
+        expandedSections: new Set([SECTION_RESPONSE_BODY]),
+      };
+      const { lastFrame } = render(<AccordionPanel {...props} request={request} />);
+      const frame = lastFrame();
+
+      expect(frame).toContain("key");
+      expect(frame).toContain("value");
+    });
+
+    it("renders invalid JSON as-is without crashing", () => {
+      const request = createMockRequest({
+        responseBody: Buffer.from("{not valid json}"),
+        responseHeaders: { "content-type": "application/json" },
+      });
+      const props = {
+        ...defaultProps,
+        expandedSections: new Set([SECTION_RESPONSE_BODY]),
+      };
+      const { lastFrame } = render(<AccordionPanel {...props} request={request} />);
+      const frame = lastFrame();
+
+      expect(frame).toContain("{not valid json}");
+    });
+
+    it("does not reformat non-JSON content even if it starts with {", () => {
+      const request = createMockRequest({
+        responseBody: Buffer.from('{"key":"value"}'),
+        responseHeaders: { "content-type": "text/plain" },
+      });
+      const props = {
+        ...defaultProps,
+        expandedSections: new Set([SECTION_RESPONSE_BODY]),
+      };
+      const { lastFrame } = render(<AccordionPanel {...props} request={request} />);
+      const frame = lastFrame();
+
+      // Should be on a single line (not pretty-printed)
+      expect(frame).toContain('{"key":"value"}');
+    });
+
+    it("does not reformat text/html content", () => {
+      const request = createMockRequest({
+        responseBody: Buffer.from("<html><body>hello</body></html>"),
+        responseHeaders: { "content-type": "text/html" },
+      });
+      const props = {
+        ...defaultProps,
+        expandedSections: new Set([SECTION_RESPONSE_BODY]),
+      };
+      const { lastFrame } = render(<AccordionPanel {...props} request={request} />);
+      const frame = lastFrame();
+
+      expect(frame).toContain("<html>");
+    });
   });
 
   describe("Response headers", () => {

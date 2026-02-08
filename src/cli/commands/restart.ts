@@ -7,16 +7,16 @@ import {
 } from "../../shared/daemon.js";
 import { parseVerbosity } from "../../shared/logger.js";
 import { getHtpxVersion } from "../../shared/version.js";
-import { requireProjectRoot, getErrorMessage } from "./helpers.js";
+import { requireProjectRoot, getErrorMessage, getGlobalOptions } from "./helpers.js";
 
 export const restartCommand = new Command("restart")
   .description("Restart the daemon")
   .action(async (_, command: Command) => {
-    const globalOpts = command.optsWithGlobals() as { verbose?: number };
-    const verbosity = globalOpts.verbose ?? 0;
+    const globalOpts = getGlobalOptions(command);
+    const verbosity = globalOpts.verbose;
     const logLevel = parseVerbosity(verbosity);
 
-    const projectRoot = requireProjectRoot();
+    const projectRoot = requireProjectRoot(globalOpts.dir);
 
     try {
       const cliVersion = getHtpxVersion();
