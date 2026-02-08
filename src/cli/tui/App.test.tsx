@@ -34,6 +34,10 @@ vi.mock("./utils/open-external.js", () => ({
   openInExternalApp: (...args: unknown[]) => mockOpenInExternalApp(...args),
 }));
 
+vi.mock("./hooks/useStdoutDimensions.js", () => ({
+  useStdoutDimensions: () => [200, 50],
+}));
+
 // Import the mocked hook so we can control its return value
 import { useRequests } from "./hooks/useRequests.js";
 const mockUseRequests = vi.mocked(useRequests);
