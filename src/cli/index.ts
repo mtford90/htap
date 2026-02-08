@@ -21,7 +21,8 @@ program
     "increase verbosity (use -vv or -vvv for more)",
     (_, prev: number) => prev + 1,
     0
-  );
+  )
+  .option("-d, --dir <path>", "override project root directory");
 
 program.addCommand(clearCommand);
 program.addCommand(debugDumpCommand);

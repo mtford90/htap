@@ -3,7 +3,11 @@
  */
 
 import { useState, useEffect, useCallback, useRef } from "react";
-import type { CapturedRequest, CapturedRequestSummary } from "../../../shared/types.js";
+import type {
+  CapturedRequest,
+  CapturedRequestSummary,
+  RequestFilter,
+} from "../../../shared/types.js";
 import { ControlClient } from "../../../shared/control-client.js";
 import { findProjectRoot, getHtpxPaths } from "../../../shared/project.js";
 
@@ -12,6 +16,8 @@ const DEFAULT_POLL_INTERVAL_MS = 2000;
 
 interface UseRequestsOptions {
   pollInterval?: number;
+  filter?: RequestFilter;
+  projectRoot?: string;
 }
 
 interface UseRequestsResult {
@@ -30,7 +36,7 @@ interface UseRequestsResult {
  * Hook to fetch and poll for captured requests.
  */
 export function useRequests(options: UseRequestsOptions = {}): UseRequestsResult {
-  const { pollInterval = DEFAULT_POLL_INTERVAL_MS } = options;
+  const { pollInterval = DEFAULT_POLL_INTERVAL_MS, filter, projectRoot } = options;
 
   const [requests, setRequests] = useState<CapturedRequestSummary[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -39,22 +45,23 @@ export function useRequests(options: UseRequestsOptions = {}): UseRequestsResult
   const clientRef = useRef<ControlClient | null>(null);
   const lastCountRef = useRef<number>(0);
   const requestsLengthRef = useRef<number>(0);
+  const filterRef = useRef<RequestFilter | undefined>(filter);
 
   // Initialise control client
   useEffect(() => {
-    const projectRoot = findProjectRoot();
-    if (!projectRoot) {
+    const resolvedRoot = projectRoot ?? findProjectRoot();
+    if (!resolvedRoot) {
       setError("Not in an htpx project. Run 'htpx init' first.");
       setIsLoading(false);
       return;
     }
-    const paths = getHtpxPaths(projectRoot);
+    const paths = getHtpxPaths(resolvedRoot);
     clientRef.current = new ControlClient(paths.controlSocketFile);
 
     return () => {
       clientRef.current?.close();
     };
-  }, []);
+  }, [projectRoot]);
 
   // Keep ref in sync with requests length
   useEffect(() => {
@@ -68,14 +75,17 @@ export function useRequests(options: UseRequestsOptions = {}): UseRequestsResult
       return;
     }
 
+    const currentFilter = filterRef.current;
+
     try {
       // First check the count to avoid unnecessary data transfer
-      const count = await client.countRequests({});
+      const count = await client.countRequests({ filter: currentFilter });
 
       // Only fetch list if count changed or we have no requests yet
       if (count !== lastCountRef.current || requestsLengthRef.current === 0) {
         const newRequests = await client.listRequestsSummary({
           limit: DEFAULT_QUERY_LIMIT,
+          filter: currentFilter,
         });
         setRequests(newRequests);
         lastCountRef.current = count;
@@ -93,6 +103,13 @@ export function useRequests(options: UseRequestsOptions = {}): UseRequestsResult
       setIsLoading(false);
     }
   }, []);
+
+  // Keep filter ref in sync and fetch immediately when filter changes
+  useEffect(() => {
+    filterRef.current = filter;
+    lastCountRef.current = 0;
+    void fetchRequests();
+  }, [filter, fetchRequests]);
 
   // Manual refresh function
   const refresh = useCallback(async () => {

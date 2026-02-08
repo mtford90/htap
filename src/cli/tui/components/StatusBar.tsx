@@ -20,15 +20,17 @@ const KEY_HINTS: KeyHint[] = [
   { key: "h", action: "HAR" },
   { key: "s", action: "save" },
   { key: "u", action: "URL" },
+  { key: "/", action: "filter" },
   { key: "?", action: "help" },
   { key: "q", action: "quit" },
 ];
 
 interface StatusBarProps {
   message?: string;
+  filterActive?: boolean;
 }
 
-export function StatusBar({ message }: StatusBarProps): React.ReactElement {
+export function StatusBar({ message, filterActive }: StatusBarProps): React.ReactElement {
   return (
     <Box
       borderStyle="single"
@@ -42,15 +44,23 @@ export function StatusBar({ message }: StatusBarProps): React.ReactElement {
       {message ? (
         <Text color="yellow">{message}</Text>
       ) : (
-        KEY_HINTS.map((hint, index) => (
-          <React.Fragment key={hint.key}>
-            <Text color="cyan" bold>
-              {hint.key}
-            </Text>
-            <Text dimColor> {hint.action}</Text>
-            {index < KEY_HINTS.length - 1 && <Text dimColor> │ </Text>}
-          </React.Fragment>
-        ))
+        <>
+          {filterActive && (
+            <>
+              <Text color="yellow" bold>[FILTERED]</Text>
+              <Text dimColor> │ </Text>
+            </>
+          )}
+          {KEY_HINTS.map((hint, index) => (
+            <React.Fragment key={hint.key}>
+              <Text color="cyan" bold>
+                {hint.key}
+              </Text>
+              <Text dimColor> {hint.action}</Text>
+              {index < KEY_HINTS.length - 1 && <Text dimColor> │ </Text>}
+            </React.Fragment>
+          ))}
+        </>
       )}
     </Box>
   );

@@ -5,20 +5,20 @@
 - [x] **Full URL in request list** - Toggle full URL display with `u` key
 - [x] **Request/response body viewing** - Stack/accordion UI in details pane to view request body and response body (tab through sections)
 - [x] **Request/response size display** - Show payload sizes in list and details
-- [ ] **Request filtering** - Filter requests by:
+- [x] **Request filtering** - Filter requests by:
   - Fuzzy search (URL, headers, body)
   - HTTP method
   - Status codes
 - [ ] **Publish proxy details** - Show connection details so the proxy can be used anywhere, not just via `eval $(htpx intercept)` on CLI
-- [ ] **Support any directory** - Allow running htpx in any dir; climb to `~/` if no project/git root found (generic proxy across projects)
-- [ ] **Directory scope override** - Pass a parameter to htpx CLI allowing override of cwd (currently uses .git or current dir)
-- [ ] **Global htpx instance** - Support `~/` scope for a global htpx instance that works across all projects
+- [x] **Support any directory** - Allow running htpx in any dir; climb to `~/` if no project/git root found (generic proxy across projects)
+- [x] **Directory scope override** - Pass a parameter to htpx CLI allowing override of cwd (currently uses .git or current dir)
+- [x] **Global htpx instance** - Support `~/` scope for a global htpx instance that works across all projects
 - [ ] **Full system proxy** - Support for acting as a full system proxy (not just per-shell)
 - [x] **Mouse support** - Click to select requests, panels, etc. (like neovim/zellij)
 - [ ] manipulate/explore request/response bodies e.g. if JSON
 - [ ] when focused on e.g. request body, allow for opening in system editor, or copy to clipboard - same for other panels - we might need a modal thing to allow choosing how to export
-- [ ] pretty request/response
-- [ ] syntax highlighting for request/response
+- [x] pretty request/response
+- [x] syntax highlighting for request/response
 - [ ] copy request/response body when focused
 
 ---
@@ -77,3 +77,4 @@
 - [x] Improve `htpx intercept` UX - detect direct vs eval usage
 - [x] Copy curl to clipboard instead of printing after TUI exit
 - [x] **UX/UI fixes (7.1–7.8)**: Help overlay (?), extended navigation (g/G/Ctrl+u/Ctrl+d), loading spinner, minimum terminal size check, focus indicator (» + bold), empty state guidance, status indicators (✓/→/✗), DELETE method magenta colour
+- [x] **Code review fixes (2026-02-07)**: All 24 items addressed — shared `getGlobalOptions` helper, FilterBar lifecycle/cast fixes, `isFilterActive` extraction + tests, JSON pretty-print tests, body preview truncation, DB indices, search length bounds, cursor indicator, and more

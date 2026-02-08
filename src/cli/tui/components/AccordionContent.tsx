@@ -6,6 +6,10 @@ import React, { useMemo } from "react";
 import { Box, Text } from "ink";
 import { formatSize } from "../utils/formatters.js";
 import { isBinaryContent, getBinaryTypeDescription } from "../utils/binary.js";
+import { highlightCode } from "../utils/syntax-highlight.js";
+
+/** Only process the first 10 KB of body content for display — full body remains available for export/save. */
+const BODY_PREVIEW_LIMIT = 10 * 1024;
 
 /**
  * Display request/response headers as key-value pairs.
@@ -107,25 +111,33 @@ export function BodyContent({
       return [];
     }
 
-    const bodyStr = body.toString("utf-8");
+    const truncated = body.length > BODY_PREVIEW_LIMIT;
+    let text = (truncated ? body.subarray(0, BODY_PREVIEW_LIMIT) : body).toString("utf-8");
 
-    // Try JSON formatting
+    // Only pretty-print when content-type explicitly indicates JSON
     const isJson =
       contentType?.includes("application/json") ||
-      bodyStr.trimStart().startsWith("{") ||
-      bodyStr.trimStart().startsWith("[");
+      contentType?.includes("+json");
 
-    if (isJson) {
+    if (isJson && !truncated) {
       try {
-        const parsed = JSON.parse(bodyStr) as unknown;
-        const formatted = JSON.stringify(parsed, null, 2);
-        return formatted.split("\n");
+        const parsed = JSON.parse(text) as unknown;
+        text = JSON.stringify(parsed, null, 2);
       } catch {
-        // Not valid JSON
+        // Not valid JSON, keep original text
       }
     }
 
-    return bodyStr.split("\n");
+    // Apply syntax highlighting (returns original on failure or unknown type)
+    text = highlightCode(text, contentType);
+
+    const result = text.split("\n");
+
+    if (truncated) {
+      result.push(`... truncated (${formatSize(body.length)} total)`);
+    }
+
+    return result;
   }, [body, contentType]);
 
   // Handle truncated bodies

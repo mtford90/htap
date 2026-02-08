@@ -5,6 +5,7 @@ import type {
   CapturedRequest,
   CapturedRequestSummary,
   DaemonStatus,
+  RequestFilter,
   Session,
 } from "../shared/types.js";
 import {
@@ -80,6 +81,34 @@ function requireString(params: Record<string, unknown>, key: string): string {
 }
 
 /**
+ * Validate an optional RequestFilter from untyped control message params.
+ */
+function optionalFilter(params: Record<string, unknown>): RequestFilter | undefined {
+  const filter = params["filter"];
+  if (!filter || typeof filter !== "object") return undefined;
+  const f = filter as Record<string, unknown>;
+
+  const result: RequestFilter = {};
+
+  if (Array.isArray(f["methods"])) {
+    const methods = f["methods"].filter((m): m is string => typeof m === "string");
+    if (methods.length > 0) {
+      result.methods = methods;
+    }
+  }
+
+  if (typeof f["statusRange"] === "string") {
+    result.statusRange = f["statusRange"];
+  }
+
+  if (typeof f["search"] === "string") {
+    result.search = f["search"];
+  }
+
+  return Object.keys(result).length > 0 ? result : undefined;
+}
+
+/**
  * Create a Unix socket control server for daemon communication.
  */
 export function createControlServer(options: ControlServerOptions): ControlServer {
@@ -125,6 +154,7 @@ export function createControlServer(options: ControlServerOptions): ControlServe
         label: optionalString(params, "label"),
         limit: optionalNumber(params, "limit"),
         offset: optionalNumber(params, "offset"),
+        filter: optionalFilter(params),
       });
     },
 
@@ -134,6 +164,7 @@ export function createControlServer(options: ControlServerOptions): ControlServe
         label: optionalString(params, "label"),
         limit: optionalNumber(params, "limit"),
         offset: optionalNumber(params, "offset"),
+        filter: optionalFilter(params),
       });
     },
 
@@ -146,6 +177,7 @@ export function createControlServer(options: ControlServerOptions): ControlServe
       return storage.countRequests({
         sessionId: optionalString(params, "sessionId"),
         label: optionalString(params, "label"),
+        filter: optionalFilter(params),
       });
     },
 

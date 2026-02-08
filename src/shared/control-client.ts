@@ -1,5 +1,11 @@
 import * as net from "node:net";
-import type { CapturedRequest, CapturedRequestSummary, DaemonStatus, Session } from "./types.js";
+import type {
+  CapturedRequest,
+  CapturedRequestSummary,
+  DaemonStatus,
+  RequestFilter,
+  Session,
+} from "./types.js";
 
 const CONTROL_TIMEOUT_MS = 5000;
 
@@ -163,6 +169,7 @@ export class ControlClient {
     label?: string;
     limit?: number;
     offset?: number;
+    filter?: RequestFilter;
   }): Promise<CapturedRequest[]> {
     return this.request<CapturedRequest[]>("listRequests", options);
   }
@@ -175,6 +182,7 @@ export class ControlClient {
     label?: string;
     limit?: number;
     offset?: number;
+    filter?: RequestFilter;
   }): Promise<CapturedRequestSummary[]> {
     return this.request<CapturedRequestSummary[]>("listRequestsSummary", options);
   }
@@ -189,7 +197,11 @@ export class ControlClient {
   /**
    * Count requests.
    */
-  async countRequests(options?: { sessionId?: string; label?: string }): Promise<number> {
+  async countRequests(options?: {
+    sessionId?: string;
+    label?: string;
+    filter?: RequestFilter;
+  }): Promise<number> {
     return this.request<number>("countRequests", options);
   }
 

@@ -46,6 +46,7 @@ const HELP_SECTIONS: HelpSection[] = [
       { key: "h", description: "Export HAR" },
       { key: "s", description: "Save binary content" },
       { key: "u", description: "Toggle full URL" },
+      { key: "/", description: "Filter requests" },
       { key: "r", description: "Refresh" },
     ],
   },

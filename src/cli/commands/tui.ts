@@ -4,15 +4,16 @@ import React from "react";
 import { App } from "../tui/App.js";
 import { findProjectRoot } from "../../shared/project.js";
 import { createLogger, parseVerbosity } from "../../shared/logger.js";
+import { getGlobalOptions } from "./helpers.js";
 
 export const tuiCommand = new Command("tui")
   .description("Browse captured HTTP traffic")
   .option("--ci", "CI mode: render once and exit after a short delay (for testing)")
   .action((options: { ci?: boolean }, command: Command) => {
-    const globalOpts = command.optsWithGlobals() as { verbose?: number };
-    const verbosity = globalOpts.verbose ?? 0;
+    const globalOpts = getGlobalOptions(command);
+    const verbosity = globalOpts.verbose;
     const logLevel = parseVerbosity(verbosity);
-    const projectRoot = findProjectRoot();
+    const projectRoot = findProjectRoot(undefined, globalOpts.dir);
 
     // Log TUI startup
     if (projectRoot) {
@@ -20,7 +21,9 @@ export const tuiCommand = new Command("tui")
       logger.info("TUI started");
     }
 
-    const { waitUntilExit, unmount } = render(React.createElement(App, {}));
+    const { waitUntilExit, unmount } = render(
+      React.createElement(App, { projectRoot: projectRoot ?? undefined })
+    );
 
     // In CI mode, exit after a short delay to allow initial render
     if (options.ci) {
