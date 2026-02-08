@@ -13,7 +13,6 @@
 - [x] **Support any directory** - Allow running htpx in any dir; climb to `~/` if no project/git root found (generic proxy across projects)
 - [x] **Directory scope override** - Pass a parameter to htpx CLI allowing override of cwd (currently uses .git or current dir)
 - [x] **Global htpx instance** - Support `~/` scope for a global htpx instance that works across all projects
-- [ ] **Full system proxy** - Support for acting as a full system proxy (not just per-shell)
 - [x] **Mouse support** - Click to select requests, panels, etc. (like neovim/zellij)
 - [ ] manipulate/explore request/response bodies e.g. if JSON
 - [ ] when focused on e.g. request body, allow for opening in system editor, or copy to clipboard - same for other panels - we might need a modal thing to allow choosing how to export
@@ -66,6 +65,7 @@
 
 - [ ] **Drop mockttp** - mockttp doesn't support Bun; dropping it would enable Bun portable executables instead of npm (note: htpx doesn't need mock functionality)
 - [ ] **AI request visualisation** - Special visualisation for AI/LLM requests (detect OpenAI, Anthropic, etc. API patterns and render token counts, model info, streaming chunks, etc.)
+- [ ] **Full system proxy** - Support for acting as a full system proxy (not just per-shell)
 - [ ] **OTEL support** - OpenTelemetry integration for trace correlation and observability
 
 ## Completed

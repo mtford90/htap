@@ -216,6 +216,16 @@ Rules derived from the [2026-02-05 code review](docs/reviews/2026-02-05/code-rev
 - **Don't write "coverage theatre" tests** that simply assert types exist or interfaces compile. Tests must exercise behaviour.
 - **Test error paths, not just happy paths.** Include tests for malformed input, missing data, timeouts, and concurrent operations.
 
+## Version Control — GitButler Virtual Branches
+
+This repo uses **GitButler virtual branches**, which allow multiple features to be developed in parallel within the same workspace without polluting each other's history. The GitButler MCP server is available for managing branches.
+
+### Workflow
+
+- When a feature or task is complete, prompt the user and ask whether to **create a new virtual branch** or **add to an existing one**.
+- Never commit without asking first — always confirm with the user before using the GitButler MCP to update branches.
+- Use `mcp__gitbutler__gitbutler_update_branches` to assign changes to virtual branches with a summary of what changed and why.
+
 ## Development Notes
 
 - The daemon runs as a child process and communicates via Unix socket

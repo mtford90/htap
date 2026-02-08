@@ -17,8 +17,6 @@ import type { CapturedRequest } from "../../../shared/types.js";
 import { AccordionSection } from "./AccordionSection.js";
 import { HeadersContent, BodyContent, TruncatedBodyContent } from "./AccordionContent.js";
 import { formatSize, getStatusText, shortContentType } from "../utils/formatters.js";
-import { isBinaryContent } from "../utils/binary.js";
-
 // Box drawing characters for the bottom border
 const BOX = {
   bottomLeft: "└",
@@ -44,17 +42,14 @@ interface AccordionPanelProps {
 }
 
 /**
- * Check if a body section contains binary content that can be saved.
+ * Check if a body section has content that can be exported (copied, saved, opened).
+ * Any non-empty, non-truncated body is exportable regardless of content type.
  */
-export function isSaveableBody(
+export function hasExportableBody(
   body: Buffer | undefined,
-  contentType: string | undefined,
   isTruncated: boolean | undefined
 ): boolean {
-  if (isTruncated || !body || body.length === 0) {
-    return false;
-  }
-  return isBinaryContent(body, contentType).isBinary;
+  return !isTruncated && !!body && body.length > 0;
 }
 
 /**

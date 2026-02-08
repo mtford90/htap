@@ -78,7 +78,7 @@ function BinaryBodyContent({
       <Text dimColor>
         {description} content ({size})
       </Text>
-      <Text color="cyan">Press 's' to save</Text>
+      <Text color="cyan">Press 's' to export</Text>
     </Box>
   );
 }

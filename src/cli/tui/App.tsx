@@ -9,8 +9,11 @@ import { useStdoutDimensions } from "./hooks/useStdoutDimensions.js";
 import { useRequests } from "./hooks/useRequests.js";
 import { useExport } from "./hooks/useExport.js";
 import { useSpinner } from "./hooks/useSpinner.js";
-import { useSaveBinary, generateFilename } from "./hooks/useSaveBinary.js";
+import { useBodyExport, generateFilename } from "./hooks/useBodyExport.js";
 import { formatSize } from "./utils/formatters.js";
+import { copyToClipboard } from "./utils/clipboard.js";
+import { isBinaryContent } from "./utils/binary.js";
+import { openInExternalApp } from "./utils/open-external.js";
 import { RequestList } from "./components/RequestList.js";
 import {
   AccordionPanel,
@@ -18,11 +21,11 @@ import {
   SECTION_REQUEST_BODY,
   SECTION_RESPONSE,
   SECTION_RESPONSE_BODY,
-  isSaveableBody,
+  hasExportableBody,
 } from "./components/AccordionPanel.js";
 import { StatusBar } from "./components/StatusBar.js";
 import { FilterBar } from "./components/FilterBar.js";
-import { SaveModal, type SaveLocation } from "./components/SaveModal.js";
+import { ExportModal, type ExportAction } from "./components/ExportModal.js";
 import { HelpModal } from "./components/HelpModal.js";
 import { isFilterActive } from "./utils/filters.js";
 import type { CapturedRequest, RequestFilter } from "../../shared/types.js";
@@ -50,7 +53,7 @@ function AppContent({ __testEnableInput, projectRoot }: AppProps): React.ReactEl
 
   const { requests, isLoading, error, refresh, getFullRequest, getAllFullRequests } = useRequests({ filter, projectRoot });
   const { exportCurl, exportHar } = useExport();
-  const { saveBinary } = useSaveBinary();
+  const { saveBody } = useBodyExport();
   const spinnerFrame = useSpinner(isLoading && requests.length === 0);
 
   const [selectedIndex, setSelectedIndex] = useState(0);
@@ -177,30 +180,47 @@ function AppContent({ __testEnableInput, projectRoot }: AppProps): React.ReactEl
     };
   }, []);
 
-  // Determine if the currently focused body section is saveable (binary content)
-  const currentBodyIsSaveable = useMemo(() => {
+  // Determine if the currently focused body section has exportable content
+  const currentBodyIsExportable = useMemo(() => {
     if (!selectedFullRequest || activePanel !== "accordion") return false;
 
     if (focusedSection === SECTION_REQUEST_BODY) {
-      return isSaveableBody(
+      return hasExportableBody(
         selectedFullRequest.requestBody,
-        selectedFullRequest.requestHeaders["content-type"],
         selectedFullRequest.requestBodyTruncated
       );
     }
     if (focusedSection === SECTION_RESPONSE_BODY) {
-      return isSaveableBody(
+      return hasExportableBody(
         selectedFullRequest.responseBody,
-        selectedFullRequest.responseHeaders?.["content-type"],
         selectedFullRequest.responseBodyTruncated
       );
     }
     return false;
   }, [selectedFullRequest, activePanel, focusedSection]);
 
-  // Handle save from modal
-  const handleSave = useCallback(
-    async (location: SaveLocation, customPath?: string) => {
+  // Determine if the currently focused body section contains binary content
+  const currentBodyIsBinary = useMemo(() => {
+    if (!selectedFullRequest || activePanel !== "accordion") return false;
+
+    if (focusedSection === SECTION_REQUEST_BODY) {
+      return isBinaryContent(
+        selectedFullRequest.requestBody,
+        selectedFullRequest.requestHeaders["content-type"]
+      ).isBinary;
+    }
+    if (focusedSection === SECTION_RESPONSE_BODY) {
+      return isBinaryContent(
+        selectedFullRequest.responseBody,
+        selectedFullRequest.responseHeaders?.["content-type"]
+      ).isBinary;
+    }
+    return false;
+  }, [selectedFullRequest, activePanel, focusedSection]);
+
+  // Handle export action from modal
+  const handleExport = useCallback(
+    async (action: ExportAction, customPath?: string) => {
       if (!selectedFullRequest || !savingBodyType) return;
 
       const isRequestBody = savingBodyType === "request";
@@ -210,18 +230,45 @@ function AppContent({ __testEnableInput, projectRoot }: AppProps): React.ReactEl
         : selectedFullRequest.responseHeaders?.["content-type"];
 
       if (!body) {
-        showStatus("No body to save");
+        showStatus("No body to export");
         setShowSaveModal(false);
         setSavingBodyType(null);
         return;
       }
 
-      const result = await saveBinary(
+      if (action === "clipboard") {
+        const bodyIsBinary = isBinaryContent(body, contentType).isBinary;
+        if (bodyIsBinary) {
+          showStatus("Cannot copy binary content to clipboard — use a file export option");
+        } else {
+          try {
+            await copyToClipboard(body.toString("utf-8"));
+            showStatus("Body copied to clipboard");
+          } catch {
+            showStatus("Failed to copy to clipboard");
+          }
+        }
+        setShowSaveModal(false);
+        setSavingBodyType(null);
+        return;
+      }
+
+      if (action === "open-external") {
+        const filename = generateFilename(selectedFullRequest.id, contentType, selectedFullRequest.url);
+        const result = await openInExternalApp(body, filename);
+        showStatus(result.success ? result.message : `Error: ${result.message}`);
+        setShowSaveModal(false);
+        setSavingBodyType(null);
+        return;
+      }
+
+      // File save actions: exports, downloads, custom
+      const result = await saveBody(
         body,
         selectedFullRequest.id,
         contentType,
         selectedFullRequest.url,
-        location,
+        action,
         customPath
       );
 
@@ -229,7 +276,7 @@ function AppContent({ __testEnableInput, projectRoot }: AppProps): React.ReactEl
       setShowSaveModal(false);
       setSavingBodyType(null);
     },
-    [selectedFullRequest, savingBodyType, saveBinary, showStatus]
+    [selectedFullRequest, savingBodyType, saveBody, showStatus]
   );
 
   // Handle keyboard input (only when raw mode is supported, i.e. running in a TTY)
@@ -357,13 +404,31 @@ function AppContent({ __testEnableInput, projectRoot }: AppProps): React.ReactEl
         setShowHelp(true);
       } else if (input === "/") {
         setShowFilter(true);
+      } else if (input === "y") {
+        // Copy body to clipboard
+        if (activePanel === "accordion" && (focusedSection === SECTION_REQUEST_BODY || focusedSection === SECTION_RESPONSE_BODY)) {
+          if (!currentBodyIsExportable) {
+            showStatus("No body to copy");
+          } else if (currentBodyIsBinary) {
+            showStatus("Cannot copy binary content — use 's' to export");
+          } else {
+            const isReqBody = focusedSection === SECTION_REQUEST_BODY;
+            const body = isReqBody ? selectedFullRequest?.requestBody : selectedFullRequest?.responseBody;
+            if (body) {
+              void copyToClipboard(body.toString("utf-8")).then(
+                () => showStatus("Body copied to clipboard"),
+                () => showStatus("Failed to copy to clipboard")
+              );
+            }
+          }
+        }
       } else if (input === "s") {
-        // Save binary content
-        if (currentBodyIsSaveable) {
+        // Export body content
+        if (currentBodyIsExportable) {
           setSavingBodyType(focusedSection === SECTION_REQUEST_BODY ? "request" : "response");
           setShowSaveModal(true);
         } else if (activePanel === "accordion" && (focusedSection === SECTION_REQUEST_BODY || focusedSection === SECTION_RESPONSE_BODY)) {
-          showStatus("No binary content to save");
+          showStatus("No body to export");
         }
       }
     },
@@ -433,7 +498,7 @@ function AppContent({ __testEnableInput, projectRoot }: AppProps): React.ReactEl
     );
   }
 
-  // Save modal - full screen replacement (terminals don't support true overlays)
+  // Export modal - full screen replacement (terminals don't support true overlays)
   if (showSaveModal && selectedFullRequest && savingBodyType) {
     const isRequestBody = savingBodyType === "request";
     const body = isRequestBody ? selectedFullRequest.requestBody : selectedFullRequest.responseBody;
@@ -442,14 +507,16 @@ function AppContent({ __testEnableInput, projectRoot }: AppProps): React.ReactEl
       : selectedFullRequest.responseHeaders?.["content-type"];
     const filename = generateFilename(selectedFullRequest.id, contentType, selectedFullRequest.url);
     const fileSize = formatSize(body?.length);
+    const bodyIsBinary = isBinaryContent(body, contentType).isBinary;
 
     return (
-      <SaveModal
+      <ExportModal
         filename={filename}
         fileSize={fileSize}
+        isBinary={bodyIsBinary}
         width={columns}
         height={rows}
-        onSave={(location, customPath) => void handleSave(location, customPath)}
+        onExport={(action, customPath) => void handleExport(action, customPath)}
         onClose={() => {
           setShowSaveModal(false);
           setSavingBodyType(null);
