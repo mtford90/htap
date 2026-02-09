@@ -143,6 +143,7 @@ export function getHtpxPaths(projectRoot: string) {
     caCertFile: path.join(htpxDir, "ca.pem"),
     pidFile: path.join(htpxDir, "daemon.pid"),
     logFile: path.join(htpxDir, "htpx.log"),
+    configFile: path.join(htpxDir, "config.json"),
   };
 }
 

@@ -28,21 +28,31 @@
 
 ---
 
-## Phase 1: Read-only MCP — Traffic Inspection
+## Phase 1: Read-only MCP — Traffic Inspection ✓
 
 Let AI discover `.htpx/` and inspect captured traffic. No mocking yet — purely read-only.
 
-**Tools exposed:**
-- [x] `htpx_list_requests` — search/filter captured requests (by URL, method, status)
-- [x] `htpx_get_request` — fetch full request details (headers, body, timing)
-- [x] `htpx_search_bodies` — search through request/response body content (text types only)
+**Tools:**
 - [x] `htpx_get_status` — proxy status, port, captured request count
+- [x] `htpx_list_requests` — search/filter captured requests (by URL, method, status, headers)
+- [x] `htpx_get_request` — fetch full request details (headers, body, timing)
+- [x] `htpx_search_bodies` — full-text search through request/response body content
+- [x] `htpx_query_json` — extract values from JSON bodies using JSONPath expressions
+- [x] `htpx_count_requests` — count requests matching a filter
+- [x] `htpx_clear_requests` — delete all captured requests
+- [x] `htpx_list_sessions` — list active proxy sessions
+
+**Filtering:** All query tools support method, status range (Nxx patterns), URL search, host, path prefix, time window, header name/value/target. Text and JSON output formats.
 
 **Architecture:**
 - MCP server connects to the daemon's existing control socket
 - Reuses existing SQLite query infrastructure from the TUI's data layer
 - Ships as `htpx mcp` subcommand (stdio-based MCP server)
 - Content-type columns added to DB for efficient body search filtering
+- Header filtering via `json_extract()` on stored JSON header columns
+- JSON body querying via `json_extract(CAST(body AS TEXT), ?)` with content-type gating
+- README documented with setup, tool reference, filtering guide, and example workflows
+- Code review completed and all findings addressed
 
 ---
 

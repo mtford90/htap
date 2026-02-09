@@ -15,6 +15,7 @@ import {
 } from "../shared/project.js";
 import { createLogger, isValidLogLevel, type LogLevel } from "../shared/logger.js";
 import { getHtpxVersion } from "../shared/version.js";
+import { loadConfig } from "../shared/config.js";
 
 /**
  * Daemon entry point.
@@ -33,7 +34,11 @@ async function main() {
   // Parse log level from environment
   const envLogLevel = process.env["HTPX_LOG_LEVEL"];
   const logLevel: LogLevel = envLogLevel && isValidLogLevel(envLogLevel) ? envLogLevel : "warn";
-  const logger = createLogger("daemon", projectRoot, logLevel);
+
+  // Load project configuration
+  const config = loadConfig(projectRoot, logLevel);
+
+  const logger = createLogger("daemon", projectRoot, logLevel, { maxLogSize: config.maxLogSize });
 
   const paths = getHtpxPaths(projectRoot);
 
@@ -50,7 +55,9 @@ async function main() {
   }
 
   // Initialise storage
-  const storage = new RequestRepository(paths.databaseFile, projectRoot, logLevel);
+  const storage = new RequestRepository(paths.databaseFile, projectRoot, logLevel, {
+    maxStoredRequests: config.maxStoredRequests,
+  });
 
   // Find a free port for the proxy
   const proxyPort = await findFreePort();
@@ -69,6 +76,7 @@ async function main() {
     sessionId: DAEMON_SESSION_ID,
     projectRoot,
     logLevel,
+    maxBodySize: config.maxBodySize,
   });
 
   // Write proxy port to file
@@ -106,6 +114,15 @@ async function main() {
     try {
       await controlServer.close();
       await proxy.stop();
+
+      try {
+        storage.compactDatabase();
+      } catch (compactErr) {
+        logger.warn("Database compaction failed during shutdown", {
+          error: compactErr instanceof Error ? compactErr.message : String(compactErr),
+        });
+      }
+
       storage.close();
       removeDaemonPid(projectRoot);
 
