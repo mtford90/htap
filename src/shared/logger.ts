@@ -21,22 +21,30 @@ const LOG_LEVEL_PRIORITY: Record<LogLevel, number> = {
 };
 
 /** 10MB max file size before rotation */
-const MAX_LOG_SIZE = 10 * 1024 * 1024;
+const DEFAULT_MAX_LOG_SIZE = 10 * 1024 * 1024;
 
 /** Flush buffered log lines after this delay */
 const FLUSH_DELAY_MS = 100;
+
+export interface LoggerOptions {
+  maxLogSize?: number;
+}
 
 export class Logger {
   private stream: fs.WriteStream | null = null;
   private buffer: string[] = [];
   private flushTimer: ReturnType<typeof setTimeout> | null = null;
   private dirEnsured = false;
+  private maxLogSize: number;
 
   constructor(
     private component: Component,
     private logFile: string,
-    private level: LogLevel = "warn"
-  ) {}
+    private level: LogLevel = "warn",
+    options?: LoggerOptions
+  ) {
+    this.maxLogSize = options?.maxLogSize ?? DEFAULT_MAX_LOG_SIZE;
+  }
 
   error(msg: string, data?: Record<string, unknown>): void {
     this.log("error", msg, data);
@@ -178,7 +186,7 @@ export class Logger {
       }
 
       const stats = fs.statSync(this.logFile);
-      if (stats.size < MAX_LOG_SIZE) {
+      if (stats.size < this.maxLogSize) {
         return;
       }
 
@@ -210,10 +218,11 @@ export class Logger {
 export function createLogger(
   component: Component,
   projectRoot: string,
-  level: LogLevel = "warn"
+  level: LogLevel = "warn",
+  options?: LoggerOptions
 ): Logger {
   const logFile = path.join(projectRoot, ".htpx", "htpx.log");
-  return new Logger(component, logFile, level);
+  return new Logger(component, logFile, level, options);
 }
 
 /**

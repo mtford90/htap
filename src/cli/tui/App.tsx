@@ -33,6 +33,7 @@ import { isJsonContent } from "./utils/content-type.js";
 import { JsonExplorerModal } from "./components/JsonExplorerModal.js";
 import { TextViewerModal } from "./components/TextViewerModal.js";
 import { findProjectRoot, getHtpxPaths, readProxyPort } from "../../shared/project.js";
+import { loadConfig } from "../../shared/config.js";
 import type { CapturedRequest, RequestFilter } from "../../shared/types.js";
 
 interface AppProps {
@@ -52,11 +53,21 @@ function AppContent({ __testEnableInput, projectRoot }: AppProps): React.ReactEl
   const { isRawModeSupported } = useStdin();
   const [columns, rows] = useStdoutDimensions();
 
+  // Load project config once for pollInterval
+  const config = useMemo(() => {
+    const root = projectRoot ?? findProjectRoot();
+    return root ? loadConfig(root) : undefined;
+  }, [projectRoot]);
+
   // Filter state
   const [filter, setFilter] = useState<RequestFilter>({});
   const [showFilter, setShowFilter] = useState(false);
 
-  const { requests, isLoading, error, refresh, getFullRequest, getAllFullRequests } = useRequests({ filter, projectRoot });
+  const { requests, isLoading, error, refresh, getFullRequest, getAllFullRequests } = useRequests({
+    filter,
+    projectRoot,
+    pollInterval: config?.pollInterval,
+  });
   const { exportCurl, exportHar } = useExport();
   const { saveBody } = useBodyExport();
   const spinnerFrame = useSpinner(isLoading && requests.length === 0);

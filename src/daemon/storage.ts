@@ -13,8 +13,10 @@ import {
   buildTextContentTypeSqlCondition,
   buildJsonContentTypeSqlCondition,
 } from "../shared/content-type.js";
+import { DEFAULT_MAX_STORED_REQUESTS } from "../shared/config.js";
 
 const DEFAULT_QUERY_LIMIT = 1000;
+const EVICTION_CHECK_INTERVAL = 100;
 
 const SCHEMA = `
 CREATE TABLE IF NOT EXISTS sessions (
@@ -245,14 +247,27 @@ function applyFilterConditions(
   }
 }
 
+export interface RepositoryOptions {
+  maxStoredRequests?: number;
+}
+
 export class RequestRepository {
   private db: Database.Database;
   private logger: Logger | undefined;
+  private maxStoredRequests: number;
+  private insertsSinceLastEvictionCheck = 0;
 
-  constructor(dbPath: string, projectRoot?: string, logLevel?: LogLevel) {
+  constructor(
+    dbPath: string,
+    projectRoot?: string,
+    logLevel?: LogLevel,
+    options?: RepositoryOptions
+  ) {
     this.db = new Database(dbPath);
     this.db.pragma("journal_mode = WAL");
     this.db.exec(SCHEMA);
+
+    this.maxStoredRequests = options?.maxStoredRequests ?? DEFAULT_MAX_STORED_REQUESTS;
 
     // Fresh databases already have the latest schema — stamp to latest version
     // so migrations don't try to re-apply what's already in the CREATE TABLE.
@@ -426,6 +441,8 @@ export class RequestRepository {
       method: request.method,
       url: request.url,
     });
+
+    this.evictIfNeeded();
 
     return id;
   }
@@ -853,10 +870,55 @@ export class RequestRepository {
   }
 
   /**
+   * Reclaim disk space by checkpointing the WAL and vacuuming.
+   * Intended for use during shutdown — not suitable for the hot path.
+   */
+  compactDatabase(): void {
+    this.db.pragma("wal_checkpoint(TRUNCATE)");
+    this.db.exec("VACUUM");
+  }
+
+  /**
    * Close the database connection.
    */
   close(): void {
     this.db.close();
+  }
+
+  /**
+   * Check whether the request count exceeds the cap and evict oldest rows.
+   * Only runs the actual COUNT query every EVICTION_CHECK_INTERVAL inserts
+   * to keep the hot path cheap.
+   */
+  private evictIfNeeded(): void {
+    this.insertsSinceLastEvictionCheck++;
+
+    if (this.insertsSinceLastEvictionCheck < EVICTION_CHECK_INTERVAL) {
+      return;
+    }
+
+    this.insertsSinceLastEvictionCheck = 0;
+
+    const { count } = this.db.prepare("SELECT COUNT(*) as count FROM requests").get() as DbCountRow;
+
+    if (count <= this.maxStoredRequests) {
+      return;
+    }
+
+    const excess = count - this.maxStoredRequests;
+
+    this.db
+      .prepare(
+        `DELETE FROM requests WHERE id IN (
+          SELECT id FROM requests ORDER BY timestamp ASC LIMIT ?
+        )`
+      )
+      .run(excess);
+
+    this.logger?.debug("Evicted old requests", {
+      evicted: excess,
+      remaining: this.maxStoredRequests,
+    });
   }
 
   private safeParseHeaders(json: string): Record<string, string> {

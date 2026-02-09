@@ -142,6 +142,7 @@ htpx creates a `.htpx/` directory in your project root (detected by `.git` or ex
 ```
 your-project/
 ├── .htpx/
+│   ├── config.json     # Optional project config
 │   ├── proxy.port      # Proxy TCP port
 │   ├── control.sock    # IPC socket
 │   ├── requests.db     # Captured traffic
@@ -151,6 +152,28 @@ your-project/
 ```
 
 Different projects have completely separate daemons, databases, and certificates.
+
+### Configuration
+
+Create `.htpx/config.json` to override default behaviour. All fields are optional:
+
+```json
+{
+  "maxStoredRequests": 5000,
+  "maxBodySize": 10485760,
+  "maxLogSize": 10485760,
+  "pollInterval": 2000
+}
+```
+
+| Setting | Default | Description |
+|---------|---------|-------------|
+| `maxStoredRequests` | `5000` | Maximum requests kept in the database. Oldest are evicted automatically. |
+| `maxBodySize` | `10485760` (10 MB) | Maximum body size in bytes to capture per request/response. Larger bodies are still proxied but not stored. |
+| `maxLogSize` | `10485760` (10 MB) | Maximum log file size in bytes before rotation. |
+| `pollInterval` | `2000` | TUI polling interval in milliseconds. Lower values give faster updates at the cost of more IPC traffic. |
+
+If the file is missing or contains invalid values, defaults are used.
 
 ## Supported HTTP Clients
 

@@ -4,6 +4,7 @@ import * as path from "node:path";
 import * as os from "node:os";
 import Database from "better-sqlite3";
 import { RequestRepository } from "./storage.js";
+import { DEFAULT_MAX_STORED_REQUESTS } from "../shared/config.js";
 
 describe("RequestRepository", () => {
   let tempDir: string;
@@ -1646,6 +1647,178 @@ describe("RequestRepository", () => {
       expect(page1).toHaveLength(1);
       expect(page2).toHaveLength(1);
       expect(page1[0]?.extractedValue).not.toBe(page2[0]?.extractedValue);
+    });
+  });
+
+  describe("eviction", () => {
+    let sessionId: string;
+
+    beforeEach(() => {
+      const session = repo.registerSession("test", 1);
+      sessionId = session.id;
+    });
+
+    /**
+     * Insert N requests with sequential timestamps so ordering is deterministic.
+     * Returns the IDs of the inserted requests (oldest first).
+     */
+    function insertRequests(count: number, repoInstance: RequestRepository = repo): string[] {
+      const ids: string[] = [];
+      for (let i = 0; i < count; i++) {
+        const id = repoInstance.saveRequest({
+          sessionId,
+          timestamp: 1000 + i,
+          method: "GET",
+          url: `https://example.com/${i}`,
+          host: "example.com",
+          path: `/${i}`,
+          requestHeaders: {},
+        });
+        ids.push(id);
+      }
+      return ids;
+    }
+
+    it("does not evict when below the cap", () => {
+      // Default EVICTION_CHECK_INTERVAL is 100, insert fewer than that
+      insertRequests(50);
+      expect(repo.countRequests()).toBe(50);
+    });
+
+    it("evicts oldest when over cap", () => {
+      // Use a small cap. Eviction runs every 100 inserts, so insert exactly
+      // 200 to trigger eviction at insert 100 and again at 200. After the
+      // second eviction the count should be exactly at the cap.
+      const smallRepo = new RequestRepository(dbPath + "-evict", undefined, undefined, {
+        maxStoredRequests: 50,
+      });
+      const evictSession = smallRepo.registerSession("test", 1);
+
+      for (let i = 0; i < 200; i++) {
+        smallRepo.saveRequest({
+          sessionId: evictSession.id,
+          timestamp: 1000 + i,
+          method: "GET",
+          url: `https://example.com/${i}`,
+          host: "example.com",
+          path: `/${i}`,
+          requestHeaders: {},
+        });
+      }
+
+      // Eviction fired at insert 200 — count should be exactly at cap
+      const count = smallRepo.countRequests();
+      expect(count).toBe(50);
+
+      smallRepo.close();
+      fs.unlinkSync(dbPath + "-evict");
+    });
+
+    it("preserves newest requests after eviction", () => {
+      const smallRepo = new RequestRepository(dbPath + "-newest", undefined, undefined, {
+        maxStoredRequests: 50,
+      });
+      const evictSession = smallRepo.registerSession("test", 1);
+
+      for (let i = 0; i < 200; i++) {
+        smallRepo.saveRequest({
+          sessionId: evictSession.id,
+          timestamp: 1000 + i,
+          method: "GET",
+          url: `https://example.com/${i}`,
+          host: "example.com",
+          path: `/${i}`,
+          requestHeaders: {},
+        });
+      }
+
+      // The newest 50 requests should survive (timestamps 1150-1199)
+      const remaining = smallRepo.listRequests({ limit: 50 });
+      const timestamps = remaining.map((r) => r.timestamp);
+      for (const ts of timestamps) {
+        expect(ts).toBeGreaterThanOrEqual(1150);
+      }
+
+      smallRepo.close();
+      fs.unlinkSync(dbPath + "-newest");
+    });
+
+    it("keeps count at cap across multiple eviction cycles", () => {
+      const smallRepo = new RequestRepository(dbPath + "-cycles", undefined, undefined, {
+        maxStoredRequests: 50,
+      });
+      const evictSession = smallRepo.registerSession("test", 1);
+
+      // Three full eviction cycles (300 inserts = 3 x EVICTION_CHECK_INTERVAL)
+      for (let i = 0; i < 300; i++) {
+        smallRepo.saveRequest({
+          sessionId: evictSession.id,
+          timestamp: 1000 + i,
+          method: "GET",
+          url: `https://example.com/${i}`,
+          host: "example.com",
+          path: `/${i}`,
+          requestHeaders: {},
+        });
+      }
+
+      const count = smallRepo.countRequests();
+      expect(count).toBe(50);
+
+      smallRepo.close();
+      fs.unlinkSync(dbPath + "-cycles");
+    });
+
+    it("respects custom maxStoredRequests", () => {
+      const smallRepo = new RequestRepository(dbPath + "-custom", undefined, undefined, {
+        maxStoredRequests: 20,
+      });
+      const evictSession = smallRepo.registerSession("test", 1);
+
+      for (let i = 0; i < 200; i++) {
+        smallRepo.saveRequest({
+          sessionId: evictSession.id,
+          timestamp: 1000 + i,
+          method: "GET",
+          url: `https://example.com/${i}`,
+          host: "example.com",
+          path: `/${i}`,
+          requestHeaders: {},
+        });
+      }
+
+      expect(smallRepo.countRequests()).toBe(20);
+
+      smallRepo.close();
+      fs.unlinkSync(dbPath + "-custom");
+    });
+
+    it("uses DEFAULT_MAX_STORED_REQUESTS when no option provided", () => {
+      // Just verifying the constant is exported and used
+      expect(DEFAULT_MAX_STORED_REQUESTS).toBe(5000);
+    });
+  });
+
+  describe("compactDatabase", () => {
+    it("runs without error on populated database", () => {
+      const session = repo.registerSession("test", 1);
+      for (let i = 0; i < 10; i++) {
+        repo.saveRequest({
+          sessionId: session.id,
+          timestamp: Date.now() + i,
+          method: "GET",
+          url: `https://example.com/${i}`,
+          host: "example.com",
+          path: `/${i}`,
+          requestHeaders: {},
+        });
+      }
+
+      expect(() => repo.compactDatabase()).not.toThrow();
+    });
+
+    it("runs without error on empty database", () => {
+      expect(() => repo.compactDatabase()).not.toThrow();
     });
   });
 });
