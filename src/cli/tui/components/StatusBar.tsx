@@ -11,7 +11,7 @@ interface StatusBarContext {
   hasSelection: boolean;
   hasRequests: boolean;
   onBodySection: boolean;
-  onJsonBodySection: boolean;
+  onViewableBodySection: boolean;
 }
 
 interface KeyHint {
@@ -25,8 +25,7 @@ const KEY_HINTS: KeyHint[] = [
   { key: "^u/^d", action: "page", visible: (ctx) => ctx.activePanel === "list" },
   { key: "Tab", action: "panel" },
   { key: "1-5", action: "section" },
-  { key: "Enter", action: "expand", visible: (ctx) => ctx.activePanel === "accordion" },
-  { key: "e", action: "explore", visible: (ctx) => ctx.onJsonBodySection },
+  { key: "Enter", action: "view", visible: (ctx) => ctx.onViewableBodySection },
   { key: "c", action: "curl", visible: (ctx) => ctx.hasSelection },
   { key: "h", action: "HAR", visible: (ctx) => ctx.hasRequests },
   { key: "y", action: "yank", visible: (ctx) => ctx.onBodySection },
@@ -47,7 +46,7 @@ export interface StatusBarProps {
   hasSelection?: boolean;
   hasRequests?: boolean;
   onBodySection?: boolean;
-  onJsonBodySection?: boolean;
+  onViewableBodySection?: boolean;
 }
 
 /**
@@ -59,9 +58,9 @@ export function getVisibleHints({
   hasSelection = true,
   hasRequests = true,
   onBodySection = true,
-  onJsonBodySection = false,
-}: Pick<StatusBarProps, "activePanel" | "hasSelection" | "hasRequests" | "onBodySection" | "onJsonBodySection">): KeyHint[] {
-  const ctx: StatusBarContext = { activePanel, hasSelection, hasRequests, onBodySection, onJsonBodySection };
+  onViewableBodySection = false,
+}: Pick<StatusBarProps, "activePanel" | "hasSelection" | "hasRequests" | "onBodySection" | "onViewableBodySection">): KeyHint[] {
+  const ctx: StatusBarContext = { activePanel, hasSelection, hasRequests, onBodySection, onViewableBodySection };
   return KEY_HINTS.filter((hint) => !hint.visible || hint.visible(ctx));
 }
 
@@ -73,11 +72,11 @@ export function StatusBar({
   hasSelection,
   hasRequests,
   onBodySection,
-  onJsonBodySection,
+  onViewableBodySection,
 }: StatusBarProps): React.ReactElement {
   const visibleHints = useMemo(
-    () => getVisibleHints({ activePanel, hasSelection, hasRequests, onBodySection, onJsonBodySection }),
-    [activePanel, hasSelection, hasRequests, onBodySection, onJsonBodySection],
+    () => getVisibleHints({ activePanel, hasSelection, hasRequests, onBodySection, onViewableBodySection }),
+    [activePanel, hasSelection, hasRequests, onBodySection, onViewableBodySection],
   );
 
   return (

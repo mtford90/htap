@@ -496,10 +496,49 @@ describe("App keyboard interactions", () => {
     });
   });
 
-  describe("Section toggle (Enter)", () => {
-    it("Enter in accordion toggles section expansion", async () => {
+  describe("Single-expand accordion", () => {
+    it("only the focused section is expanded", async () => {
+      setupMocksWithRequests(1);
+
+      const { lastFrame, stdin } = render(<App __testEnableInput />);
+      await tick();
+
+      // Focus on Request section (section 0)
+      stdin.write("2");
+      await tick();
+
+      let frame = lastFrame();
+      // Only one section should be expanded at a time
+      const expandedCount = (frame.match(/▼/g) || []).length;
+      expect(expandedCount).toBe(1);
+
+      // Move focus to Response Body (section 3) — it should now be the only expanded one
+      stdin.write("5");
+      await tick();
+
+      frame = lastFrame();
+      const expandedCount2 = (frame.match(/▼/g) || []).length;
+      expect(expandedCount2).toBe(1);
+    });
+
+    it("default state expands only the Request section", async () => {
+      setupMocksWithRequests(1);
+
+      const { lastFrame } = render(<App __testEnableInput />);
+      await tick();
+
+      // Default focusedSection is SECTION_REQUEST, so only that one is expanded
+      const frame = lastFrame();
+      const expandedCount = (frame.match(/▼/g) || []).length;
+      expect(expandedCount).toBe(1);
+    });
+  });
+
+  describe("Enter opens JSON explorer", () => {
+    it("Enter on JSON body section opens explorer", async () => {
       const fullRequest = createMockFullRequest({
         responseBody: Buffer.from('{"data":"test"}'),
+        responseHeaders: { "content-type": "application/json" },
       });
       mockUseRequests.mockReturnValue({
         requests: [createMockSummary()],
@@ -513,27 +552,172 @@ describe("App keyboard interactions", () => {
       const { lastFrame, stdin } = render(<App __testEnableInput />);
       await tick();
 
-      // Go to accordion (section 0 - Request - which is expanded by default)
+      // Navigate to Response Body section
+      stdin.write("5");
+      await tick();
+
+      // Press Enter to open JSON explorer
+      stdin.write("\r");
+      await tick();
+
+      const frame = lastFrame();
+      expect(frame).toContain("Response Body");
+      // JSON explorer modal should be showing
+      expect(frame).toContain("data");
+    });
+
+    it("Enter on non-body section does nothing", async () => {
+      setupMocksWithRequests(1);
+
+      const { lastFrame, stdin } = render(<App __testEnableInput />);
+      await tick();
+
+      // Navigate to Request headers section (not a body section)
       stdin.write("2");
       await tick();
 
-      // Get initial frame to compare
       const frameBefore = lastFrame();
 
-      // Press Enter to toggle (collapse it)
+      // Press Enter
       stdin.write("\r");
       await tick();
 
       const frameAfter = lastFrame();
-
-      // The frame should be different (section collapsed)
-      // Before: expanded (▼), After: collapsed (▶) for the focused section
-      expect(frameBefore).toContain("▼");
-      // Verify toggle happened by checking frames are different
-      expect(frameAfter).not.toBe(frameBefore);
+      // Frame should be unchanged — no explorer opened
+      expect(frameBefore).toBe(frameAfter);
     });
 
-    it("Enter in list panel does not toggle sections", async () => {
+    it("Enter on text body opens text viewer", async () => {
+      const fullRequest = createMockFullRequest({
+        responseBody: Buffer.from("<html>hello</html>"),
+        responseHeaders: { "content-type": "text/html" },
+      });
+      mockUseRequests.mockReturnValue({
+        requests: [createMockSummary()],
+        isLoading: false,
+        error: null,
+        refresh: mockRefresh,
+        getFullRequest: vi.fn().mockResolvedValue(fullRequest),
+        getAllFullRequests: vi.fn().mockResolvedValue([fullRequest]),
+      });
+
+      const { lastFrame, stdin } = render(<App __testEnableInput />);
+      await tick();
+
+      // Navigate to Response Body section
+      stdin.write("5");
+      await tick();
+
+      // Press Enter — should open text viewer for text/html
+      stdin.write("\r");
+      await tick();
+
+      const frame = lastFrame();
+      expect(frame).toContain("Response Body");
+      // Text viewer hint bar should be visible
+      expect(frame).toContain("j/k nav");
+    });
+
+    it("Enter on binary body does nothing", async () => {
+      const pngBuffer = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, ...new Array(100).fill(0)]);
+      const fullRequest = createMockFullRequest({
+        responseBody: pngBuffer,
+        responseHeaders: { "content-type": "image/png" },
+      });
+      mockUseRequests.mockReturnValue({
+        requests: [createMockSummary()],
+        isLoading: false,
+        error: null,
+        refresh: mockRefresh,
+        getFullRequest: vi.fn().mockResolvedValue(fullRequest),
+        getAllFullRequests: vi.fn().mockResolvedValue([fullRequest]),
+      });
+
+      const { lastFrame, stdin } = render(<App __testEnableInput />);
+      await tick();
+
+      // Navigate to Response Body section
+      stdin.write("5");
+      await tick();
+
+      const frameBefore = lastFrame();
+
+      // Press Enter — should do nothing for binary content
+      stdin.write("\r");
+      await tick();
+
+      const frameAfter = lastFrame();
+      expect(frameBefore).toBe(frameAfter);
+    });
+
+    it("Enter on invalid JSON falls through to text viewer", async () => {
+      const fullRequest = createMockFullRequest({
+        responseBody: Buffer.from("{invalid json}"),
+        responseHeaders: { "content-type": "application/json" },
+      });
+      mockUseRequests.mockReturnValue({
+        requests: [createMockSummary()],
+        isLoading: false,
+        error: null,
+        refresh: mockRefresh,
+        getFullRequest: vi.fn().mockResolvedValue(fullRequest),
+        getAllFullRequests: vi.fn().mockResolvedValue([fullRequest]),
+      });
+
+      const { lastFrame, stdin } = render(<App __testEnableInput />);
+      await tick();
+
+      // Navigate to Response Body section
+      stdin.write("5");
+      await tick();
+
+      // Press Enter — JSON parse fails, should fall through to text viewer
+      stdin.write("\r");
+      await tick();
+
+      const frame = lastFrame();
+      expect(frame).toContain("Response Body");
+      // Text viewer hint bar should be visible (not JSON explorer)
+      expect(frame).toContain("j/k nav");
+    });
+
+    it("Escape closes text viewer", async () => {
+      const fullRequest = createMockFullRequest({
+        responseBody: Buffer.from("<html>hello</html>"),
+        responseHeaders: { "content-type": "text/html" },
+      });
+      mockUseRequests.mockReturnValue({
+        requests: [createMockSummary()],
+        isLoading: false,
+        error: null,
+        refresh: mockRefresh,
+        getFullRequest: vi.fn().mockResolvedValue(fullRequest),
+        getAllFullRequests: vi.fn().mockResolvedValue([fullRequest]),
+      });
+
+      const { lastFrame, stdin } = render(<App __testEnableInput />);
+      await tick();
+
+      // Navigate to Response Body section and open text viewer
+      stdin.write("5");
+      await tick();
+      stdin.write("\r");
+      await tick();
+
+      // Verify text viewer is open
+      expect(lastFrame()).toContain("j/k nav");
+
+      // Press Escape to close
+      stdin.write("\x1b");
+      await tick();
+
+      // Should be back to main view
+      const frame = lastFrame();
+      expect(frame).not.toContain("j/k nav");
+      expect(frame).toContain("Requests");
+    });
+
+    it("Enter in list panel does not open explorer", async () => {
       setupMocksWithRequests(1);
 
       const { lastFrame, stdin } = render(<App __testEnableInput />);
@@ -551,8 +735,7 @@ describe("App keyboard interactions", () => {
 
       const frameAfter = lastFrame();
 
-      // Frame should be essentially the same (Enter has no effect in list panel)
-      // Both should show the same expanded sections
+      // Frame should be the same (Enter has no effect in list panel)
       expect(frameBefore).toBe(frameAfter);
     });
   });

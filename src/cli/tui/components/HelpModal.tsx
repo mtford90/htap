@@ -41,7 +41,7 @@ const HELP_SECTIONS: HelpSection[] = [
   {
     title: "Actions",
     entries: [
-      { key: "Enter", description: "Toggle section" },
+      { key: "Enter", description: "View body content" },
       { key: "c", description: "Copy as cURL" },
       { key: "h", description: "Export HAR" },
       { key: "y", description: "Copy body to clipboard" },
@@ -54,7 +54,6 @@ const HELP_SECTIONS: HelpSection[] = [
   {
     title: "JSON Explorer",
     entries: [
-      { key: "e", description: "Explore JSON body" },
       { key: "j / k", description: "Navigate tree" },
       { key: "Enter / l", description: "Toggle node" },
       { key: "h", description: "Collapse node" },
@@ -62,6 +61,18 @@ const HELP_SECTIONS: HelpSection[] = [
       { key: "/", description: "Filter by path" },
       { key: "y", description: "Copy value" },
       { key: "Esc", description: "Close explorer" },
+    ],
+  },
+  {
+    title: "Text Viewer",
+    entries: [
+      { key: "j / k", description: "Scroll line by line" },
+      { key: "Ctrl+u / Ctrl+d", description: "Scroll half page" },
+      { key: "g / G", description: "Jump to top / bottom" },
+      { key: "/", description: "Search text" },
+      { key: "n / N", description: "Next / previous match" },
+      { key: "y", description: "Copy to clipboard" },
+      { key: "Esc", description: "Close viewer" },
     ],
   },
   {

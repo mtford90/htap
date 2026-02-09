@@ -20,7 +20,7 @@ const ALWAYS_VISIBLE_KEYS = ["j/k/g/G", "Tab", "1-5", "u", "/", "i", "?", "q"];
 
 describe("getVisibleHints", () => {
   it("returns all conditional hints as visible when no context props are passed (backwards compat)", () => {
-    // With defaults: activePanel="list" so ^u/^d shows (Enter hides), the rest default to true
+    // With defaults: activePanel="list" so ^u/^d shows, the rest default to true
     const hints = getVisibleHints({});
     const keys = hintKeys(hints);
 
@@ -32,8 +32,9 @@ describe("getVisibleHints", () => {
     for (const key of ALWAYS_VISIBLE_KEYS) {
       expect(keys).toContain(key);
     }
-    // Enter is hidden because activePanel defaults to "list"
+    // Enter is hidden because onViewableBodySection defaults to false
     expect(keys).not.toContain("Enter");
+    // But when it does appear, action should be "view"
   });
 
   it("always includes unconditional hints", () => {
@@ -56,7 +57,7 @@ describe("getVisibleHints", () => {
       expect(keys).toContain("^u/^d");
     });
 
-    it("hides Enter (expand)", () => {
+    it("hides Enter (explore)", () => {
       const keys = hintKeys(getVisibleHints({ activePanel: "list" }));
       expect(keys).not.toContain("Enter");
     });
@@ -68,9 +69,17 @@ describe("getVisibleHints", () => {
       expect(keys).not.toContain("^u/^d");
     });
 
-    it("shows Enter (expand)", () => {
-      const keys = hintKeys(getVisibleHints({ activePanel: "accordion" }));
+    it("hides Enter (view) when not on viewable body section", () => {
+      const keys = hintKeys(getVisibleHints({ activePanel: "accordion", onViewableBodySection: false }));
+      expect(keys).not.toContain("Enter");
+    });
+
+    it("shows Enter (view) when on viewable body section", () => {
+      const hints = getVisibleHints({ activePanel: "accordion", onViewableBodySection: true });
+      const keys = hintKeys(hints);
+      const actions = hintActions(hints);
       expect(keys).toContain("Enter");
+      expect(actions).toContain("view");
     });
   });
 
@@ -192,8 +201,19 @@ describe("StatusBar component", () => {
 
     // ^u/^d should not appear
     expect(frame).not.toMatch(/\^u\/\^d/);
-    // Enter should appear
+    // Enter should not appear either (not on JSON body section)
+    expect(frame).not.toContain("Enter");
+  });
+
+  it("renders Enter view hint when on viewable body section", () => {
+    // Use minimal context so the hints fit within the default 100-column render width
+    const { lastFrame } = render(
+      <StatusBar activePanel="accordion" hasSelection={false} hasRequests={false} onBodySection={false} onViewableBodySection />,
+    );
+    const frame = lastFrame();
+
     expect(frame).toContain("Enter");
+    expect(frame).toContain("view");
   });
 
   it("omits curl key text when hasSelection is false", () => {

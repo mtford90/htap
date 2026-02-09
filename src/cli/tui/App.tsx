@@ -31,6 +31,7 @@ import { InfoModal } from "./components/InfoModal.js";
 import { isFilterActive } from "./utils/filters.js";
 import { isJsonContent } from "./utils/content-type.js";
 import { JsonExplorerModal } from "./components/JsonExplorerModal.js";
+import { TextViewerModal } from "./components/TextViewerModal.js";
 import { findProjectRoot, getHtpxPaths, readProxyPort } from "../../shared/project.js";
 import type { CapturedRequest, RequestFilter } from "../../shared/types.js";
 
@@ -67,11 +68,8 @@ function AppContent({ __testEnableInput, projectRoot }: AppProps): React.ReactEl
   const [hoveredPanel, setHoveredPanel] = useState<Panel | null>(null);
   const [listScrollOffset, setListScrollOffset] = useState(0);
 
-  // Accordion state
+  // Accordion state — whichever section is focused is expanded (single-expand accordion)
   const [focusedSection, setFocusedSection] = useState(SECTION_REQUEST);
-  const [expandedSections, setExpandedSections] = useState<Set<number>>(
-    () => new Set([SECTION_REQUEST, SECTION_RESPONSE_BODY]),
-  );
 
   // Help modal state
   const [showHelp, setShowHelp] = useState(false);
@@ -98,6 +96,15 @@ function AppContent({ __testEnableInput, projectRoot }: AppProps): React.ReactEl
   const [showJsonExplorer, setShowJsonExplorer] = useState(false);
   const [jsonExplorerData, setJsonExplorerData] = useState<{
     data: unknown;
+    title: string;
+    contentType: string;
+    bodySize: number;
+  } | null>(null);
+
+  // Text viewer modal state
+  const [showTextViewer, setShowTextViewer] = useState(false);
+  const [textViewerData, setTextViewerData] = useState<{
+    text: string;
     title: string;
     contentType: string;
     bodySize: number;
@@ -153,19 +160,6 @@ function AppContent({ __testEnableInput, projectRoot }: AppProps): React.ReactEl
       setSelectedFullRequest(null);
     }
   }, [selectedSummary?.id, getFullRequest]);
-
-  // Toggle a section's expanded state
-  const handleSectionToggle = useCallback((index: number) => {
-    setExpandedSections((prev) => {
-      const next = new Set(prev);
-      if (next.has(index)) {
-        next.delete(index);
-      } else {
-        next.add(index);
-      }
-      return next;
-    });
-  }, []);
 
   // Handle scroll wheel on list panel - scrolls the view, not the selection
   useOnWheel(listPanelRef, (event) => {
@@ -235,22 +229,6 @@ function AppContent({ __testEnableInput, projectRoot }: AppProps): React.ReactEl
     }
     return false;
   }, [selectedFullRequest, activePanel, focusedSection]);
-
-  // Determine if the currently focused body section contains explorable JSON
-  const currentBodyIsJson = useMemo(() => {
-    if (!selectedFullRequest || activePanel !== "accordion") return false;
-
-    const isBodySection =
-      focusedSection === SECTION_REQUEST_BODY || focusedSection === SECTION_RESPONSE_BODY;
-    if (!isBodySection || !expandedSections.has(focusedSection)) return false;
-
-    const isReqBody = focusedSection === SECTION_REQUEST_BODY;
-    const ct = isReqBody
-      ? selectedFullRequest.requestHeaders["content-type"]
-      : selectedFullRequest.responseHeaders?.["content-type"];
-
-    return isJsonContent(ct);
-  }, [selectedFullRequest, activePanel, focusedSection, expandedSections]);
 
   // Determine if the currently focused body section contains binary content
   const currentBodyIsBinary = useMemo(() => {
@@ -420,17 +398,12 @@ function AppContent({ __testEnableInput, projectRoot }: AppProps): React.ReactEl
         setFocusedSection(SECTION_RESPONSE_BODY);
       }
 
-      // Toggle section expansion with Enter
+      // Open viewer on body sections — JSON explorer for JSON, text viewer for other text
       else if (key.return && activePanel === "accordion") {
-        handleSectionToggle(focusedSection);
-      }
-
-      // Open JSON explorer on expanded JSON body section
-      else if (input === "e" && activePanel === "accordion") {
         const isBodySection =
           focusedSection === SECTION_REQUEST_BODY || focusedSection === SECTION_RESPONSE_BODY;
 
-        if (isBodySection && expandedSections.has(focusedSection)) {
+        if (isBodySection) {
           const isReqBody = focusedSection === SECTION_REQUEST_BODY;
           const body = isReqBody
             ? selectedFullRequest?.requestBody
@@ -439,19 +412,39 @@ function AppContent({ __testEnableInput, projectRoot }: AppProps): React.ReactEl
             ? selectedFullRequest?.requestHeaders["content-type"]
             : selectedFullRequest?.responseHeaders?.["content-type"];
 
-          if (body && isJsonContent(ct)) {
-            try {
-              const parsed = JSON.parse(body.toString("utf-8")) as unknown;
-              setJsonExplorerData({
-                data: parsed,
-                title: isReqBody ? "Request Body" : "Response Body",
+          if (body && body.length > 0) {
+            const viewerTitle = isReqBody ? "Request Body" : "Response Body";
+
+            if (isJsonContent(ct)) {
+              try {
+                const parsed = JSON.parse(body.toString("utf-8")) as unknown;
+                setJsonExplorerData({
+                  data: parsed,
+                  title: viewerTitle,
+                  contentType: ct ?? "",
+                  bodySize: body.length,
+                });
+                setShowJsonExplorer(true);
+              } catch {
+                // Invalid JSON — fall through to text viewer
+                setTextViewerData({
+                  text: body.toString("utf-8"),
+                  title: viewerTitle,
+                  contentType: ct ?? "",
+                  bodySize: body.length,
+                });
+                setShowTextViewer(true);
+              }
+            } else if (!isBinaryContent(body, ct).isBinary) {
+              setTextViewerData({
+                text: body.toString("utf-8"),
+                title: viewerTitle,
                 contentType: ct ?? "",
                 bodySize: body.length,
               });
-              setShowJsonExplorer(true);
-            } catch {
-              // Invalid JSON — ignore
+              setShowTextViewer(true);
             }
+            // Binary content — no action
           }
         }
       }
@@ -519,7 +512,7 @@ function AppContent({ __testEnableInput, projectRoot }: AppProps): React.ReactEl
         }
       }
     },
-    { isActive: (__testEnableInput || isRawModeSupported === true) && !showSaveModal && !showHelp && !showInfo && !showFilter && !showJsonExplorer },
+    { isActive: (__testEnableInput || isRawModeSupported === true) && !showSaveModal && !showHelp && !showInfo && !showFilter && !showJsonExplorer && !showTextViewer },
   );
 
   // Calculate layout
@@ -656,6 +649,23 @@ function AppContent({ __testEnableInput, projectRoot }: AppProps): React.ReactEl
     );
   }
 
+  // Text viewer modal - full screen replacement
+  if (showTextViewer && textViewerData) {
+    return (
+      <TextViewerModal
+        text={textViewerData.text}
+        title={textViewerData.title}
+        contentType={textViewerData.contentType}
+        bodySize={textViewerData.bodySize}
+        width={columns}
+        height={rows}
+        onClose={() => setShowTextViewer(false)}
+        onStatus={showStatus}
+        isActive={__testEnableInput || isRawModeSupported === true}
+      />
+    );
+  }
+
   return (
     <Box flexDirection="column" height={rows}>
       {/* Main content */}
@@ -680,7 +690,7 @@ function AppContent({ __testEnableInput, projectRoot }: AppProps): React.ReactEl
           width={accordionWidth}
           height={contentHeight}
           focusedSection={focusedSection}
-          expandedSections={expandedSections}
+          expandedSections={new Set([focusedSection])}
         />
       </Box>
 
@@ -705,7 +715,7 @@ function AppContent({ __testEnableInput, projectRoot }: AppProps): React.ReactEl
         hasSelection={selectedFullRequest !== null}
         hasRequests={requests.length > 0}
         onBodySection={currentBodyIsExportable}
-        onJsonBodySection={currentBodyIsJson}
+        onViewableBodySection={currentBodyIsExportable && !currentBodyIsBinary}
       />
     </Box>
   );

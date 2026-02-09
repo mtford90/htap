@@ -43,7 +43,7 @@ describe("AccordionPanel", () => {
     height: 20,
     isActive: true,
     focusedSection: SECTION_REQUEST,
-    expandedSections: new Set([SECTION_REQUEST, SECTION_RESPONSE_BODY]),
+    expandedSections: new Set([SECTION_REQUEST]),
   };
 
   describe("Rendering", () => {
@@ -85,7 +85,12 @@ describe("AccordionPanel", () => {
 
     it("shows response body content when Response Body section is expanded", () => {
       const request = createMockRequest();
-      const { lastFrame } = render(<AccordionPanel {...defaultProps} request={request} />);
+      const props = {
+        ...defaultProps,
+        focusedSection: SECTION_RESPONSE_BODY,
+        expandedSections: new Set([SECTION_RESPONSE_BODY]),
+      };
+      const { lastFrame } = render(<AccordionPanel {...props} request={request} />);
       const frame = lastFrame();
 
       // JSON body should be formatted

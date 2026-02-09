@@ -12,7 +12,7 @@ const tick = (ms = 50) => new Promise((resolve) => setTimeout(resolve, ms));
 describe("HelpModal", () => {
   const defaultProps = {
     width: 80,
-    height: 40,
+    height: 60,
     onClose: vi.fn(),
     isActive: true,
   };
@@ -39,12 +39,24 @@ describe("HelpModal", () => {
     const frame = lastFrame();
 
     expect(frame).toContain("Actions");
-    expect(frame).toContain("Toggle section");
+    expect(frame).toContain("View body content");
     expect(frame).toContain("Copy as cURL");
     expect(frame).toContain("Copy body to clipboard");
     expect(frame).toContain("Export body content");
     expect(frame).toContain("Toggle full URL");
     expect(frame).toContain("Refresh");
+  });
+
+  it("renders the Text Viewer section", () => {
+    const { lastFrame } = render(<HelpModal {...defaultProps} />);
+    const frame = lastFrame();
+
+    expect(frame).toContain("Text Viewer");
+    expect(frame).toContain("Scroll line by line");
+    expect(frame).toContain("Scroll half page");
+    expect(frame).toContain("Search text");
+    expect(frame).toContain("Next / previous match");
+    expect(frame).toContain("Close viewer");
   });
 
   it("renders the General section", () => {
