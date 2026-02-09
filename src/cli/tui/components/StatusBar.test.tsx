@@ -235,6 +235,42 @@ describe("StatusBar component", () => {
     expect(frame).not.toContain("HAR");
   });
 
+  describe("interceptorCount", () => {
+    it("renders interceptor count badge when interceptorCount > 0", () => {
+      // Use minimal context so the badge fits within the default 100-column render width
+      const { lastFrame } = render(
+        <StatusBar interceptorCount={3} activePanel="accordion" hasSelection={false} hasRequests={false} onBodySection={false} />,
+      );
+      const frame = lastFrame();
+
+      expect(frame).toContain("3 interceptors");
+    });
+
+    it("uses singular form when interceptorCount is 1", () => {
+      const { lastFrame } = render(
+        <StatusBar interceptorCount={1} activePanel="accordion" hasSelection={false} hasRequests={false} onBodySection={false} />,
+      );
+      const frame = lastFrame();
+
+      expect(frame).toContain("1 interceptor");
+      expect(frame).not.toContain("1 interceptors");
+    });
+
+    it("does not render interceptor badge when interceptorCount is 0", () => {
+      const { lastFrame } = render(<StatusBar interceptorCount={0} />);
+      const frame = lastFrame();
+
+      expect(frame).not.toContain("interceptor");
+    });
+
+    it("does not render interceptor badge when interceptorCount is undefined", () => {
+      const { lastFrame } = render(<StatusBar />);
+      const frame = lastFrame();
+
+      expect(frame).not.toContain("interceptor");
+    });
+  });
+
   describe("filterOpen", () => {
     it("shows only Esc hint when filter bar is open", () => {
       const { lastFrame } = render(<StatusBar filterOpen />);

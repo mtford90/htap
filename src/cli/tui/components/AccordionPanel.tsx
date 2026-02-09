@@ -163,6 +163,15 @@ export const AccordionPanel = forwardRef<DOMElement, AccordionPanelProps>(functi
         borderColour={getBorderColour(SECTION_REQUEST)}
       >
         <Box flexDirection="column">
+          {request.interceptedBy && (
+            <Box marginBottom={1}>
+              <Text color="magenta" bold>Intercepted by: </Text>
+              <Text>{request.interceptedBy}</Text>
+              {request.interceptionType && (
+                <Text dimColor> ({request.interceptionType})</Text>
+              )}
+            </Box>
+          )}
           <Box marginBottom={1}>
             <Text color="green" bold>
               {request.method}

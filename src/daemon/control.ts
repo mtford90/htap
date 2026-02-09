@@ -1,10 +1,12 @@
 import * as net from "node:net";
 import * as fs from "node:fs";
 import type { RequestRepository } from "./storage.js";
+import type { InterceptorLoader } from "./interceptor-loader.js";
 import type {
   CapturedRequest,
   CapturedRequestSummary,
   DaemonStatus,
+  InterceptorInfo,
   JsonQueryResult,
   RequestFilter,
   Session,
@@ -25,13 +27,14 @@ export interface ControlServerOptions {
   version: string;
   projectRoot?: string;
   logLevel?: LogLevel;
+  interceptorLoader?: InterceptorLoader;
 }
 
 export interface ControlServer {
   close: () => Promise<void>;
 }
 
-type ControlHandler = (params: Record<string, unknown>) => unknown;
+type ControlHandler = (params: Record<string, unknown>) => unknown | Promise<unknown>;
 
 /**
  * Typed handler map — locks down which methods exist and their return types.
@@ -47,6 +50,8 @@ interface ControlHandlers {
   searchBodies: ControlHandler;
   queryJsonBodies: ControlHandler;
   clearRequests: ControlHandler;
+  listInterceptors: ControlHandler;
+  reloadInterceptors: ControlHandler;
   ping: ControlHandler;
 }
 
@@ -140,6 +145,10 @@ function optionalFilter(params: Record<string, unknown>): RequestFilter | undefi
     result.headerTarget = f["headerTarget"];
   }
 
+  if (typeof f["interceptedBy"] === "string") {
+    result.interceptedBy = f["interceptedBy"];
+  }
+
   return Object.keys(result).length > 0 ? result : undefined;
 }
 
@@ -147,7 +156,8 @@ function optionalFilter(params: Record<string, unknown>): RequestFilter | undefi
  * Create a Unix socket control server for daemon communication.
  */
 export function createControlServer(options: ControlServerOptions): ControlServer {
-  const { socketPath, storage, proxyPort, version, projectRoot, logLevel } = options;
+  const { socketPath, storage, proxyPort, version, projectRoot, logLevel, interceptorLoader } =
+    options;
 
   // Create logger if projectRoot is provided
   const logger: Logger | undefined = projectRoot
@@ -163,6 +173,9 @@ export function createControlServer(options: ControlServerOptions): ControlServe
     status: (): DaemonStatus => {
       const sessions = storage.listSessions();
       const requestCount = storage.countRequests();
+      const interceptorCount = interceptorLoader
+        ? interceptorLoader.getInterceptors().length
+        : undefined;
 
       return {
         running: true,
@@ -170,6 +183,7 @@ export function createControlServer(options: ControlServerOptions): ControlServe
         sessionCount: sessions.length,
         requestCount,
         version,
+        interceptorCount,
       };
     },
 
@@ -251,6 +265,35 @@ export function createControlServer(options: ControlServerOptions): ControlServe
       return { success: true };
     },
 
+    listInterceptors: (): InterceptorInfo[] => {
+      if (!interceptorLoader) return [];
+      return interceptorLoader.getInterceptorInfo();
+    },
+
+    reloadInterceptors: async (): Promise<{ success: boolean; count: number; error?: string }> => {
+      if (!interceptorLoader) {
+        return {
+          success: false,
+          count: 0,
+          error:
+            "Interceptors directory not found. Create .htpx/interceptors/ and restart the daemon.",
+        };
+      }
+      try {
+        await interceptorLoader.reload();
+        return {
+          success: true,
+          count: interceptorLoader.getInterceptors().length,
+        };
+      } catch (err: unknown) {
+        return {
+          success: false,
+          count: interceptorLoader.getInterceptors().length,
+          error: err instanceof Error ? err.message : String(err),
+        };
+      }
+    },
+
     ping: (): { pong: boolean } => {
       return { pong: true };
     },
@@ -281,8 +324,20 @@ export function createControlServer(options: ControlServerOptions): ControlServe
           }
           const message = parsed;
           logger?.debug("Control message received", { type: message.method });
-          const response = handleMessage(message, handlers);
-          socket.write(JSON.stringify(response) + "\n");
+          handleMessage(message, handlers)
+            .then((response) => {
+              socket.write(JSON.stringify(response) + "\n");
+            })
+            .catch((err: unknown) => {
+              const errorResponse: ControlResponse = {
+                id: message.id,
+                error: {
+                  code: -32000,
+                  message: err instanceof Error ? err.message : "Unknown error",
+                },
+              };
+              socket.write(JSON.stringify(errorResponse) + "\n");
+            });
         } catch (err) {
           logger?.error("Control message parse error", {
             error: err instanceof Error ? err.message : "Unknown error",
@@ -328,7 +383,10 @@ export function createControlServer(options: ControlServerOptions): ControlServe
   };
 }
 
-function handleMessage(message: ControlMessage, handlers: ControlHandlers): ControlResponse {
+async function handleMessage(
+  message: ControlMessage,
+  handlers: ControlHandlers
+): Promise<ControlResponse> {
   const { id, method, params } = message;
 
   if (!(method in handlers)) {
@@ -344,7 +402,7 @@ function handleMessage(message: ControlMessage, handlers: ControlHandlers): Cont
   const handler = handlers[method as keyof ControlHandlers];
 
   try {
-    const result = handler(params ?? {});
+    const result = await handler(params ?? {});
     return { id, result };
   } catch (err) {
     return {

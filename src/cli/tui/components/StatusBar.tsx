@@ -47,6 +47,8 @@ export interface StatusBarProps {
   hasRequests?: boolean;
   onBodySection?: boolean;
   onViewableBodySection?: boolean;
+  /** Number of active interceptors; shown as a badge when > 0. */
+  interceptorCount?: number;
 }
 
 /**
@@ -73,6 +75,7 @@ export function StatusBar({
   hasRequests,
   onBodySection,
   onViewableBodySection,
+  interceptorCount,
 }: StatusBarProps): React.ReactElement {
   const visibleHints = useMemo(
     () => getVisibleHints({ activePanel, hasSelection, hasRequests, onBodySection, onViewableBodySection }),
@@ -98,6 +101,12 @@ export function StatusBar({
         </>
       ) : (
         <>
+          {interceptorCount !== undefined && interceptorCount > 0 && (
+            <>
+              <Text color="magenta" bold>[{interceptorCount} interceptor{interceptorCount === 1 ? "" : "s"}]</Text>
+              <Text dimColor> │ </Text>
+            </>
+          )}
           {filterActive && (
             <>
               <Text color="yellow" bold>[FILTERED]</Text>

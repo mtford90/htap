@@ -3,7 +3,12 @@
  */
 
 import { describe, it, expect } from "vitest";
-import { getMethodColour, getStatusColour, getStatusIndicator } from "./RequestListItem.js";
+import {
+  getMethodColour,
+  getStatusColour,
+  getStatusIndicator,
+  getInterceptionIndicator,
+} from "./RequestListItem.js";
 
 describe("getMethodColour", () => {
   it("returns green for GET", () => {
@@ -73,6 +78,26 @@ describe("getStatusColour", () => {
   it("returns white for 1xx informational codes", () => {
     expect(getStatusColour(100)).toBe("white");
     expect(getStatusColour(101)).toBe("white");
+  });
+});
+
+describe("getInterceptionIndicator", () => {
+  it("returns M with magenta for mocked requests", () => {
+    const result = getInterceptionIndicator("mocked");
+    expect(result.text).toBe("M ");
+    expect(result.colour).toBe("magenta");
+  });
+
+  it("returns I with cyan for modified requests", () => {
+    const result = getInterceptionIndicator("modified");
+    expect(result.text).toBe("I ");
+    expect(result.colour).toBe("cyan");
+  });
+
+  it("returns empty indicator for normal requests (undefined)", () => {
+    const result = getInterceptionIndicator(undefined);
+    expect(result.text).toBe("  ");
+    expect(result.colour).toBeUndefined();
   });
 });
 

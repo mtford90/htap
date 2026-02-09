@@ -3,6 +3,7 @@ import { v4 as uuidv4 } from "uuid";
 import type {
   CapturedRequest,
   CapturedRequestSummary,
+  InterceptionType,
   JsonQueryResult,
   RequestFilter,
   Session,
@@ -45,6 +46,8 @@ CREATE TABLE IF NOT EXISTS requests (
     duration_ms INTEGER,
     request_content_type TEXT,
     response_content_type TEXT,
+    intercepted_by TEXT,
+    interception_type TEXT CHECK(interception_type IN ('modified', 'mocked')),
     created_at INTEGER DEFAULT (unixepoch()),
     FOREIGN KEY (session_id) REFERENCES sessions(id)
 );
@@ -92,6 +95,14 @@ const MIGRATIONS: Migration[] = [
     version: 4,
     description: "Add index on host for host-based filtering",
     sql: `CREATE INDEX IF NOT EXISTS idx_requests_host ON requests(host);`,
+  },
+  {
+    version: 5,
+    description: "Add interceptor tracking columns",
+    sql: `
+      ALTER TABLE requests ADD COLUMN intercepted_by TEXT;
+      ALTER TABLE requests ADD COLUMN interception_type TEXT;
+    `,
   },
 ];
 
@@ -208,6 +219,11 @@ function applyFilterConditions(
   if (filter.before !== undefined) {
     conditions.push("timestamp < ?");
     params.push(filter.before);
+  }
+
+  if (filter.interceptedBy) {
+    conditions.push("intercepted_by = ?");
+    params.push(filter.interceptedBy);
   }
 
   if (filter.headerName) {
@@ -480,6 +496,22 @@ export class RequestRepository {
   }
 
   /**
+   * Update a request with interceptor metadata.
+   */
+  updateRequestInterception(
+    id: string,
+    interceptedBy: string,
+    interceptionType: InterceptionType
+  ): void {
+    const stmt = this.db.prepare(`
+      UPDATE requests
+      SET intercepted_by = ?, interception_type = ?
+      WHERE id = ?
+    `);
+    stmt.run(interceptedBy, interceptionType, id);
+  }
+
+  /**
    * Get a request by ID.
    */
   getRequest(id: string): CapturedRequest | undefined {
@@ -582,7 +614,9 @@ export class RequestRepository {
         response_status,
         duration_ms,
         COALESCE(LENGTH(request_body), 0) as request_body_size,
-        COALESCE(LENGTH(response_body), 0) as response_body_size
+        COALESCE(LENGTH(response_body), 0) as response_body_size,
+        intercepted_by,
+        interception_type
       FROM requests
       ${whereClause}
       ORDER BY timestamp DESC
@@ -593,20 +627,7 @@ export class RequestRepository {
 
     const rows = stmt.all(...params) as DbRequestSummaryRow[];
 
-    return rows.map((row) => ({
-      id: row.id,
-      sessionId: row.session_id,
-      label: row.label ?? undefined,
-      timestamp: row.timestamp,
-      method: row.method,
-      url: row.url,
-      host: row.host,
-      path: row.path,
-      responseStatus: row.response_status ?? undefined,
-      durationMs: row.duration_ms ?? undefined,
-      requestBodySize: row.request_body_size,
-      responseBodySize: row.response_body_size,
-    }));
+    return rows.map((row) => this.rowToSummary(row));
   }
 
   /**
@@ -686,7 +707,9 @@ export class RequestRepository {
         response_status,
         duration_ms,
         COALESCE(LENGTH(request_body), 0) as request_body_size,
-        COALESCE(LENGTH(response_body), 0) as response_body_size
+        COALESCE(LENGTH(response_body), 0) as response_body_size,
+        intercepted_by,
+        interception_type
       FROM requests
       ${whereClause}
       ORDER BY timestamp DESC
@@ -697,20 +720,7 @@ export class RequestRepository {
 
     const rows = stmt.all(...params) as DbRequestSummaryRow[];
 
-    return rows.map((row) => ({
-      id: row.id,
-      sessionId: row.session_id,
-      label: row.label ?? undefined,
-      timestamp: row.timestamp,
-      method: row.method,
-      url: row.url,
-      host: row.host,
-      path: row.path,
-      responseStatus: row.response_status ?? undefined,
-      durationMs: row.duration_ms ?? undefined,
-      requestBodySize: row.request_body_size,
-      responseBodySize: row.response_body_size,
-    }));
+    return rows.map((row) => this.rowToSummary(row));
   }
 
   /**
@@ -921,6 +931,28 @@ export class RequestRepository {
     });
   }
 
+  private rowToSummary(row: DbRequestSummaryRow): CapturedRequestSummary {
+    return {
+      id: row.id,
+      sessionId: row.session_id,
+      label: row.label ?? undefined,
+      timestamp: row.timestamp,
+      method: row.method,
+      url: row.url,
+      host: row.host,
+      path: row.path,
+      responseStatus: row.response_status ?? undefined,
+      durationMs: row.duration_ms ?? undefined,
+      requestBodySize: row.request_body_size,
+      responseBodySize: row.response_body_size,
+      interceptedBy: row.intercepted_by ?? undefined,
+      interceptionType:
+        row.interception_type === "modified" || row.interception_type === "mocked"
+          ? row.interception_type
+          : undefined,
+    };
+  }
+
   private safeParseHeaders(json: string): Record<string, string> {
     try {
       return JSON.parse(json) as Record<string, string>;
@@ -949,6 +981,11 @@ export class RequestRepository {
       responseBody: row.response_body ?? undefined,
       responseBodyTruncated: row.response_body_truncated === 1,
       durationMs: row.duration_ms ?? undefined,
+      interceptedBy: row.intercepted_by ?? undefined,
+      interceptionType:
+        row.interception_type === "modified" || row.interception_type === "mocked"
+          ? row.interception_type
+          : undefined,
     };
   }
 }
@@ -970,6 +1007,8 @@ interface DbRequestRow {
   response_body: Buffer | null;
   response_body_truncated: number;
   duration_ms: number | null;
+  intercepted_by: string | null;
+  interception_type: string | null;
   created_at: number;
 }
 
@@ -986,6 +1025,8 @@ interface DbRequestSummaryRow {
   duration_ms: number | null;
   request_body_size: number;
   response_body_size: number;
+  intercepted_by: string | null;
+  interception_type: string | null;
 }
 
 interface DbSessionRow {

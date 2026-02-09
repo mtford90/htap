@@ -56,32 +56,54 @@ Let AI discover `.htpx/` and inspect captured traffic. No mocking yet — purely
 
 ---
 
-## Phase 2: Config-as-code — Mocks & Interceptors
+## Phase 2: Config-as-code — Mocks & Interceptors ✓
 
-TypeScript config files inside `.htpx/` that define middleware/intercept/mock behaviour. The TUI visualises what's configured; logic lives in code.
+TypeScript config files in `.htpx/interceptors/` that can mock, modify, or observe HTTP traffic with full access to htpx's query API.
 
-**Core concepts:**
-- `.htpx/interceptors.ts` (or similar) exports rules
-- Each rule: match condition (URL pattern, method, headers) + handler (modify request, mock response, delay, etc.)
-- Middleware receives an htpx client with full power (search, filter, modify)
-- Hot-reload on file change
-- Timeouts and safeguards to prevent lockups
+**API — the `forward()` pattern:**
+- [x] Three execution modes from one `handler` function: Mock (return without forward), Modify (call forward + alter), Observe (call forward + return unchanged)
+- [x] `InterceptorContext` with frozen request, `forward()`, `htpx` client, `ctx.log()`
+- [x] First-match semantics — files loaded alphabetically, first matching interceptor wins
+- [x] Safety: match timeout (5s), handler timeout (30s), response validation, stale entry cleanup
 
-**TUI integration:**
-- Show active interceptors/mocks in a panel or indicator
-- Highlight intercepted requests differently in the list
+**Infrastructure:**
+- [x] `jiti` runtime TypeScript loader for `.ts` interceptor files
+- [x] `interceptor-loader.ts` — scan, load, validate, hot-reload with `fs.watch`
+- [x] `interceptor-runner.ts` — deferred `forward()` pattern bridging mockttp's beforeRequest/beforeResponse
+- [x] `htpx-client.ts` — in-process wrapper around `RequestRepository` for interceptor query access
+- [x] DB migration v5 — `intercepted_by` and `interception_type` columns
+- [x] `InterceptorInfo`, `InterceptionType` types; extended `CapturedRequest`, `CapturedRequestSummary`, `DaemonStatus`, `RequestFilter`
+
+**MCP tools:**
+- [x] `htpx_list_interceptors` — list loaded interceptors with status
+- [x] `htpx_reload_interceptors` — hot-reload interceptors from disk
+- [x] Extended `htpx_list_requests`, `htpx_get_request`, `htpx_count_requests`, `htpx_search_bodies` with `intercepted_by` filter
+- [x] Interception metadata (`[M]`/`[I]` indicators) in text and JSON output
+
+**CLI:**
+- [x] `htpx interceptors list` — table of loaded interceptors
+- [x] `htpx interceptors reload` — trigger reload
+- [x] `htpx interceptors init` — scaffold example interceptor file
+- [x] `htpx intercept` — reports interceptor count on startup
+
+**TUI:**
+- [x] M/I indicator column in request list (magenta/cyan)
+- [x] `[N interceptors]` badge in status bar
+- [x] "Intercepted by" info in detail pane
+
+**Type exports:**
+- [x] `htpx-cli/interceptors` barrel export for consumer type imports
 
 ---
 
-## Phase 3: MCP Write — Mock Management + Request Replay
+## Phase 3: MCP Write — Request Replay + AI-driven Interceptors
 
-Extend MCP with write operations so AI can manage mocks and replay requests.
+Extend MCP with write operations for request replay and AI-assisted interceptor management.
 
 **New MCP tools:**
-- [ ] `htpx_create_mock` — create a mock/intercept rule programmatically
-- [ ] `htpx_update_mock` / `htpx_delete_mock` — manage existing rules
 - [ ] `htpx_replay_request` — replay a captured request with optional modifications (URL, headers, body, method)
-- [ ] `htpx_list_mocks` — list active mock/intercept rules
+- [ ] `htpx_write_interceptor` — AI writes/updates interceptor `.ts` files, triggers reload
+- [ ] `htpx_delete_interceptor` — remove an interceptor file
 
 **TUI replay:**
 - Simple one-key resend of the selected request (no editing — cURL export covers modification use cases)

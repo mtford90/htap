@@ -1,6 +1,8 @@
 import * as mockttp from "mockttp";
 import type { CompletedRequest, CompletedBody, Headers } from "mockttp";
 import type { RequestRepository } from "./storage.js";
+import type { InterceptorRunner } from "./interceptor-runner.js";
+import type { InterceptorRequest, InterceptorResponse } from "../shared/types.js";
 import { createLogger, type LogLevel } from "../shared/logger.js";
 
 /**
@@ -30,6 +32,8 @@ export interface ProxyOptions {
   logLevel?: LogLevel;
   /** Maximum body size to capture in bytes. Bodies larger than this are not stored but still proxied. */
   maxBodySize?: number;
+  /** Interceptor runner for mock/modify/observe interceptors */
+  interceptorRunner?: InterceptorRunner;
 }
 
 export interface ProxyServer {
@@ -42,7 +46,7 @@ export interface ProxyServer {
  * Create and start a MITM proxy server that captures all HTTP/HTTPS traffic.
  */
 export async function createProxy(options: ProxyOptions): Promise<ProxyServer> {
-  const { storage, sessionId, label, projectRoot, logLevel } = options;
+  const { storage, sessionId, label, projectRoot, logLevel, interceptorRunner } = options;
 
   // Create logger if projectRoot is provided
   const logger = projectRoot ? createLogger("proxy", projectRoot, logLevel) : undefined;
@@ -71,6 +75,10 @@ export async function createProxy(options: ProxyOptions): Promise<ProxyServer> {
   // Set up passthrough rule that captures all traffic
   // Clean up requestInfo entries for requests that are aborted before completion
   await server.on("abort", (req) => {
+    const info = requestInfo.get(req.id);
+    if (info && interceptorRunner) {
+      interceptorRunner.cleanup(info.ourId);
+    }
     requestInfo.delete(req.id);
   });
 
@@ -127,6 +135,55 @@ export async function createProxy(options: ProxyOptions): Promise<ProxyServer> {
       // Store mapping from mockttp ID to our ID and timestamp
       requestInfo.set(request.id, { ourId, timestamp, requestBodyTruncated });
 
+      // Run interceptor if available
+      if (interceptorRunner) {
+        const interceptorRequest: InterceptorRequest = {
+          method: request.method,
+          url: request.url,
+          host: url.host,
+          path: url.pathname + url.search,
+          headers: { ...storedHeaders },
+          body: decodedBody,
+        };
+
+        const result = await interceptorRunner.handleRequest(ourId, interceptorRequest);
+
+        if (result?.mockResponse && result.interception) {
+          // Mock — interceptor returned a response without calling forward()
+          storage.updateRequestInterception(
+            ourId,
+            result.interception.name,
+            result.interception.type
+          );
+
+          const mockBody =
+            typeof result.mockResponse.body === "string"
+              ? Buffer.from(result.mockResponse.body)
+              : result.mockResponse.body;
+
+          storage.updateRequestResponse(ourId, {
+            status: result.mockResponse.status,
+            headers: result.mockResponse.headers ?? {},
+            body: mockBody,
+            durationMs: Date.now() - timestamp,
+            responseBodyTruncated: false,
+          });
+
+          return {
+            response: buildMockttpResponse(result.mockResponse),
+          };
+        }
+
+        if (result?.interception) {
+          // forward() was called — record interception metadata, let proxy continue
+          storage.updateRequestInterception(
+            ourId,
+            result.interception.name,
+            result.interception.type
+          );
+        }
+      }
+
       // Return undefined to pass through without modification
       return undefined;
     },
@@ -167,6 +224,53 @@ export async function createProxy(options: ProxyOptions): Promise<ProxyServer> {
         bodyTruncated: responseBodyTruncated,
       });
 
+      // Run interceptor response handler if available
+      if (interceptorRunner) {
+        const upstreamResponse: InterceptorResponse = {
+          status: response.statusCode,
+          headers: { ...storedHeaders },
+          body: decodedBody,
+        };
+
+        const interceptResult = await interceptorRunner.handleResponse(
+          info.ourId,
+          upstreamResponse
+        );
+
+        if (interceptResult?.responseOverride && interceptResult.interception) {
+          // Handler modified the response after forward()
+          storage.updateRequestInterception(
+            info.ourId,
+            interceptResult.interception.name,
+            interceptResult.interception.type
+          );
+
+          const overrideBody =
+            typeof interceptResult.responseOverride.body === "string"
+              ? Buffer.from(interceptResult.responseOverride.body)
+              : interceptResult.responseOverride.body;
+
+          storage.updateRequestResponse(info.ourId, {
+            status: interceptResult.responseOverride.status,
+            headers: interceptResult.responseOverride.headers ?? storedHeaders,
+            body: overrideBody,
+            durationMs,
+            responseBodyTruncated: false,
+          });
+
+          return buildMockttpResponse(interceptResult.responseOverride);
+        }
+
+        if (interceptResult?.interception) {
+          // Observe mode — record interception metadata but don't modify response
+          storage.updateRequestInterception(
+            info.ourId,
+            interceptResult.interception.name,
+            interceptResult.interception.type
+          );
+        }
+      }
+
       // Update request with response data using our ID
       storage.updateRequestResponse(info.ourId, {
         status: response.statusCode,
@@ -187,6 +291,22 @@ export async function createProxy(options: ProxyOptions): Promise<ProxyServer> {
     stop: async () => {
       await server.stop();
     },
+  };
+}
+
+/**
+ * Convert an InterceptorResponse into the shape mockttp expects for mock/modified responses.
+ */
+function buildMockttpResponse(response: InterceptorResponse): {
+  statusCode: number;
+  statusMessage?: string;
+  headers?: Record<string, string>;
+  body?: string | Buffer;
+} {
+  return {
+    statusCode: response.status,
+    headers: response.headers,
+    body: response.body,
   };
 }
 

@@ -962,7 +962,7 @@ describe("RequestRepository", () => {
       // Verify user_version was set to latest migration
       const checkDb = new Database(migrationDbPath);
       const version = checkDb.pragma("user_version", { simple: true });
-      expect(version).toBe(4);
+      expect(version).toBe(5);
       checkDb.close();
 
       migratedRepo.close();
@@ -973,7 +973,7 @@ describe("RequestRepository", () => {
       // The default repo from beforeEach is a fresh DB
       const checkDb = new Database(dbPath);
       const version = checkDb.pragma("user_version", { simple: true });
-      expect(version).toBe(4);
+      expect(version).toBe(5);
       checkDb.close();
     });
 
@@ -1819,6 +1819,203 @@ describe("RequestRepository", () => {
 
     it("runs without error on empty database", () => {
       expect(() => repo.compactDatabase()).not.toThrow();
+    });
+  });
+
+  describe("interceptor metadata", () => {
+    let sessionId: string;
+
+    beforeEach(() => {
+      const session = repo.registerSession("test", 1);
+      sessionId = session.id;
+    });
+
+    it("updateRequestInterception sets fields correctly", () => {
+      const id = repo.saveRequest({
+        sessionId,
+        timestamp: Date.now(),
+        method: "GET",
+        url: "https://api.example.com/users",
+        host: "api.example.com",
+        path: "/users",
+        requestHeaders: {},
+      });
+
+      repo.updateRequestInterception(id, "my-interceptor", "mocked");
+
+      const request = repo.getRequest(id);
+      expect(request?.interceptedBy).toBe("my-interceptor");
+      expect(request?.interceptionType).toBe("mocked");
+    });
+
+    it("listRequestsSummary returns interceptedBy and interceptionType", () => {
+      const id = repo.saveRequest({
+        sessionId,
+        timestamp: Date.now(),
+        method: "POST",
+        url: "https://api.example.com/data",
+        host: "api.example.com",
+        path: "/data",
+        requestHeaders: {},
+      });
+
+      repo.updateRequestInterception(id, "rate-limiter", "modified");
+
+      const summaries = repo.listRequestsSummary();
+      expect(summaries).toHaveLength(1);
+      expect(summaries[0]?.interceptedBy).toBe("rate-limiter");
+      expect(summaries[0]?.interceptionType).toBe("modified");
+    });
+
+    it("getRequest returns interceptor fields", () => {
+      const id = repo.saveRequest({
+        sessionId,
+        timestamp: Date.now(),
+        method: "DELETE",
+        url: "https://api.example.com/resource",
+        host: "api.example.com",
+        path: "/resource",
+        requestHeaders: {},
+      });
+
+      repo.updateRequestInterception(id, "logger", "modified");
+
+      const request = repo.getRequest(id);
+      expect(request).toBeDefined();
+      expect(request?.interceptedBy).toBe("logger");
+      expect(request?.interceptionType).toBe("modified");
+    });
+
+    it("filters by interceptedBy works", () => {
+      const id1 = repo.saveRequest({
+        sessionId,
+        timestamp: Date.now(),
+        method: "GET",
+        url: "https://api.example.com/first",
+        host: "api.example.com",
+        path: "/first",
+        requestHeaders: {},
+      });
+      repo.updateRequestInterception(id1, "rate-limit", "modified");
+
+      const id2 = repo.saveRequest({
+        sessionId,
+        timestamp: Date.now() + 1,
+        method: "GET",
+        url: "https://api.example.com/second",
+        host: "api.example.com",
+        path: "/second",
+        requestHeaders: {},
+      });
+      repo.updateRequestInterception(id2, "logger", "mocked");
+
+      const results = repo.listRequests({ filter: { interceptedBy: "rate-limit" } });
+      expect(results).toHaveLength(1);
+      expect(results[0]?.id).toBe(id1);
+      expect(results[0]?.interceptedBy).toBe("rate-limit");
+    });
+
+    it("filters by interceptedBy with no matches", () => {
+      const id = repo.saveRequest({
+        sessionId,
+        timestamp: Date.now(),
+        method: "GET",
+        url: "https://api.example.com/test",
+        host: "api.example.com",
+        path: "/test",
+        requestHeaders: {},
+      });
+      repo.updateRequestInterception(id, "actual-interceptor", "modified");
+
+      const results = repo.listRequests({ filter: { interceptedBy: "nonexistent" } });
+      expect(results).toHaveLength(0);
+    });
+
+    it("requests without interception metadata have undefined fields", () => {
+      const id = repo.saveRequest({
+        sessionId,
+        timestamp: Date.now(),
+        method: "GET",
+        url: "https://api.example.com/unintercepted",
+        host: "api.example.com",
+        path: "/unintercepted",
+        requestHeaders: {},
+      });
+
+      const request = repo.getRequest(id);
+      expect(request).toBeDefined();
+      expect(request?.interceptedBy).toBeUndefined();
+      expect(request?.interceptionType).toBeUndefined();
+    });
+
+    it("works with both listRequests and listRequestsSummary", () => {
+      const id = repo.saveRequest({
+        sessionId,
+        timestamp: Date.now(),
+        method: "PUT",
+        url: "https://api.example.com/update",
+        host: "api.example.com",
+        path: "/update",
+        requestHeaders: {},
+      });
+      repo.updateRequestInterception(id, "cache-interceptor", "mocked");
+
+      const fullRequests = repo.listRequests({ filter: { interceptedBy: "cache-interceptor" } });
+      const summaries = repo.listRequestsSummary({
+        filter: { interceptedBy: "cache-interceptor" },
+      });
+
+      expect(fullRequests).toHaveLength(1);
+      expect(summaries).toHaveLength(1);
+      expect(fullRequests[0]?.interceptedBy).toBe("cache-interceptor");
+      expect(summaries[0]?.interceptedBy).toBe("cache-interceptor");
+    });
+
+    it("combines interceptedBy filter with other filters", () => {
+      const id1 = repo.saveRequest({
+        sessionId,
+        timestamp: Date.now(),
+        method: "GET",
+        url: "https://api.example.com/data",
+        host: "api.example.com",
+        path: "/data",
+        requestHeaders: {},
+      });
+      repo.updateRequestInterception(id1, "filter-test", "modified");
+      repo.updateRequestResponse(id1, {
+        status: 200,
+        headers: {},
+        durationMs: 10,
+      });
+
+      const id2 = repo.saveRequest({
+        sessionId,
+        timestamp: Date.now() + 1,
+        method: "POST",
+        url: "https://api.example.com/data",
+        host: "api.example.com",
+        path: "/data",
+        requestHeaders: {},
+      });
+      repo.updateRequestInterception(id2, "filter-test", "mocked");
+      repo.updateRequestResponse(id2, {
+        status: 201,
+        headers: {},
+        durationMs: 15,
+      });
+
+      const results = repo.listRequests({
+        filter: {
+          interceptedBy: "filter-test",
+          methods: ["POST"],
+          statusRange: "2xx",
+        },
+      });
+
+      expect(results).toHaveLength(1);
+      expect(results[0]?.id).toBe(id2);
+      expect(results[0]?.method).toBe("POST");
+      expect(results[0]?.interceptedBy).toBe("filter-test");
     });
   });
 });

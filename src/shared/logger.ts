@@ -1,8 +1,8 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
 
-export type LogLevel = "error" | "warn" | "info" | "debug" | "trace";
-export type Component = "daemon" | "tui" | "cli" | "proxy" | "control" | "storage";
+export type LogLevel = "error" | "warn" | "info" | "debug" | "trace" | "silent";
+export type Component = "daemon" | "tui" | "cli" | "proxy" | "control" | "storage" | "interceptor";
 
 interface LogEntry {
   ts: string;
@@ -13,6 +13,7 @@ interface LogEntry {
 }
 
 const LOG_LEVEL_PRIORITY: Record<LogLevel, number> = {
+  silent: -1,
   error: 0,
   warn: 1,
   info: 2,
@@ -246,5 +247,5 @@ export function parseVerbosity(verboseCount: number): LogLevel {
  * Check if a string is a valid log level.
  */
 export function isValidLogLevel(level: string): level is LogLevel {
-  return ["error", "warn", "info", "debug", "trace"].includes(level);
+  return ["error", "warn", "info", "debug", "trace", "silent"].includes(level);
 }

@@ -6,6 +6,9 @@ import { generateCACertificate } from "mockttp";
 import { RequestRepository } from "./storage.js";
 import { createProxy } from "./proxy.js";
 import { createControlServer } from "./control.js";
+import { createInterceptorLoader, type InterceptorLoader } from "./interceptor-loader.js";
+import { createInterceptorRunner } from "./interceptor-runner.js";
+import { createHtpxClient } from "./htpx-client.js";
 import {
   getHtpxPaths,
   ensureHtpxDir,
@@ -59,6 +62,38 @@ async function main() {
     maxStoredRequests: config.maxStoredRequests,
   });
 
+  // Load interceptors if the directory exists (user opts in by creating it)
+  let interceptorLoader: InterceptorLoader | undefined;
+  let interceptorRunner: ReturnType<typeof createInterceptorRunner> | undefined;
+
+  if (fs.existsSync(paths.interceptorsDir)) {
+    const htpxClient = createHtpxClient(storage);
+    interceptorLoader = await createInterceptorLoader({
+      interceptorsDir: paths.interceptorsDir,
+      projectRoot,
+      logLevel,
+      onReload: () => {
+        logger.info("Interceptors reloaded", {
+          count: interceptorLoader?.getInterceptors().length ?? 0,
+        });
+      },
+    });
+
+    const loadedCount = interceptorLoader.getInterceptors().length;
+    const errorCount = interceptorLoader
+      .getInterceptorInfo()
+      .filter((info) => info.error !== undefined).length;
+
+    logger.info("Interceptors loaded", { count: loadedCount, errors: errorCount });
+
+    interceptorRunner = createInterceptorRunner({
+      loader: interceptorLoader,
+      htpxClient,
+      projectRoot,
+      logLevel,
+    });
+  }
+
   // Find a free port for the proxy
   const proxyPort = await findFreePort();
 
@@ -77,6 +112,7 @@ async function main() {
     projectRoot,
     logLevel,
     maxBodySize: config.maxBodySize,
+    interceptorRunner,
   });
 
   // Write proxy port to file
@@ -95,6 +131,7 @@ async function main() {
     version: daemonVersion,
     projectRoot,
     logLevel,
+    interceptorLoader,
   });
 
   // Write PID file
@@ -112,6 +149,7 @@ async function main() {
     logger.info("Received shutdown signal", { signal });
 
     try {
+      interceptorLoader?.close();
       await controlServer.close();
       await proxy.stop();
 

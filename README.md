@@ -15,6 +15,7 @@ Capture HTTP/HTTPS traffic through a MITM proxy and inspect it in an interactive
 - **Full HTTPS support** — Automatic CA certificate generation and trust
 - **Export anywhere** — Generate curl commands or HAR files from captured requests
 - **AI-native** — Built-in MCP server lets AI agents search, filter, and inspect your traffic
+- **Config-as-code interceptors** — Mock, modify, or observe HTTP traffic with TypeScript files in `.htpx/interceptors/`
 - **Zero config** — Works out of the box with curl, wget, Node.js, Python, and more
 
 ## Quick Start
@@ -142,6 +143,7 @@ htpx creates a `.htpx/` directory in your project root (detected by `.git` or ex
 ```
 your-project/
 ├── .htpx/
+│   ├── interceptors/   # TypeScript interceptor files
 │   ├── config.json     # Optional project config
 │   ├── proxy.port      # Proxy TCP port
 │   ├── control.sock    # IPC socket
@@ -174,6 +176,89 @@ Create `.htpx/config.json` to override default behaviour. All fields are optiona
 | `pollInterval` | `2000` | TUI polling interval in milliseconds. Lower values give faster updates at the cost of more IPC traffic. |
 
 If the file is missing or contains invalid values, defaults are used.
+
+## Interceptors
+
+TypeScript files in `.htpx/interceptors/` that can mock, modify, or observe HTTP traffic.
+
+### Getting Started
+
+```bash
+# Scaffold an example interceptor
+htpx interceptors init
+
+# Edit .htpx/interceptors/example.ts, then:
+htpx interceptors reload
+# Or just restart: htpx stop && htpx intercept
+```
+
+### Mock — Return a Response Without Hitting Upstream
+
+```typescript
+import type { Interceptor } from "htpx-cli/interceptors";
+
+export default {
+  name: "mock-users",
+  match: (req) => req.path === "/api/users",
+  handler: async () => ({
+    status: 200,
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify([{ id: 1, name: "Alice" }]),
+  }),
+} satisfies Interceptor;
+```
+
+### Modify — Forward to Upstream, Alter the Response
+
+```typescript
+import type { Interceptor } from "htpx-cli/interceptors";
+
+export default {
+  name: "inject-header",
+  match: (req) => req.host.includes("example.com"),
+  handler: async (ctx) => {
+    const response = await ctx.forward();
+    return { ...response, headers: { ...response.headers, "x-debug": "htpx" } };
+  },
+} satisfies Interceptor;
+```
+
+### Observe — Inspect Traffic Without Altering It
+
+```typescript
+import type { Interceptor } from "htpx-cli/interceptors";
+
+export default {
+  name: "log-api",
+  match: (req) => req.path.startsWith("/api/"),
+  handler: async (ctx) => {
+    ctx.log(`${ctx.request.method} ${ctx.request.url}`);
+    const response = await ctx.forward();
+    ctx.log(`  -> ${response.status}`);
+    return response;
+  },
+} satisfies Interceptor;
+```
+
+### Handler Context
+
+| Property | Description |
+|----------|-------------|
+| `ctx.request` | The incoming request (frozen — read-only) |
+| `ctx.forward()` | Forward to upstream, returns the response |
+| `ctx.htpx` | Query API — `countRequests()`, `listRequests()`, `getRequest()`, `searchBodies()`, `queryJsonBodies()` |
+| `ctx.log(msg)` | Write to `.htpx/htpx.log` |
+
+### How It Works
+
+- Any `.ts` file in `.htpx/interceptors/` is loaded as an interceptor
+- Files are loaded alphabetically; the first matching interceptor wins
+- `match` is optional — omit it to match all requests
+- Interceptors hot-reload on file changes, or run `htpx interceptors reload`
+- Handler timeout is 30s, match timeout is 5s
+- Errors in interceptors result in graceful pass-through (never crashes the proxy)
+- `ctx.log()` writes to `.htpx/htpx.log` (since `console.log` goes nowhere in the daemon)
+- Use `satisfies Interceptor` for full intellisense
 
 ## Supported HTTP Clients
 
@@ -238,6 +323,8 @@ The MCP server connects to the same daemon that serves the TUI, so `htpx interce
 | `htpx_count_requests` | Count requests matching a filter |
 | `htpx_clear_requests` | Delete all captured requests |
 | `htpx_list_sessions` | List active proxy sessions |
+| `htpx_list_interceptors` | List loaded interceptors with status and errors |
+| `htpx_reload_interceptors` | Reload interceptors from disk |
 
 ### Filtering
 
@@ -254,6 +341,7 @@ Most tools support a common set of filters that can be combined:
 | `header_name` | Filter by header existence or value | `"content-type"` |
 | `header_value` | Exact header value (requires `header_name`) | `"application/json"` |
 | `header_target` | Which headers to search | `"request"`, `"response"`, `"both"` |
+| `intercepted_by` | Filter by interceptor name | `"mock-users"` |
 
 ### Output Formats
 
@@ -321,6 +409,18 @@ Start the MCP server (stdio transport) for AI tool integration. See [MCP Integra
 ### `htpx project init`
 
 Manually initialise a `.htpx` directory in the current location.
+
+### `htpx interceptors`
+
+List loaded interceptors, or manage them with subcommands.
+
+### `htpx interceptors init`
+
+Create an example interceptor file in `.htpx/interceptors/`.
+
+### `htpx interceptors reload`
+
+Reload interceptors from disk without restarting the daemon.
 
 ## Development
 

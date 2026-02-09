@@ -6,11 +6,17 @@ import {
   formatSummary,
   formatSize,
   formatSession,
+  formatInterceptor,
   buildFilter,
   clampLimit,
 } from "./server.js";
 import type { SerialisableRequest } from "./server.js";
-import type { CapturedRequest, CapturedRequestSummary, Session } from "../shared/types.js";
+import type {
+  CapturedRequest,
+  CapturedRequestSummary,
+  InterceptorInfo,
+  Session,
+} from "../shared/types.js";
 
 describe("formatRequest", () => {
   it("formats basic request with method, URL, ID, host, path", () => {
@@ -1093,5 +1099,229 @@ describe("clampLimit", () => {
     expect(clampLimit(50.5)).toBe(50);
     expect(clampLimit(0.5)).toBe(1);
     expect(clampLimit(600.7)).toBe(500);
+  });
+});
+
+describe("buildFilter with intercepted_by", () => {
+  it("passes intercepted_by through to interceptedBy", () => {
+    const filter = buildFilter({ intercepted_by: "my-mock" });
+    expect(filter).toEqual({ interceptedBy: "my-mock" });
+  });
+
+  it("combines intercepted_by with other filters", () => {
+    const filter = buildFilter({ method: "GET", intercepted_by: "rate-limiter" });
+    expect(filter).toEqual({ methods: ["GET"], interceptedBy: "rate-limiter" });
+  });
+
+  it("ignores undefined intercepted_by", () => {
+    const filter = buildFilter({ intercepted_by: undefined, method: "POST" });
+    expect(filter).toEqual({ methods: ["POST"] });
+  });
+
+  it("ignores empty string intercepted_by", () => {
+    const filter = buildFilter({ intercepted_by: "" });
+    expect(filter).toBeUndefined();
+  });
+});
+
+describe("formatSummary with interception fields", () => {
+  const baseSummary: CapturedRequestSummary = {
+    id: "req-int-1",
+    sessionId: "sess-1",
+    timestamp: 1704067200000,
+    method: "GET",
+    url: "https://example.com/api",
+    host: "example.com",
+    path: "/api",
+    responseStatus: 200,
+    durationMs: 50,
+    requestBodySize: 0,
+    responseBodySize: 64,
+  };
+
+  it("appends [M] for mocked requests", () => {
+    const req: CapturedRequestSummary = {
+      ...baseSummary,
+      interceptedBy: "my-mock",
+      interceptionType: "mocked",
+    };
+    const result = formatSummary(req);
+    expect(result).toContain("[M]");
+    expect(result).not.toContain("[I]");
+  });
+
+  it("appends [I] for modified requests", () => {
+    const req: CapturedRequestSummary = {
+      ...baseSummary,
+      interceptedBy: "my-interceptor",
+      interceptionType: "modified",
+    };
+    const result = formatSummary(req);
+    expect(result).toContain("[I]");
+    expect(result).not.toContain("[M]");
+  });
+
+  it("appends no tag when interceptionType is absent", () => {
+    const result = formatSummary(baseSummary);
+    expect(result).not.toContain("[M]");
+    expect(result).not.toContain("[I]");
+  });
+
+  it("places interception tag at the end of the line", () => {
+    const req: CapturedRequestSummary = {
+      ...baseSummary,
+      interceptedBy: "mock-api",
+      interceptionType: "mocked",
+    };
+    const result = formatSummary(req);
+    expect(result).toMatch(/\[M\]$/);
+  });
+});
+
+describe("formatRequest with interception fields", () => {
+  const baseReq: CapturedRequest = {
+    id: "req-int-2",
+    sessionId: "sess-1",
+    timestamp: 1704067200000,
+    method: "GET",
+    url: "https://example.com/api",
+    host: "example.com",
+    path: "/api",
+    requestHeaders: {},
+    responseStatus: 200,
+    durationMs: 100,
+  };
+
+  it("shows intercepted by line for mocked request", () => {
+    const req: CapturedRequest = {
+      ...baseReq,
+      interceptedBy: "my-mock",
+      interceptionType: "mocked",
+    };
+    const result = formatRequest(req);
+    expect(result).toContain("**Intercepted by:** my-mock (mocked)");
+  });
+
+  it("shows intercepted by line for modified request", () => {
+    const req: CapturedRequest = {
+      ...baseReq,
+      interceptedBy: "auth-injector",
+      interceptionType: "modified",
+    };
+    const result = formatRequest(req);
+    expect(result).toContain("**Intercepted by:** auth-injector (modified)");
+  });
+
+  it("defaults to modified when interceptionType is absent but interceptedBy is set", () => {
+    const req: CapturedRequest = {
+      ...baseReq,
+      interceptedBy: "fallback-handler",
+    };
+    const result = formatRequest(req);
+    expect(result).toContain("**Intercepted by:** fallback-handler (modified)");
+  });
+
+  it("does not show intercepted by line when interceptedBy is absent", () => {
+    const result = formatRequest(baseReq);
+    expect(result).not.toContain("**Intercepted by:**");
+  });
+
+  it("places intercepted by after duration", () => {
+    const req: CapturedRequest = {
+      ...baseReq,
+      interceptedBy: "my-mock",
+      interceptionType: "mocked",
+    };
+    const result = formatRequest(req);
+    const durationIdx = result.indexOf("**Duration:**");
+    const interceptedIdx = result.indexOf("**Intercepted by:**");
+    expect(durationIdx).toBeGreaterThan(-1);
+    expect(interceptedIdx).toBeGreaterThan(durationIdx);
+  });
+});
+
+describe("serialiseRequest with interception fields", () => {
+  const baseReq: CapturedRequest = {
+    id: "req-ser-1",
+    sessionId: "sess-1",
+    timestamp: 1704067200000,
+    method: "GET",
+    url: "https://example.com/api",
+    host: "example.com",
+    path: "/api",
+    requestHeaders: {},
+  };
+
+  it("includes interceptedBy and interceptionType when present", () => {
+    const req: CapturedRequest = {
+      ...baseReq,
+      interceptedBy: "my-mock",
+      interceptionType: "mocked",
+    };
+    const result = serialiseRequest(req);
+    expect(result.interceptedBy).toBe("my-mock");
+    expect(result.interceptionType).toBe("mocked");
+  });
+
+  it("includes interceptedBy without interceptionType", () => {
+    const req: CapturedRequest = {
+      ...baseReq,
+      interceptedBy: "partial-handler",
+    };
+    const result = serialiseRequest(req);
+    expect(result.interceptedBy).toBe("partial-handler");
+    expect(result).not.toHaveProperty("interceptionType");
+  });
+
+  it("omits both fields when absent", () => {
+    const result = serialiseRequest(baseReq);
+    expect(result).not.toHaveProperty("interceptedBy");
+    expect(result).not.toHaveProperty("interceptionType");
+  });
+});
+
+describe("formatInterceptor", () => {
+  it("formats interceptor with match function", () => {
+    const info: InterceptorInfo = {
+      name: "auth-mock",
+      hasMatch: true,
+      sourceFile: "auth-mock.ts",
+    };
+    const result = formatInterceptor(info);
+    expect(result).toBe("auth-mock (auth-mock.ts) [has match]");
+  });
+
+  it("formats interceptor without match function", () => {
+    const info: InterceptorInfo = {
+      name: "catch-all",
+      hasMatch: false,
+      sourceFile: "catch-all.ts",
+    };
+    const result = formatInterceptor(info);
+    expect(result).toBe("catch-all (catch-all.ts) [match all]");
+  });
+
+  it("includes error when present", () => {
+    const info: InterceptorInfo = {
+      name: "broken",
+      hasMatch: false,
+      sourceFile: "broken.ts",
+      error: "SyntaxError: Unexpected token",
+    };
+    const result = formatInterceptor(info);
+    expect(result).toBe(
+      "broken (broken.ts) [match all] \u2014 Error: SyntaxError: Unexpected token"
+    );
+  });
+
+  it("formats interceptor with match and error", () => {
+    const info: InterceptorInfo = {
+      name: "flaky",
+      hasMatch: true,
+      sourceFile: "flaky.ts",
+      error: "Runtime warning",
+    };
+    const result = formatInterceptor(info);
+    expect(result).toBe("flaky (flaky.ts) [has match] \u2014 Error: Runtime warning");
   });
 });

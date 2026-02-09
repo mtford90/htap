@@ -16,6 +16,7 @@ import type {
   CapturedRequest,
   CapturedRequestSummary,
   DaemonStatus,
+  InterceptorInfo,
   JsonQueryResult,
   RequestFilter,
   Session,
@@ -96,6 +97,8 @@ export interface SerialisableRequest {
   responseBodyTruncated: boolean;
   responseBodyBinary: boolean;
   durationMs?: number;
+  interceptedBy?: string;
+  interceptionType?: string;
 }
 
 /**
@@ -130,6 +133,8 @@ export function serialiseRequest(req: CapturedRequest): SerialisableRequest {
     responseBodyTruncated: req.responseBodyTruncated ?? false,
     responseBodyBinary: resBodyBinary,
     ...(req.durationMs !== undefined ? { durationMs: req.durationMs } : {}),
+    ...(req.interceptedBy !== undefined ? { interceptedBy: req.interceptedBy } : {}),
+    ...(req.interceptionType !== undefined ? { interceptionType: req.interceptionType } : {}),
   };
 }
 
@@ -161,6 +166,10 @@ export function formatRequest(req: CapturedRequest): string {
   }
   if (req.durationMs !== undefined) {
     lines.push(`**Duration:** ${req.durationMs}ms`);
+  }
+  if (req.interceptedBy) {
+    const type = req.interceptionType ?? "modified";
+    lines.push(`**Intercepted by:** ${req.interceptedBy} (${type})`);
   }
 
   // Request headers
@@ -243,6 +252,15 @@ export function formatSession(session: Session): string {
 }
 
 /**
+ * Format an InterceptorInfo into a concise one-line description.
+ */
+export function formatInterceptor(info: InterceptorInfo): string {
+  const matchLabel = info.hasMatch ? "[has match]" : "[match all]";
+  const errorSuffix = info.error ? ` \u2014 Error: ${info.error}` : "";
+  return `${info.name} (${info.sourceFile}) ${matchLabel}${errorSuffix}`;
+}
+
+/**
  * Format a summary into a concise one-line description.
  */
 export function formatSummary(req: CapturedRequestSummary): string {
@@ -253,7 +271,9 @@ export function formatSummary(req: CapturedRequestSummary): string {
   const bodySizes = hasBody
     ? ` [^${formatSize(req.requestBodySize)} v${formatSize(req.responseBodySize)}]`
     : "";
-  return `[${req.id}] ${ts} ${req.method} ${req.url}${status}${duration}${bodySizes}`;
+  const interceptionTag =
+    req.interceptionType === "mocked" ? " [M]" : req.interceptionType === "modified" ? " [I]" : "";
+  return `[${req.id}] ${ts} ${req.method} ${req.url}${status}${duration}${bodySizes}${interceptionTag}`;
 }
 
 const MIN_HTTP_STATUS = 100;
@@ -322,6 +342,7 @@ export function buildFilter(params: {
   header_name?: string;
   header_value?: string;
   header_target?: "request" | "response" | "both";
+  intercepted_by?: string;
 }): RequestFilter | undefined {
   const filter: RequestFilter = {};
 
@@ -368,6 +389,9 @@ export function buildFilter(params: {
   }
   if (params.header_target) {
     filter.headerTarget = params.header_target;
+  }
+  if (params.intercepted_by) {
+    filter.interceptedBy = params.intercepted_by;
   }
 
   return Object.keys(filter).length > 0 ? filter : undefined;
@@ -416,6 +440,9 @@ export function createHtpxMcpServer(options: McpServerOptions) {
           `**Requests Captured:** ${status.requestCount}`,
           `**Version:** ${status.version}`,
         ];
+        if (status.interceptorCount !== undefined) {
+          lines.push(`**Interceptors:** ${status.interceptorCount}`);
+        }
         return textResult(lines.join("\n"));
       } catch (err) {
         return textResult(
@@ -483,6 +510,10 @@ export function createHtpxMcpServer(options: McpServerOptions) {
         .enum(["request", "response", "both"])
         .optional()
         .describe('Which headers to search: "request", "response", or "both" (default "both").'),
+      intercepted_by: z
+        .string()
+        .optional()
+        .describe("Filter by interceptor name. Only returns requests handled by this interceptor."),
       limit: z
         .number()
         .optional()
@@ -654,6 +685,10 @@ export function createHtpxMcpServer(options: McpServerOptions) {
         .enum(["request", "response", "both"])
         .optional()
         .describe('Which headers to search: "request", "response", or "both" (default "both").'),
+      intercepted_by: z
+        .string()
+        .optional()
+        .describe("Filter by interceptor name. Only returns requests handled by this interceptor."),
       limit: z
         .number()
         .optional()
@@ -760,6 +795,10 @@ export function createHtpxMcpServer(options: McpServerOptions) {
         .enum(["request", "response", "both"])
         .optional()
         .describe('Which headers to search: "request", "response", or "both" (default "both").'),
+      intercepted_by: z
+        .string()
+        .optional()
+        .describe("Filter by interceptor name. Only returns requests handled by this interceptor."),
       format: FORMAT_SCHEMA,
     },
     async (params) => {
@@ -939,6 +978,68 @@ export function createHtpxMcpServer(options: McpServerOptions) {
       } catch (err) {
         return textResult(
           `Failed to list sessions: ${err instanceof Error ? err.message : "Unknown error"}`,
+          true
+        );
+      }
+    }
+  );
+
+  // --- htpx_list_interceptors ---
+  server.tool(
+    "htpx_list_interceptors",
+    "List all loaded interceptors — their names, source files, whether they have a match function, and any load errors. Use this to check which interceptors are active.",
+    {
+      format: FORMAT_SCHEMA,
+    },
+    async (params) => {
+      try {
+        const interceptors: InterceptorInfo[] = await client.listInterceptors();
+
+        if (params.format === "json") {
+          return jsonResult(interceptors);
+        }
+
+        if (interceptors.length === 0) {
+          return textResult("No interceptors loaded.");
+        }
+
+        const lines = interceptors.map(formatInterceptor);
+        const header = `${interceptors.length} interceptor(s):`;
+        return textResult(`${header}\n\n${lines.join("\n")}`);
+      } catch (err) {
+        return textResult(
+          `Failed to list interceptors: ${err instanceof Error ? err.message : "Unknown error"}`,
+          true
+        );
+      }
+    }
+  );
+
+  // --- htpx_reload_interceptors ---
+  server.tool(
+    "htpx_reload_interceptors",
+    "Reload interceptors from disk. Use after editing interceptor files to apply changes without restarting the daemon.",
+    {
+      format: FORMAT_SCHEMA,
+    },
+    async (params) => {
+      try {
+        const result = await client.reloadInterceptors();
+
+        if (params.format === "json") {
+          return jsonResult(result);
+        }
+
+        if (!result.success) {
+          return textResult(result.error ?? "Reload failed", true);
+        }
+
+        return textResult(
+          `Interceptors reloaded successfully. ${result.count} interceptor(s) loaded.`
+        );
+      } catch (err) {
+        return textResult(
+          `Failed to reload interceptors: ${err instanceof Error ? err.message : "Unknown error"}`,
           true
         );
       }

@@ -5,8 +5,23 @@
 import React, { useRef, memo } from "react";
 import { Box, Text, type DOMElement } from "ink";
 import { useOnClick } from "@ink-tools/ink-mouse";
-import type { CapturedRequestSummary } from "../../../shared/types.js";
+import type { CapturedRequestSummary, InterceptionType } from "../../../shared/types.js";
 import { formatMethod, formatDuration, truncate } from "../utils/formatters.js";
+
+/**
+ * Get the 2-character interception indicator and its colour.
+ * Returns "M " for mocked, "I " for modified, or "  " for normal requests.
+ */
+export function getInterceptionIndicator(type?: InterceptionType): { text: string; colour?: string } {
+  switch (type) {
+    case "mocked":
+      return { text: "M ", colour: "magenta" };
+    case "modified":
+      return { text: "I ", colour: "cyan" };
+    default:
+      return { text: "  " };
+  }
+}
 
 interface RequestListItemProps {
   request: CapturedRequestSummary;
@@ -116,13 +131,14 @@ export const RequestListItem = memo(function RequestListItem({
     }
   });
 
+  const interceptionWidth = 2; // "M " / "I " / "  "
   const methodWidth = 7;
   const statusWidth = 6;
   const durationWidth = 8;
   const separatorsWidth = 3; // Spaces between columns
 
   // Calculate remaining width for path
-  const pathWidth = Math.max(10, width - methodWidth - statusWidth - durationWidth - separatorsWidth);
+  const pathWidth = Math.max(10, width - interceptionWidth - methodWidth - statusWidth - durationWidth - separatorsWidth);
   const displayPath = truncate(showFullUrl ? request.url : request.path, pathWidth);
 
   const statusText = request.responseStatus?.toString() ?? "...";
@@ -131,10 +147,12 @@ export const RequestListItem = memo(function RequestListItem({
 
   const indicator = isSelected ? "❯ " : "  ";
   const indicatorColour = isSelected ? "cyan" : undefined;
+  const interception = getInterceptionIndicator(request.interceptionType);
 
   return (
     <Box ref={ref}>
       <Text color={indicatorColour}>{indicator}</Text>
+      <Text color={interception.colour}>{interception.text}</Text>
       <Text color={getMethodColour(request.method)}>{formatMethod(request.method)}</Text>
       <Text> </Text>
       <Text color={getStatusColour(request.responseStatus)}>{statusIndicator}{statusText.padStart(3)}</Text>

@@ -76,33 +76,55 @@ export const interceptCommand = new Command("intercept")
 
       // Register session with daemon
       const client = new ControlClient(paths.controlSocketFile);
-      const session = await client.registerSession(label, process.ppid);
+      try {
+        const session = await client.registerSession(label, process.ppid);
 
-      // Build environment variables
-      const envVars: Record<string, string> = {
-        HTTP_PROXY: proxyUrl,
-        HTTPS_PROXY: proxyUrl,
-        // Python requests library
-        SSL_CERT_FILE: paths.caCertFile,
-        REQUESTS_CA_BUNDLE: paths.caCertFile,
-        // Node.js
-        NODE_EXTRA_CA_CERTS: paths.caCertFile,
-        // htpx session tracking
-        HTPX_SESSION_ID: session.id,
-      };
+        // Build environment variables
+        const envVars: Record<string, string> = {
+          HTTP_PROXY: proxyUrl,
+          HTTPS_PROXY: proxyUrl,
+          // Python requests library
+          SSL_CERT_FILE: paths.caCertFile,
+          REQUESTS_CA_BUNDLE: paths.caCertFile,
+          // Node.js
+          NODE_EXTRA_CA_CERTS: paths.caCertFile,
+          // htpx session tracking
+          HTPX_SESSION_ID: session.id,
+        };
 
-      if (label) {
-        envVars["HTPX_LABEL"] = label;
+        if (label) {
+          envVars["HTPX_LABEL"] = label;
+        }
+
+        // Report interceptor status
+        try {
+          const interceptors = await client.listInterceptors();
+          if (interceptors.length > 0) {
+            const errorCount = interceptors.filter((i) => i.error).length;
+            const loadedCount = interceptors.length - errorCount;
+            if (errorCount > 0) {
+              console.log(
+                `# Loaded ${loadedCount} interceptors (${errorCount} failed) from .htpx/interceptors/`
+              );
+            } else {
+              console.log(`# Loaded ${loadedCount} interceptors from .htpx/interceptors/`);
+            }
+          }
+        } catch {
+          // Interceptor info not available — not critical
+        }
+
+        // Output env vars for eval
+        console.log(formatEnvVars(envVars));
+
+        // Output confirmation as a comment (shown but not executed)
+        const labelInfo = label ? ` (label: ${label})` : "";
+        console.log(`# htpx: intercepting traffic${labelInfo}`);
+        console.log(`# Proxy: ${proxyUrl}`);
+        console.log(`# Session: ${session.id}`);
+      } finally {
+        client.close();
       }
-
-      // Output env vars for eval
-      console.log(formatEnvVars(envVars));
-
-      // Output confirmation as a comment (shown but not executed)
-      const labelInfo = label ? ` (label: ${label})` : "";
-      console.log(`# htpx: intercepting traffic${labelInfo}`);
-      console.log(`# Proxy: ${proxyUrl}`);
-      console.log(`# Session: ${session.id}`);
     } catch (err) {
       console.error(`# htpx error: ${getErrorMessage(err)}`);
       process.exit(1);

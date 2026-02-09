@@ -7,6 +7,13 @@
   "bin": {
     "htpx": "dist/cli/index.js"
   },
+  "exports": {
+    ".": "./dist/cli/index.js",
+    "./interceptors": {
+      "types": "./dist/interceptors.d.ts",
+      "default": "./dist/interceptors.js"
+    }
+  },
   "files": [
     "dist"
   ],
@@ -64,6 +71,7 @@
     "commander": "^14.0.3",
     "ink": "^6.6.0",
     "ink-use-stdout-dimensions": "^1.0.5",
+    "jiti": "^2.6.1",
     "mockttp": "^4.2.1",
     "react": "^19.2.4",
     "uuid": "^13.0.0",

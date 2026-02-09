@@ -3,6 +3,7 @@ import type {
   CapturedRequest,
   CapturedRequestSummary,
   DaemonStatus,
+  InterceptorInfo,
   JsonQueryResult,
   RequestFilter,
   Session,
@@ -244,6 +245,20 @@ export class ControlClient {
    */
   async clearRequests(): Promise<void> {
     await this.request<{ success: boolean }>("clearRequests");
+  }
+
+  /**
+   * List loaded interceptors and their metadata.
+   */
+  async listInterceptors(): Promise<InterceptorInfo[]> {
+    return this.request<InterceptorInfo[]>("listInterceptors");
+  }
+
+  /**
+   * Reload interceptors from disk.
+   */
+  async reloadInterceptors(): Promise<{ success: boolean; count: number; error?: string }> {
+    return this.request<{ success: boolean; count: number; error?: string }>("reloadInterceptors");
   }
 
   /**

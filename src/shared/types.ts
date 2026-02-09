@@ -2,6 +2,8 @@
  * Core types for htpx
  */
 
+export type InterceptionType = "modified" | "mocked";
+
 export interface CapturedRequest {
   id: string;
   sessionId: string;
@@ -19,6 +21,8 @@ export interface CapturedRequest {
   responseBody?: Buffer;
   responseBodyTruncated?: boolean;
   durationMs?: number;
+  interceptedBy?: string;
+  interceptionType?: InterceptionType;
 }
 
 /**
@@ -40,6 +44,8 @@ export interface CapturedRequestSummary {
   requestBodySize: number;
   /** Size of response body in bytes (without transferring the body itself) */
   responseBodySize: number;
+  interceptedBy?: string;
+  interceptionType?: InterceptionType;
 }
 
 export interface Session {
@@ -55,6 +61,7 @@ export interface DaemonStatus {
   sessionCount: number;
   requestCount: number;
   version: string;
+  interceptorCount?: number;
 }
 
 export interface RequestFilter {
@@ -68,6 +75,7 @@ export interface RequestFilter {
   headerName?: string; // header name to filter by (lowercased before querying)
   headerValue?: string; // header value to match (requires headerName)
   headerTarget?: "request" | "response" | "both"; // which headers to search (default "both")
+  interceptedBy?: string; // filter by interceptor name
 }
 
 /**
@@ -75,4 +83,61 @@ export interface RequestFilter {
  */
 export interface JsonQueryResult extends CapturedRequestSummary {
   extractedValue: unknown;
+}
+
+// --- Interceptor types ---
+
+export interface InterceptorRequest {
+  method: string;
+  url: string;
+  host: string;
+  path: string;
+  headers: Record<string, string>;
+  body?: Buffer;
+}
+
+export interface InterceptorResponse {
+  status: number;
+  headers?: Record<string, string>;
+  body?: string | Buffer;
+}
+
+export interface InterceptorContext {
+  request: Readonly<InterceptorRequest>;
+  forward: () => Promise<InterceptorResponse>;
+  htpx: HtpxClient;
+  log: (message: string) => void;
+}
+
+export interface Interceptor {
+  name?: string;
+  match?: (request: InterceptorRequest) => boolean | Promise<boolean>;
+  // eslint-disable-next-line @typescript-eslint/no-invalid-void-type -- handler may return void (implicit return)
+  handler: (ctx: InterceptorContext) => Promise<InterceptorResponse | undefined | void>;
+}
+
+export interface HtpxClient {
+  countRequests(filter?: RequestFilter): Promise<number>;
+  listRequests(options?: {
+    filter?: RequestFilter;
+    limit?: number;
+    offset?: number;
+  }): Promise<CapturedRequestSummary[]>;
+  getRequest(id: string): Promise<CapturedRequest | null>;
+  searchBodies(options: {
+    query: string;
+    filter?: RequestFilter;
+    limit?: number;
+  }): Promise<CapturedRequestSummary[]>;
+  queryJsonBodies(options: {
+    jsonPath: string;
+    filter?: RequestFilter;
+  }): Promise<JsonQueryResult[]>;
+}
+
+export interface InterceptorInfo {
+  name: string;
+  hasMatch: boolean;
+  sourceFile: string;
+  error?: string;
 }
