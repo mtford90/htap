@@ -1,0 +1,19 @@
+{
+  "name": "htpx",
+  "description": "AI skills for the htpx HTTP interception toolkit",
+  "owner": {
+    "name": "mtford90",
+    "url": "https://github.com/mtford90"
+  },
+  "plugins": [
+    {
+      "name": "htpx",
+      "source": "./plugins/htpx",
+      "description": "AI skill for inspecting, filtering, and intercepting HTTP traffic with htpx",
+      "version": "0.1.0",
+      "author": {
+        "name": "mtford90"
+      }
+    }
+  ]
+}

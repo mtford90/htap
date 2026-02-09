@@ -15,8 +15,14 @@
     }
   },
   "files": [
-    "dist"
+    "dist",
+    "skills"
   ],
+  "agents": {
+    "skills": [
+      { "name": "htpx", "path": "./skills/htpx" }
+    ]
+  },
   "scripts": {
     "build": "tsc",
     "dev": "tsc --watch",
