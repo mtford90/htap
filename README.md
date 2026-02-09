@@ -376,6 +376,27 @@ htpx_query_json({ json_path: "$.user.id", target: "response" })
 htpx_list_requests({ header_name: "authorization", header_target: "request" })
 ```
 
+## Agent Skill
+
+htpx ships with an agent skill that teaches AI assistants how to use htpx's MCP tools effectively. Install it to get better results from Claude Code, Cursor, and other AI coding tools.
+
+### Claude Code Plugin
+
+```bash
+# In Claude Code, run:
+/plugin marketplace add mtford90/htpx
+/plugin install htpx
+```
+
+### npm-agentskills (cross-agent)
+
+Works with Claude Code, Cursor, Copilot, Codex, and more:
+
+```bash
+# If htpx-cli is already installed in your project
+npx agents export --target claude
+```
+
 ## CLI Reference
 
 ### `htpx init`
