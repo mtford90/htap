@@ -4,11 +4,11 @@
 [![CI](https://github.com/mtford90/htpx/actions/workflows/ci.yml/badge.svg)](https://github.com/mtford90/htpx/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-HTTP interception for the terminal. A MITM proxy with a lazygit-style TUI that captures traffic per-project and lets you mock APIs with TypeScript files.
+HTTP interception for the terminal. Each project gets its own proxy, its own traffic database, its own mocks — all in a `.htpx/` directory that lives alongside your code.
 
 <!-- TODO: screenshot/gif -->
 
-No browser extensions, no separate apps. Point your shell at the proxy, make requests, browse them in the TUI. AI agents can query your traffic and write mocks for you via MCP.
+No browser extensions, no global system proxy, no separate apps. A MITM proxy captures your traffic, a lazygit-style TUI lets you browse it, TypeScript files let you mock it, and AI agents can query and manipulate all of it via MCP.
 
 ## Quick Start
 
@@ -38,17 +38,36 @@ This creates a shell function that sets proxy environment variables in your curr
 
 ## Features
 
-- **MCP server** — AI agents can search, filter and inspect your traffic, then write interceptors for you
-- **Config-as-code interceptors** — mock, modify or observe HTTP traffic with TypeScript files in `.htpx/interceptors/`
-- **Project-scoped** — each project gets its own `.htpx/` directory with a separate daemon, database and CA cert
-- **Interactive TUI** — vim-style keybindings, mouse support, JSON explorer, filtering
+- **Project-scoped** — each project gets its own `.htpx/` directory with a separate daemon, database, CA cert and interceptors. No cross-project bleed.
+- **TypeScript interceptors** — mock, modify or observe traffic with `.ts` files. Match on anything, query past traffic from within handlers, compose complex scenarios.
+- **MCP server** — AI agents get full access to your captured traffic and can write interceptor files for you. Search, filter, inspect, mock — all via tool calls.
+- **Terminal TUI** — vim-style keybindings, mouse support, JSON explorer, filtering. Stays in your terminal where you're already working.
 - **HTTPS** — automatic CA certificate generation and trust
 - **Export** — copy as curl, export as HAR, save bodies to disk
 - **Zero config** — works with curl, wget, Node.js, Python, Go, Rust and anything else that respects `HTTP_PROXY`
 
+## Project Isolation
+
+htpx doesn't use a global system proxy. Each project gets its own `.htpx/` directory in the project root (detected by `.git` or an existing `.htpx/`):
+
+```
+your-project/
+├── .htpx/
+│   ├── interceptors/   # TypeScript interceptor files
+│   ├── config.json     # Optional project config
+│   ├── proxy.port      # Proxy TCP port
+│   ├── control.sock    # IPC socket
+│   ├── requests.db     # Captured traffic
+│   ├── ca.pem          # CA certificate
+│   └── daemon.pid      # Process ID
+└── src/...
+```
+
+Separate daemon, separate database, separate certificates. You can run htpx in multiple projects at the same time without them interfering with each other.
+
 ## Interceptors
 
-TypeScript files in `.htpx/interceptors/` that intercept HTTP traffic as it passes through the proxy.
+TypeScript files in `.htpx/interceptors/` that intercept HTTP traffic as it passes through the proxy. They can return mock responses, modify upstream responses, or just observe.
 
 ```bash
 htpx interceptors init    # scaffold an example
@@ -109,6 +128,37 @@ export default {
 } satisfies Interceptor;
 ```
 
+### Query Past Traffic
+
+Interceptors can query the traffic database via `ctx.htpx`. This lets you build mocks that react to what's already happened — rate limiting, conditional failures, responses based on prior requests:
+
+```typescript
+import type { Interceptor } from "htpx-cli/interceptors";
+
+export default {
+  name: "rate-limit",
+  match: (req) => req.path.startsWith("/api/"),
+  handler: async (ctx) => {
+    // Count how many requests this endpoint has seen in the last minute
+    const since = new Date(Date.now() - 60_000).toISOString();
+    const count = await ctx.htpx.countRequests({
+      path: ctx.request.path,
+      since,
+    });
+
+    if (count >= 10) {
+      return {
+        status: 429,
+        headers: { "retry-after": "60" },
+        body: JSON.stringify({ error: "rate_limited" }),
+      };
+    }
+
+    return ctx.forward();
+  },
+} satisfies Interceptor;
+```
+
 ### Handler Context
 
 | Property | Description |
@@ -118,7 +168,7 @@ export default {
 | `ctx.htpx` | Query captured traffic (see below) |
 | `ctx.log(msg)` | Write to `.htpx/htpx.log` |
 
-`ctx.htpx` lets you query traffic from within an interceptor:
+#### `ctx.htpx`
 
 | Method | Description |
 |--------|-------------|
@@ -141,7 +191,16 @@ export default {
 
 ## MCP Integration
 
-htpx has a built-in [MCP](https://modelcontextprotocol.io/) server. AI agents can search your captured traffic, inspect request/response details, and write interceptor files directly. You can ask things like "find all failing requests to the payments API and mock them" or "make every 5th request to /api/users return a 429" — the agent has access to your traffic and can create the TypeScript files itself.
+htpx has a built-in [MCP](https://modelcontextprotocol.io/) server that gives AI agents full access to your captured traffic and interceptor system. Agents can search through requests, inspect headers and bodies, and write interceptor files directly into `.htpx/interceptors/`.
+
+This means you can ask things like:
+
+- "Find all failing requests to the payments API and write mocks that return valid responses"
+- "Make every 5th request to /api/users return a 429 so I can test rate limiting"
+- "What's the average response time for requests to the auth service in the last hour?"
+- "Write an interceptor that logs all requests with missing auth headers"
+
+The agent reads your traffic, writes the TypeScript, and htpx hot-reloads it.
 
 ### Setup
 
@@ -288,25 +347,6 @@ htpx_list_requests({ header_name: "authorization", header_target: "request" })
 | `HTPX_LABEL` | Session label (when `-l` flag used) |
 
 ## Configuration
-
-htpx creates a `.htpx/` directory in your project root (detected by `.git` or existing `.htpx`):
-
-```
-your-project/
-├── .htpx/
-│   ├── interceptors/   # TypeScript interceptor files
-│   ├── config.json     # Optional project config
-│   ├── proxy.port      # Proxy TCP port
-│   ├── control.sock    # IPC socket
-│   ├── requests.db     # Captured traffic
-│   ├── ca.pem          # CA certificate
-│   └── daemon.pid      # Process ID
-└── src/...
-```
-
-Each project gets its own daemon, database and certificates. No cross-project bleed.
-
-### Config File
 
 Create `.htpx/config.json` to override defaults. All fields are optional:
 
