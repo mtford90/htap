@@ -28,13 +28,13 @@ Requires Node.js 20+.
 
 ### Shell Setup
 
-Add this to your `~/.zshrc` or `~/.bashrc`:
+Run this once per shell session (or add it to your shell profile):
 
 ```bash
 eval "$(htpx init)"
 ```
 
-This creates a shell function that sets proxy environment variables in your current session.
+This creates a shell function that lets `htpx on`/`htpx off` set proxy environment variables in your current session.
 
 ## Features
 
@@ -217,7 +217,7 @@ Add htpx to your MCP client config:
 }
 ```
 
-`htpx on` must be running — the MCP server connects to the same daemon as the TUI.
+The proxy must be running (`htpx on` or `eval "$(htpx vars)"`) — the MCP server connects to the same daemon as the TUI.
 
 ### Agent Skill
 
@@ -330,11 +330,11 @@ htpx_list_requests({ header_name: "authorization", header_target: "request" })
 └─────────────────────────────────────────────────────────────┘
 ```
 
-`htpx on` starts a daemon, sets `HTTP_PROXY`/`HTTPS_PROXY` in your shell, and captures everything that flows through. `htpx off` unsets them. The TUI connects to the daemon via Unix socket.
+`htpx on` (via the shell wrapper) starts a daemon, sets `HTTP_PROXY`/`HTTPS_PROXY` in your shell, and captures everything that flows through. `htpx off` unsets them. The TUI connects to the daemon via Unix socket.
 
 ### Environment Variables
 
-`htpx on` sets these in your shell (`htpx off` unsets them):
+`htpx on` sets these in your shell (`htpx off` unsets them). Without the shell wrapper, use `eval "$(htpx vars)"` and `eval "$(htpx vars --clear)"`:
 
 | Variable | Purpose |
 |----------|---------|
@@ -474,20 +474,23 @@ Mouse support: click to select, scroll to navigate, click panels to focus.
 
 ### `htpx init`
 
-Output shell configuration for your `.zshrc`/`.bashrc`.
+Output shell wrapper function. Enables `htpx on`/`htpx off` to set environment variables in the current shell.
 
-### `htpx on`
+### `htpx vars`
 
-Start intercepting HTTP traffic. Sets proxy environment variables in your shell.
+Output shell `export` statements to set proxy environment variables. Use with `eval`:
+
+```bash
+eval "$(htpx vars)"
+```
+
+With the shell wrapper from `htpx init`, you can use the simpler `htpx on` instead.
 
 | Flag | Description |
 |------|-------------|
 | `-l, --label <label>` | Label this session (visible in TUI and MCP) |
 | `--no-restart` | Don't auto-restart daemon on version mismatch |
-
-### `htpx off`
-
-Stop intercepting HTTP traffic. Unsets proxy environment variables.
+| `--clear` | Output `unset` statements to stop interception |
 
 ### `htpx tui`
 
@@ -568,7 +571,7 @@ Check if something else is using the socket:
 ```bash
 htpx status
 htpx daemon stop
-htpx on
+htpx on  # or: eval "$(htpx vars)"
 ```
 
 ### Terminal too small

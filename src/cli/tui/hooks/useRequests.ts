@@ -95,7 +95,7 @@ export function useRequests(options: UseRequestsOptions = {}): UseRequestsResult
     } catch (err) {
       const message = err instanceof Error ? err.message : "Failed to connect to daemon";
       if (message.includes("ENOENT") || message.includes("ECONNREFUSED")) {
-        setError("Daemon not running. Start with 'eval $(htpx on)'.");
+        setError("Daemon not running. Start with 'eval $(htpx vars)'.");
       } else {
         setError(message);
       }

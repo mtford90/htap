@@ -2,14 +2,18 @@ import { Command } from "commander";
 
 /**
  * Generate the shell function for htpx.
- * This function wraps htpx on/off with eval so that environment
- * variables can be set in the current shell.
+ * Maps the friendly `on`/`off` aliases to the underlying `vars` command
+ * so that environment variables can be set in the current shell.
  */
 export function generateShellFunction(): string {
   const lines = [
     "htpx() {",
-    '  if [[ "$1" == "on" || "$1" == "off" ]]; then',
-    '    eval "$(command htpx "$@")"',
+    '  if [[ "$1" == "on" ]]; then',
+    "    shift",
+    '    eval "$(command htpx vars "$@")"',
+    '  elif [[ "$1" == "off" ]]; then',
+    "    shift",
+    '    eval "$(command htpx vars --clear "$@")"',
     "  else",
     '    command htpx "$@"',
     "  fi",
@@ -19,7 +23,7 @@ export function generateShellFunction(): string {
 }
 
 export const initCommand = new Command("init")
-  .description("Output shell function for .zshrc/.bashrc (one-time setup)")
+  .description("Output shell wrapper function (enables htpx on/off to set env vars)")
   .action(() => {
     console.log(generateShellFunction());
   });

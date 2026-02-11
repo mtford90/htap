@@ -92,55 +92,55 @@ test_sourcing_creates_function() {
 }
 
 # ------------------------------------------------------------------------------
-# Test: htpx on outputs env vars
+# Test: htpx vars outputs env vars
 # ------------------------------------------------------------------------------
-test_on_outputs_env_vars() {
+test_vars_outputs_env_vars() {
   init_test_project
 
   local output
-  output=$(node "$HTPX_BIN" on --label=test-session 2>&1)
+  output=$(node "$HTPX_BIN" vars --label=test-session 2>&1)
 
   # Check for HTTP_PROXY
   if echo "$output" | grep -q 'export HTTP_PROXY='; then
-    pass "htpx on outputs HTTP_PROXY"
+    pass "htpx vars outputs HTTP_PROXY"
   else
-    fail "htpx on outputs HTTP_PROXY" "Output: $output"
+    fail "htpx vars outputs HTTP_PROXY" "Output: $output"
     return
   fi
 
   # Check for HTTPS_PROXY
   if echo "$output" | grep -q 'export HTTPS_PROXY='; then
-    pass "htpx on outputs HTTPS_PROXY"
+    pass "htpx vars outputs HTTPS_PROXY"
   else
-    fail "htpx on outputs HTTPS_PROXY" "Output: $output"
+    fail "htpx vars outputs HTTPS_PROXY" "Output: $output"
   fi
 
   # Check for SSL_CERT_FILE
   if echo "$output" | grep -q 'export SSL_CERT_FILE='; then
-    pass "htpx on outputs SSL_CERT_FILE"
+    pass "htpx vars outputs SSL_CERT_FILE"
   else
-    fail "htpx on outputs SSL_CERT_FILE" "Output: $output"
+    fail "htpx vars outputs SSL_CERT_FILE" "Output: $output"
   fi
 
   # Check for NODE_EXTRA_CA_CERTS
   if echo "$output" | grep -q 'export NODE_EXTRA_CA_CERTS='; then
-    pass "htpx on outputs NODE_EXTRA_CA_CERTS"
+    pass "htpx vars outputs NODE_EXTRA_CA_CERTS"
   else
-    fail "htpx on outputs NODE_EXTRA_CA_CERTS" "Output: $output"
+    fail "htpx vars outputs NODE_EXTRA_CA_CERTS" "Output: $output"
   fi
 
   # Check for session ID
   if echo "$output" | grep -q 'export HTPX_SESSION_ID='; then
-    pass "htpx on outputs HTPX_SESSION_ID"
+    pass "htpx vars outputs HTPX_SESSION_ID"
   else
-    fail "htpx on outputs HTPX_SESSION_ID" "Output: $output"
+    fail "htpx vars outputs HTPX_SESSION_ID" "Output: $output"
   fi
 
   # Check for label
   if echo "$output" | grep -q 'export HTPX_LABEL='; then
-    pass "htpx on outputs HTPX_LABEL when provided"
+    pass "htpx vars outputs HTPX_LABEL when provided"
   else
-    fail "htpx on outputs HTPX_LABEL when provided" "Output: $output"
+    fail "htpx vars outputs HTPX_LABEL when provided" "Output: $output"
   fi
 
   # Stop daemon after test
@@ -148,13 +148,13 @@ test_on_outputs_env_vars() {
 }
 
 # ------------------------------------------------------------------------------
-# Test: htpx on env vars can be evaluated
+# Test: htpx vars env vars can be evaluated
 # ------------------------------------------------------------------------------
-test_on_env_vars_evaluable() {
+test_vars_env_vars_evaluable() {
   init_test_project
 
   # Evaluate the output
-  eval "$(node "$HTPX_BIN" on --label=eval-test 2>&1 | grep '^export')"
+  eval "$(node "$HTPX_BIN" vars --label=eval-test 2>&1 | grep '^export')"
 
   # Check env vars are set
   if [[ -n "${HTTP_PROXY:-}" ]]; then
@@ -186,8 +186,8 @@ test_on_env_vars_evaluable() {
 test_status_shows_running() {
   init_test_project
 
-  # Start daemon via on
-  eval "$(node "$HTPX_BIN" on 2>&1 | grep '^export')"
+  # Start daemon via vars
+  eval "$(node "$HTPX_BIN" vars 2>&1 | grep '^export')"
 
   # Check status
   local output
@@ -216,8 +216,8 @@ test_status_shows_running() {
 test_stop_daemon() {
   init_test_project
 
-  # Start daemon via on
-  eval "$(node "$HTPX_BIN" on 2>&1 | grep '^export')"
+  # Start daemon via vars
+  eval "$(node "$HTPX_BIN" vars 2>&1 | grep '^export')"
 
   # Stop daemon
   local output
@@ -247,8 +247,8 @@ test_stop_daemon() {
 test_clear_requests() {
   init_test_project
 
-  # Start daemon via on
-  eval "$(node "$HTPX_BIN" on 2>&1 | grep '^export')"
+  # Start daemon via vars
+  eval "$(node "$HTPX_BIN" vars 2>&1 | grep '^export')"
 
   # Clear requests
   local output
@@ -282,8 +282,8 @@ echo ""
 
 test_init_outputs_function
 test_sourcing_creates_function
-test_on_outputs_env_vars
-test_on_env_vars_evaluable
+test_vars_outputs_env_vars
+test_vars_env_vars_evaluable
 test_status_shows_running
 test_clear_requests
 test_stop_daemon

@@ -71,7 +71,7 @@ describe("InfoModal", () => {
     );
     const frame = lastFrame();
     expect(frame).toContain("Proxy is not running");
-    expect(frame).toContain("eval $(htpx on)");
+    expect(frame).toContain("eval $(htpx vars)");
   });
 
   it("does not show proxy URL in not-running state", () => {

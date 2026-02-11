@@ -4,8 +4,7 @@ import { program } from "commander";
 import { clearCommand } from "./commands/clear.js";
 import { debugDumpCommand } from "./commands/debug-dump.js";
 import { initCommand } from "./commands/init.js";
-import { onCommand } from "./commands/on.js";
-import { offCommand } from "./commands/off.js";
+import { varsCommand } from "./commands/vars.js";
 import { interceptorsCommand } from "./commands/interceptors.js";
 import { mcpCommand } from "./commands/mcp.js";
 import { projectCommand } from "./commands/project.js";
@@ -29,13 +28,22 @@ program
 program.addCommand(clearCommand);
 program.addCommand(debugDumpCommand);
 program.addCommand(initCommand);
-program.addCommand(onCommand);
-program.addCommand(offCommand);
+program.addCommand(varsCommand);
 program.addCommand(interceptorsCommand);
 program.addCommand(mcpCommand);
 program.addCommand(projectCommand);
 program.addCommand(daemonCommand);
 program.addCommand(tuiCommand);
 program.addCommand(statusCommand);
+
+program.addHelpText(
+  "after",
+  `
+Quick start:
+  htpx on    Start intercepting HTTP traffic
+  htpx tui   Browse captured requests
+
+Docs: https://github.com/mtford90/htpx`
+);
 
 program.parse();

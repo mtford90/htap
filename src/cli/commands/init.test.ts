@@ -8,11 +8,15 @@ describe("generateShellFunction", () => {
     // Should define a function named htpx
     expect(output).toContain("htpx()");
 
-    // Should check for on and off commands
-    expect(output).toContain('if [[ "$1" == "on" || "$1" == "off" ]]');
+    // Should map "on" to "vars" and "off" to "vars --clear"
+    expect(output).toContain('if [[ "$1" == "on" ]]');
+    expect(output).toContain('elif [[ "$1" == "off" ]]');
+    expect(output).toContain("command htpx vars");
+    expect(output).toContain("command htpx vars --clear");
 
-    // Should use eval for on/off
+    // Should use eval and shift for on/off
     expect(output).toContain("eval");
+    expect(output).toContain("shift");
 
     // Should pass through other commands
     expect(output).toContain('command htpx "$@"');
