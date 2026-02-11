@@ -5,6 +5,7 @@
 
 import React, { useMemo } from "react";
 import { Box, Text } from "ink";
+import { HintContent, type HintItem } from "./HintContent.js";
 
 interface StatusBarContext {
   activePanel: "list" | "accordion";
@@ -14,15 +15,13 @@ interface StatusBarContext {
   onViewableBodySection: boolean;
 }
 
-interface KeyHint {
-  key: string;
-  action: string;
+interface KeyHint extends HintItem {
   visible?: (ctx: StatusBarContext) => boolean;
 }
 
 const KEY_HINTS: KeyHint[] = [
   { key: "j/k/g/G", action: "nav" },
-  { key: "^u/^d/^f/^b", action: "page", visible: (ctx) => ctx.activePanel === "list" },
+  { key: "^f/^b", action: "page", visible: (ctx) => ctx.activePanel === "list" },
   { key: "Tab", action: "panel" },
   { key: "1-5", action: "section" },
   { key: "Enter", action: "view", visible: (ctx) => ctx.onViewableBodySection },
@@ -49,6 +48,8 @@ export interface StatusBarProps {
   onViewableBodySection?: boolean;
   /** Number of active interceptors; shown as a badge when > 0. */
   interceptorCount?: number;
+  /** Terminal width in columns — used to constrain the hint bar. */
+  width?: number;
 }
 
 /**
@@ -66,6 +67,9 @@ export function getVisibleHints({
   return KEY_HINTS.filter((hint) => !hint.visible || hint.visible(ctx));
 }
 
+const SEPARATOR_WIDTH = 3; // " │ "
+const PADDING_WIDTH = 2; // paddingX={1} each side
+
 export function StatusBar({
   message,
   filterActive,
@@ -76,11 +80,28 @@ export function StatusBar({
   onBodySection,
   onViewableBodySection,
   interceptorCount,
+  width,
 }: StatusBarProps): React.ReactElement {
   const visibleHints = useMemo(
     () => getVisibleHints({ activePanel, hasSelection, hasRequests, onBodySection, onViewableBodySection }),
     [activePanel, hasSelection, hasRequests, onBodySection, onViewableBodySection],
   );
+
+  // Calculate available width for hints, accounting for prefix badges
+  const hintsAvailableWidth = useMemo(() => {
+    if (!width) return undefined;
+
+    let prefixWidth = 0;
+    if (interceptorCount !== undefined && interceptorCount > 0) {
+      const badge = `[${interceptorCount} interceptor${interceptorCount === 1 ? "" : "s"}]`;
+      prefixWidth += badge.length + SEPARATOR_WIDTH;
+    }
+    if (filterActive) {
+      prefixWidth += "[FILTERED]".length + SEPARATOR_WIDTH;
+    }
+
+    return width - PADDING_WIDTH - prefixWidth;
+  }, [width, interceptorCount, filterActive]);
 
   return (
     <Box
@@ -100,7 +121,7 @@ export function StatusBar({
           <Text dimColor> close filter</Text>
         </>
       ) : (
-        <>
+        <Text>
           {interceptorCount !== undefined && interceptorCount > 0 && (
             <>
               <Text color="magenta" bold>[{interceptorCount} interceptor{interceptorCount === 1 ? "" : "s"}]</Text>
@@ -113,16 +134,8 @@ export function StatusBar({
               <Text dimColor> │ </Text>
             </>
           )}
-          {visibleHints.map((hint, index) => (
-            <React.Fragment key={hint.key}>
-              <Text color="cyan" bold>
-                {hint.key}
-              </Text>
-              <Text dimColor> {hint.action}</Text>
-              {index < visibleHints.length - 1 && <Text dimColor> │ </Text>}
-            </React.Fragment>
-          ))}
-        </>
+          <HintContent hints={visibleHints} availableWidth={hintsAvailableWidth} />
+        </Text>
       )}
     </Box>
   );

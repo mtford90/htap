@@ -739,6 +739,7 @@ function AppContent({ __testEnableInput, projectRoot }: AppProps): React.ReactEl
         hasRequests={requests.length > 0}
         onBodySection={currentBodyIsExportable}
         onViewableBodySection={currentBodyIsExportable && !currentBodyIsBinary}
+        width={columns}
       />
     </Box>
   );

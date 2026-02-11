@@ -19,6 +19,19 @@ import {
 } from "../utils/json-tree.js";
 import { formatSize } from "../utils/formatters.js";
 import { copyToClipboard } from "../utils/clipboard.js";
+import { HintContent, type HintItem } from "./HintContent.js";
+
+const JSON_EXPLORER_HINTS: HintItem[] = [
+  { key: "j/k", action: "nav" },
+  { key: "^f/^b", action: "page" },
+  { key: "Enter/l", action: "toggle" },
+  { key: "h", action: "collapse" },
+  { key: "e/c", action: "expand/collapse all" },
+  { key: "/", action: "filter" },
+  { key: "n/N", action: "match" },
+  { key: "y", action: "copy" },
+  { key: "q/Esc", action: "close" },
+];
 
 export interface JsonExplorerModalProps {
   /** Pre-parsed JSON data */
@@ -318,7 +331,7 @@ export function JsonExplorerModal({
   // Header border
   const headerRight = ` ${shortCt} ${formatSize(bodySize)} `;
   const titlePart = ` ${title} `;
-  const headerBorderWidth = width - titlePart.length - headerRight.length - 2;
+  const headerBorderWidth = width - titlePart.length - headerRight.length - 4;
   const headerBorder = `┌─${titlePart}${"─".repeat(Math.max(0, headerBorderWidth))}${headerRight}─┐`;
 
   // Divider
@@ -380,9 +393,7 @@ export function JsonExplorerModal({
         {statusMessage ? (
           <Text color="green">{statusMessage}</Text>
         ) : (
-          <Text dimColor wrap="truncate">
-            j/k nav │ ^u/^d/^f/^b page │ Enter/l toggle │ h collapse │ e/c expand/collapse all │ / filter │ n/N match │ y copy │ q/Esc close
-          </Text>
+          <HintContent hints={JSON_EXPLORER_HINTS} availableWidth={width - 4} />
         )}
       </Box>
       <Text color="cyan">{footerBorder}</Text>
