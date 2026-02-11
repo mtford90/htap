@@ -889,6 +889,8 @@ describe("App keyboard interactions", () => {
 
       const { stdin } = render(<App __testEnableInput />);
       await tick();
+      // Allow initial render side-effects to fully settle before clearing
+      await tick();
 
       mockGetFullRequest.mockClear();
 
@@ -961,6 +963,8 @@ describe("App keyboard interactions", () => {
       setupMocksWithRequests(30);
 
       const { stdin } = render(<App __testEnableInput />);
+      await tick();
+      // Allow initial render side-effects to fully settle before clearing
       await tick();
 
       mockGetFullRequest.mockClear();

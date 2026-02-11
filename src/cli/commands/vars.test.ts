@@ -1,5 +1,11 @@
 import { describe, it, expect } from "vitest";
-import { formatEnvVars, formatUnsetVars } from "./vars.js";
+import { execSync } from "node:child_process";
+import {
+  formatEnvVars,
+  formatUnsetVars,
+  formatNodeOptionsExport,
+  formatNodeOptionsRestore,
+} from "./vars.js";
 
 describe("formatEnvVars", () => {
   it("formats single env var", () => {
@@ -122,5 +128,93 @@ describe("formatUnsetVars", () => {
     expect(result).toContain("unset NODE_EXTRA_CA_CERTS");
     expect(result).toContain("unset HTPX_SESSION_ID");
     expect(result).toContain("unset HTPX_LABEL");
+  });
+});
+
+describe("formatNodeOptionsExport", () => {
+  const preloadPath = "/Users/test/.htpx/proxy-preload.cjs";
+
+  it("saves original NODE_OPTIONS via ${param-word} guard", () => {
+    const result = formatNodeOptionsExport(preloadPath);
+    // Uses ${HTPX_ORIG_NODE_OPTIONS-...} (without colon) so it only falls through when truly unset
+    expect(result).toContain("HTPX_ORIG_NODE_OPTIONS");
+    expect(result).toContain("${HTPX_ORIG_NODE_OPTIONS-${NODE_OPTIONS:-}}");
+  });
+
+  it("appends --require with the preload path", () => {
+    const result = formatNodeOptionsExport(preloadPath);
+    expect(result).toContain("--require");
+    expect(result).toContain(preloadPath);
+  });
+
+  it("does not wrap the preload path in single quotes", () => {
+    const result = formatNodeOptionsExport(preloadPath);
+    // Single quotes inside double-quoted shell strings are literal — they must not appear
+    expect(result).not.toContain(`'${preloadPath}'`);
+    expect(result).not.toMatch(/--require\s+'/);
+  });
+
+  it("preserves existing NODE_OPTIONS when appending", () => {
+    const result = formatNodeOptionsExport(preloadPath);
+    // Should use ${HTPX_ORIG_NODE_OPTIONS:+...} to conditionally prepend original value
+    expect(result).toContain("${HTPX_ORIG_NODE_OPTIONS:+");
+  });
+
+  it("exports NODE_OPTIONS", () => {
+    const result = formatNodeOptionsExport(preloadPath);
+    expect(result).toContain("export NODE_OPTIONS=");
+  });
+
+  it("does not use if/then/fi (breaks in eval $() under zsh)", () => {
+    const result = formatNodeOptionsExport(preloadPath);
+    expect(result).not.toContain("if ");
+    expect(result).not.toContain("then");
+    expect(result).not.toContain("fi");
+  });
+
+  it("produces NODE_OPTIONS without literal quote characters after shell eval", () => {
+    const result = formatNodeOptionsExport(preloadPath);
+    // Evaluate the shell output and inspect the resulting NODE_OPTIONS value
+    const nodeOptions = execSync(`bash -c '${result.replace(/'/g, "'\\''")}\necho "$NODE_OPTIONS"'`)
+      .toString()
+      .trim();
+    expect(nodeOptions).toBe(`--require ${preloadPath}`);
+    expect(nodeOptions).not.toContain("'");
+  });
+
+  it("handles paths with spaces correctly after shell eval", () => {
+    const spacePath = "/Users/test user/.htpx/proxy-preload.cjs";
+    const result = formatNodeOptionsExport(spacePath);
+    const nodeOptions = execSync(`bash -c '${result.replace(/'/g, "'\\''")}\necho "$NODE_OPTIONS"'`)
+      .toString()
+      .trim();
+    expect(nodeOptions).toBe(`--require ${spacePath}`);
+    expect(nodeOptions).not.toContain("'");
+  });
+
+  it("escapes double-quote-significant characters in the path", () => {
+    const trickyPath = "/Users/test/.htpx/proxy-preload.cjs";
+    const result = formatNodeOptionsExport(trickyPath);
+    // The path should be escaped for double-quoted context (backslash, $, `, ", !)
+    // but should not contain single quotes
+    expect(result).not.toMatch(/--require\s+'/);
+  });
+});
+
+describe("formatNodeOptionsRestore", () => {
+  it("restores NODE_OPTIONS from saved value when non-empty", () => {
+    const result = formatNodeOptionsRestore();
+    expect(result).toContain("HTPX_ORIG_NODE_OPTIONS");
+    expect(result).toContain("export NODE_OPTIONS=");
+  });
+
+  it("unsets NODE_OPTIONS when original was empty", () => {
+    const result = formatNodeOptionsRestore();
+    expect(result).toContain("unset NODE_OPTIONS");
+  });
+
+  it("cleans up HTPX_ORIG_NODE_OPTIONS", () => {
+    const result = formatNodeOptionsRestore();
+    expect(result).toContain("unset HTPX_ORIG_NODE_OPTIONS");
   });
 });
