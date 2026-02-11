@@ -54,7 +54,7 @@ export function InfoModal({
         <Box marginTop={1}>
           <Text dimColor>
             Run{" "}
-            <Text color="cyan">eval $(htpx on)</Text>
+            <Text color="cyan">eval $(htpx vars)</Text>
             {" "}to start the proxy
           </Text>
         </Box>

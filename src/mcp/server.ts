@@ -962,7 +962,7 @@ export function createHtpxMcpServer(options: McpServerOptions) {
   // --- htpx_list_sessions ---
   server.tool(
     "htpx_list_sessions",
-    "List all active proxy sessions. Each session represents a process that registered with the daemon (e.g. a shell running `eval $(htpx on)`).",
+    "List all active proxy sessions. Each session represents a process that registered with the daemon (e.g. a shell running `eval $(htpx vars)`).",
     {},
     async () => {
       try {
