@@ -1,6 +1,6 @@
 {
   "name": "htpx-cli",
-  "version": "0.1.3",
+  "version": "0.2.0",
   "description": "Terminal HTTP interception toolkit",
   "type": "module",
   "main": "dist/cli/index.js",
