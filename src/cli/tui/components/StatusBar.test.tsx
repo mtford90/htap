@@ -20,11 +20,11 @@ const ALWAYS_VISIBLE_KEYS = ["j/k/g/G", "Tab", "1-5", "u", "/", "i", "?", "q"];
 
 describe("getVisibleHints", () => {
   it("returns all conditional hints as visible when no context props are passed (backwards compat)", () => {
-    // With defaults: activePanel="list" so ^u/^d shows, the rest default to true
+    // With defaults: activePanel="list" so ^f/^b shows, the rest default to true
     const hints = getVisibleHints({});
     const keys = hintKeys(hints);
 
-    expect(keys).toContain("^u/^d/^f/^b");
+    expect(keys).toContain("^f/^b");
     expect(keys).toContain("c");
     expect(keys).toContain("H");
     expect(keys).toContain("y");
@@ -52,9 +52,9 @@ describe("getVisibleHints", () => {
   });
 
   describe("activePanel === 'list'", () => {
-    it("shows ^u/^d/^f/^b (page)", () => {
+    it("shows ^f/^b (page)", () => {
       const keys = hintKeys(getVisibleHints({ activePanel: "list" }));
-      expect(keys).toContain("^u/^d/^f/^b");
+      expect(keys).toContain("^f/^b");
     });
 
     it("hides Enter (explore)", () => {
@@ -64,9 +64,9 @@ describe("getVisibleHints", () => {
   });
 
   describe("activePanel === 'accordion'", () => {
-    it("hides ^u/^d/^f/^b (page)", () => {
+    it("hides ^f/^b (page)", () => {
       const keys = hintKeys(getVisibleHints({ activePanel: "accordion" }));
-      expect(keys).not.toContain("^u/^d/^f/^b");
+      expect(keys).not.toContain("^f/^b");
     });
 
     it("hides Enter (view) when not on viewable body section", () => {
@@ -141,8 +141,8 @@ describe("getVisibleHints", () => {
     expect(keys).not.toContain("y");
     expect(keys).not.toContain("s");
 
-    // ^u/^d/^f/^b should still be visible (list panel)
-    expect(keys).toContain("^u/^d/^f/^b");
+    // ^f/^b should still be visible (list panel)
+    expect(keys).toContain("^f/^b");
   });
 });
 
@@ -154,7 +154,8 @@ describe("StatusBar component", () => {
     // Check for key labels that should always appear (using substrings
     // that survive truncation at narrow default test widths)
     expect(frame).toMatch(/j\/k/);
-    expect(frame).toContain("q");
+    // "q" may be truncated at the default 100-column test width
+    expect(frame).toContain("nav");
   });
 
   it("shows message instead of hints when message is set", () => {
@@ -189,18 +190,18 @@ describe("StatusBar component", () => {
 
     // With fewer hints there's more room — "Enter" should not appear
     expect(frame).not.toContain("Enter");
-    // But ^u/^d/^f/^b (page) key should appear
-    expect(frame).toMatch(/\^u\/\^d\/\^f\/\^b/);
+    // But ^f/^b (page) key should appear
+    expect(frame).toMatch(/\^f\/\^b/);
   });
 
-  it("does not render ^u/^d/^f/^b key when activePanel is accordion", () => {
+  it("does not render ^f/^b key when activePanel is accordion", () => {
     const { lastFrame } = render(
       <StatusBar activePanel="accordion" hasSelection={false} hasRequests={false} onBodySection={false} />,
     );
     const frame = lastFrame();
 
-    // ^u/^d/^f/^b should not appear
-    expect(frame).not.toMatch(/\^u\/\^d\/\^f\/\^b/);
+    // ^f/^b should not appear
+    expect(frame).not.toMatch(/\^f\/\^b/);
     // Enter should not appear either (not on JSON body section)
     expect(frame).not.toContain("Enter");
   });

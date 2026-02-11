@@ -140,6 +140,7 @@ export const RequestListItem = memo(function RequestListItem({
   // Calculate remaining width for path
   const pathWidth = Math.max(10, width - interceptionWidth - methodWidth - statusWidth - durationWidth - separatorsWidth);
   const displayPath = truncate(showFullUrl ? request.url : request.path, pathWidth);
+  const paddedPath = displayPath.padEnd(pathWidth);
 
   const statusText = request.responseStatus?.toString() ?? "...";
   const statusIndicator = getStatusIndicator(request.responseStatus);
@@ -150,28 +151,29 @@ export const RequestListItem = memo(function RequestListItem({
   const interception = getInterceptionIndicator(request.interceptionType);
 
   return (
-    <Box ref={ref}>
-      <Text color={indicatorColour}>{indicator}</Text>
-      <Text color={interception.colour}>{interception.text}</Text>
-      <Text color={getMethodColour(request.method)}>{formatMethod(request.method)}</Text>
-      <Text> </Text>
-      <Text color={getStatusColour(request.responseStatus)}>{statusIndicator}{statusText.padStart(3)}</Text>
-      <Text> </Text>
-      {searchTerm ? (
-        <Text dimColor={!isSelected}>
-          {splitByMatch(displayPath, searchTerm).map((seg, i) =>
-            seg.isMatch ? (
-              <Text key={i} color="yellow" bold>{seg.text}</Text>
-            ) : (
-              <Text key={i}>{seg.text}</Text>
-            ),
-          )}
-        </Text>
-      ) : (
-        <Text dimColor={!isSelected}>{displayPath}</Text>
-      )}
-      <Box flexGrow={1} />
-      <Text dimColor>{duration.padStart(durationWidth)}</Text>
+    <Box ref={ref} width={width}>
+      <Text wrap="truncate">
+        <Text color={indicatorColour}>{indicator}</Text>
+        <Text color={interception.colour}>{interception.text}</Text>
+        <Text color={getMethodColour(request.method)}>{formatMethod(request.method)}</Text>
+        <Text> </Text>
+        <Text color={getStatusColour(request.responseStatus)}>{statusIndicator}{statusText.padStart(3)}</Text>
+        <Text> </Text>
+        {searchTerm ? (
+          <Text dimColor={!isSelected}>
+            {splitByMatch(paddedPath, searchTerm).map((seg, i) =>
+              seg.isMatch ? (
+                <Text key={i} color="yellow" bold>{seg.text}</Text>
+              ) : (
+                <Text key={i}>{seg.text}</Text>
+              ),
+            )}
+          </Text>
+        ) : (
+          <Text dimColor={!isSelected}>{paddedPath}</Text>
+        )}
+        <Text dimColor>{duration.padStart(durationWidth)}</Text>
+      </Text>
     </Box>
   );
 }, (prevProps, nextProps) => {

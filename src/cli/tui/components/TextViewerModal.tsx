@@ -9,6 +9,17 @@ import { Box, Text, useInput } from "ink";
 import { highlightCode } from "../utils/syntax-highlight.js";
 import { formatSize } from "../utils/formatters.js";
 import { copyToClipboard } from "../utils/clipboard.js";
+import { HintContent, type HintItem } from "./HintContent.js";
+
+const TEXT_VIEWER_HINTS: HintItem[] = [
+  { key: "j/k", action: "nav" },
+  { key: "^f/^b", action: "page" },
+  { key: "g/G", action: "top/bottom" },
+  { key: "/", action: "search" },
+  { key: "n/N", action: "match" },
+  { key: "y", action: "copy" },
+  { key: "q/Esc", action: "close" },
+];
 
 export interface TextViewerModalProps {
   text: string;
@@ -232,7 +243,7 @@ export function TextViewerModal({
   // Header border
   const headerRight = ` ${shortCt} ${formatSize(bodySize)} `;
   const titlePart = ` ${title} `;
-  const headerBorderWidth = width - titlePart.length - headerRight.length - 2;
+  const headerBorderWidth = width - titlePart.length - headerRight.length - 4;
   const headerBorder = `\u250C\u2500${titlePart}${"\u2500".repeat(Math.max(0, headerBorderWidth))}${headerRight}\u2500\u2510`;
 
   // Divider
@@ -298,9 +309,7 @@ export function TextViewerModal({
         {statusMessage ? (
           <Text color="green">{statusMessage}</Text>
         ) : (
-          <Text dimColor wrap="truncate">
-            j/k nav {"\u2502"} ^u/^d/^f/^b page {"\u2502"} g/G top/bottom {"\u2502"} / search {"\u2502"} n/N match {"\u2502"} y copy {"\u2502"} q/Esc close
-          </Text>
+          <HintContent hints={TEXT_VIEWER_HINTS} availableWidth={width - 4} />
         )}
       </Box>
       <Text color="cyan">{footerBorder}</Text>
