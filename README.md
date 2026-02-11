@@ -15,7 +15,7 @@ No browser extensions, no separate apps. Point your shell at the proxy, make req
 ```bash
 npm install -g htpx-cli
 
-# One-time shell setup (add to ~/.zshrc or ~/.bashrc)
+# One-time shell setup
 eval "$(htpx init)"
 
 # In your project directory
