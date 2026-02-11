@@ -140,9 +140,18 @@ async function spawnDaemon(projectRoot: string, logLevel: LogLevel): Promise<num
   const out = fs.openSync(logFile, "a");
   const err = fs.openSync(logFile, "a");
 
+  // The daemon is the proxy itself — it must not load its own preload script.
+  // Strip NODE_OPTIONS (which contains --require for the preload) and the
+  // guard variable so they don't leak into the child.
+  const {
+    NODE_OPTIONS: _nodeOpts,
+    HTPX_ORIG_NODE_OPTIONS: _origNodeOpts,
+    ...cleanEnv
+  } = process.env;
+
   const child = spawn("node", [daemonPath], {
     env: {
-      ...process.env,
+      ...cleanEnv,
       PROJECT_ROOT: projectRoot,
       HTPX_LOG_LEVEL: logLevel,
     },

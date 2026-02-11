@@ -4,6 +4,7 @@ import { startDaemon } from "../../shared/daemon.js";
 import { ControlClient } from "../../shared/control-client.js";
 import { parseVerbosity } from "../../shared/logger.js";
 import { getErrorMessage, getGlobalOptions } from "./helpers.js";
+import { writeNodePreloadScript, getNodeEnvVars } from "../../overrides/node.js";
 
 /**
  * Escape a string for safe use inside double-quoted shell context.
@@ -37,13 +38,57 @@ export function formatUnsetVars(vars: string[]): string {
   return vars.map((key) => `unset ${key}`).join("\n");
 }
 
-// Environment variables managed by htpx
+/**
+ * Generate shell statements that save the current NODE_OPTIONS value
+ * and append a --require flag for the preload script.
+ *
+ * Uses HTPX_ORIG_NODE_OPTIONS as a guard — only saves the original
+ * value on the first call, so repeated `htpx vars` invocations are
+ * idempotent.
+ *
+ * This must be raw shell (not through formatEnvVars) because it needs
+ * `${}` variable expansion.
+ *
+ * Uses `${param-word}` (without colon) for the guard: expands to
+ * `word` only when `param` is truly unset, preserving an empty string
+ * if the user had no NODE_OPTIONS originally. This avoids if/then/fi
+ * which breaks inside `eval $(...)` in zsh.
+ */
+export function formatNodeOptionsExport(preloadPath: string): string {
+  const escaped = escapeDoubleQuoted(preloadPath);
+  return [
+    // Save original NODE_OPTIONS on first invocation only (${param-word} keeps existing value when set)
+    `export HTPX_ORIG_NODE_OPTIONS="\${HTPX_ORIG_NODE_OPTIONS-\${NODE_OPTIONS:-}}"`,
+    // Append --require to NODE_OPTIONS, preserving any existing value
+    // No inner quotes needed — the entire RHS is double-quoted so the shell won't word-split
+    `export NODE_OPTIONS="\${HTPX_ORIG_NODE_OPTIONS:+\${HTPX_ORIG_NODE_OPTIONS} }--require ${escaped}"`,
+  ].join("\n");
+}
+
+/**
+ * Generate shell statements that restore NODE_OPTIONS to its original
+ * value (or unset it if it was empty before htpx set it).
+ */
+export function formatNodeOptionsRestore(): string {
+  return [
+    // Restore to saved value; unset if the original was empty
+    `test -n "\${HTPX_ORIG_NODE_OPTIONS:-}" && export NODE_OPTIONS="\${HTPX_ORIG_NODE_OPTIONS}" || unset NODE_OPTIONS 2>/dev/null`,
+    "unset HTPX_ORIG_NODE_OPTIONS 2>/dev/null",
+  ].join("\n");
+}
+
+// Environment variables managed by htpx (used for --clear unset)
 const HTPX_ENV_VARS = [
   "HTTP_PROXY",
   "HTTPS_PROXY",
+  "http_proxy",
+  "https_proxy",
   "SSL_CERT_FILE",
   "REQUESTS_CA_BUNDLE",
   "NODE_EXTRA_CA_CERTS",
+  "GLOBAL_AGENT_HTTP_PROXY",
+  "GLOBAL_AGENT_HTTPS_PROXY",
+  "NODE_USE_ENV_PROXY",
   "HTPX_SESSION_ID",
   "HTPX_LABEL",
 ];
@@ -63,6 +108,9 @@ export const varsCommand = new Command("vars")
           console.log("  eval $(htpx vars --clear)");
           return;
         }
+
+        // Restore NODE_OPTIONS before standard unsets
+        console.log(formatNodeOptionsRestore());
 
         // Output unset statements for eval
         console.log(formatUnsetVars(HTPX_ENV_VARS));
@@ -112,6 +160,9 @@ export const varsCommand = new Command("vars")
         });
         const proxyUrl = `http://127.0.0.1:${proxyPort}`;
 
+        // Write the Node.js preload script to .htpx/
+        writeNodePreloadScript(paths.proxyPreloadFile);
+
         // Register session with daemon
         const client = new ControlClient(paths.controlSocketFile);
         try {
@@ -121,11 +172,16 @@ export const varsCommand = new Command("vars")
           const envVars: Record<string, string> = {
             HTTP_PROXY: proxyUrl,
             HTTPS_PROXY: proxyUrl,
+            // Lowercase variants — many Unix tools check lowercase only
+            http_proxy: proxyUrl,
+            https_proxy: proxyUrl,
             // Python requests library
             SSL_CERT_FILE: paths.caCertFile,
             REQUESTS_CA_BUNDLE: paths.caCertFile,
             // Node.js
             NODE_EXTRA_CA_CERTS: paths.caCertFile,
+            // Node.js runtime overrides (global-agent + undici)
+            ...getNodeEnvVars(proxyUrl),
             // htpx session tracking
             HTPX_SESSION_ID: session.id,
           };
@@ -154,6 +210,9 @@ export const varsCommand = new Command("vars")
 
           // Output env vars for eval
           console.log(formatEnvVars(envVars));
+
+          // NODE_OPTIONS requires raw shell expansion, output separately
+          console.log(formatNodeOptionsExport(paths.proxyPreloadFile));
 
           // Output confirmation as a comment (shown but not executed)
           const labelInfo = label ? ` (label: ${label})` : "";

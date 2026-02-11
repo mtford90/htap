@@ -133,6 +133,23 @@ Extend the existing cURL export (`c` key) with more formats.
 
 ---
 
+## Runtime-specific Proxy Overrides
+
+Many runtimes don't respect `HTTP_PROXY`/`HTTPS_PROXY` out of the box. htpx injects preload scripts or agent configuration per-runtime to ensure traffic flows through the proxy.
+
+| Runtime | Mechanism | Status | Notes |
+|---------|-----------|--------|-------|
+| **Node.js** | `NODE_OPTIONS --require` preload with `global-agent` + `undici` | **Done** | Covers `http`/`https` modules + native `fetch()` |
+| **Ruby** | `RUBYLIB` override with gem that patches `Net::HTTP` | Future | Ruby's `Net::HTTP` doesn't respect `HTTP_PROXY` by default |
+| **Python** | `PYTHONPATH` override with package patches | Future | `requests`/`urllib3` already respect env vars; stdlib `urllib` doesn't |
+| **Java** | `JAVA_TOOL_OPTIONS -javaagent:` with proxy agent JAR | Future | Java needs system properties (`http.proxyHost`) — env vars aren't enough |
+| **PHP** | `PHP_INI_SCAN_DIR` with custom php.ini | Future | PHP needs stream context config for proxy |
+| **Go** | No action needed | N/A | Go's `net/http` respects `HTTP_PROXY`/`HTTPS_PROXY` natively |
+| **Rust** | No action needed | N/A | `reqwest` respects env vars natively |
+| **Deno** | Certificate trust only (`DENO_CERT`) | Future | Deno respects proxy env vars natively |
+
+---
+
 ## Maybe (parked)
 
 - [ ] **Drop mockttp** — Replace with custom MITM for Bun portability
