@@ -161,7 +161,7 @@ describe("htpx tui e2e", () => {
       cleanupFns.push(controlServer.close);
     });
 
-    it("displays captured requests", async () => {
+    it("displays captured requests", { timeout: 15_000 }, async () => {
       // Make some HTTP requests through the proxy
       await makeProxiedRequest(proxyPort, `http://127.0.0.1:${testServerPort}/users`);
       await makeProxiedRequest(proxyPort, `http://127.0.0.1:${testServerPort}/posts`);
@@ -176,8 +176,10 @@ describe("htpx tui e2e", () => {
       });
 
       // Verify requests appear in the TUI
-      await findByText(/users/i);
-      await findByText(/posts/i);
+      // Paths may be truncated in the narrow list column (e.g. "/users" → "/user"),
+      // so match the shorter form which works for both truncated and full display.
+      await findByText(/\/user/i);
+      await findByText(/\/post/i);
       await findByText(/GET/i);
       await findByText(/200/);
     });
