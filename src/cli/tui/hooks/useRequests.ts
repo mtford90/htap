@@ -51,7 +51,7 @@ export function useRequests(options: UseRequestsOptions = {}): UseRequestsResult
   useEffect(() => {
     const resolvedRoot = projectRoot ?? findProjectRoot();
     if (!resolvedRoot) {
-      setError("Not in an procsi project. Run 'procsi init' first.");
+      setError("Not in a procsi project. Run 'eval \"$(procsi on)\"' first.");
       setIsLoading(false);
       return;
     }
@@ -95,7 +95,7 @@ export function useRequests(options: UseRequestsOptions = {}): UseRequestsResult
     } catch (err) {
       const message = err instanceof Error ? err.message : "Failed to connect to daemon";
       if (message.includes("ENOENT") || message.includes("ECONNREFUSED")) {
-        setError("Daemon not running. Start with 'eval $(procsi vars)'.");
+        setError("Daemon not running. Start with 'eval \"$(procsi on)\"'.");
       } else {
         setError(message);
       }

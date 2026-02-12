@@ -3,8 +3,8 @@
 import { program } from "commander";
 import { clearCommand } from "./commands/clear.js";
 import { debugDumpCommand } from "./commands/debug-dump.js";
-import { initCommand } from "./commands/init.js";
-import { varsCommand } from "./commands/vars.js";
+import { onCommand } from "./commands/on.js";
+import { offCommand } from "./commands/off.js";
 import { interceptorsCommand } from "./commands/interceptors.js";
 import { mcpCommand } from "./commands/mcp.js";
 import { projectCommand } from "./commands/project.js";
@@ -27,8 +27,8 @@ program
 
 program.addCommand(clearCommand);
 program.addCommand(debugDumpCommand);
-program.addCommand(initCommand);
-program.addCommand(varsCommand);
+program.addCommand(onCommand);
+program.addCommand(offCommand);
 program.addCommand(interceptorsCommand);
 program.addCommand(mcpCommand);
 program.addCommand(projectCommand);

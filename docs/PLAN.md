@@ -59,7 +59,7 @@ TypeScript interceptor files in `.procsi/interceptors/` — mock, modify, or obs
 - [ ] **Regexp filter** — support regex patterns in the filter bar
 - [ ] **Multiple filters** — compose filters (e.g. filter by `bigcommerce` AND `variants`)
 - [ ] **TUI body search** — search through request/response bodies from within the TUI (not just MCP)
-- [ ] **Remove `procsi init`** — internalise initialisation; `procsi init` sounds important but does nothing the auto-init doesn't already handle
+- [x] **Remove `procsi init`** — replaced `init`/`vars` with `procsi on`/`procsi off` as real CLI subcommands
 
 ---
 
