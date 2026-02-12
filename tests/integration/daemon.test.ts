@@ -88,7 +88,10 @@ describe("daemon integration", () => {
       });
       await new Promise<void>((resolve) => testServer.listen(0, "127.0.0.1", resolve));
       const testServerAddress = testServer.address() as { port: number };
-      cleanup.push(() => new Promise((resolve) => testServer.close(() => resolve())));
+      cleanup.push(() => {
+        testServer.closeAllConnections();
+        return new Promise((resolve) => testServer.close(() => resolve()));
+      });
 
       // Make request through proxy
       await makeProxiedRequest(proxy.port, `http://127.0.0.1:${testServerAddress.port}/test`);
@@ -109,7 +112,10 @@ describe("daemon integration", () => {
 
       await new Promise<void>((resolve) => testServer.listen(0, "127.0.0.1", resolve));
       const testServerAddress = testServer.address() as { port: number };
-      cleanup.push(() => new Promise((resolve) => testServer.close(() => resolve())));
+      cleanup.push(() => {
+        testServer.closeAllConnections();
+        return new Promise((resolve) => testServer.close(() => resolve()));
+      });
 
       // Start proxy
       const session = storage.registerSession("test", process.pid);
@@ -159,7 +165,10 @@ describe("daemon integration", () => {
 
       await new Promise<void>((resolve) => testServer.listen(0, "127.0.0.1", resolve));
       const testServerAddress = testServer.address() as { port: number };
-      cleanup.push(() => new Promise((resolve) => testServer.close(() => resolve())));
+      cleanup.push(() => {
+        testServer.closeAllConnections();
+        return new Promise((resolve) => testServer.close(() => resolve()));
+      });
 
       const session = storage.registerSession("test", process.pid);
       const proxy = await createProxy({
@@ -201,7 +210,10 @@ describe("daemon integration", () => {
 
       await new Promise<void>((resolve) => testServer.listen(0, "127.0.0.1", resolve));
       const testServerAddress = testServer.address() as { port: number };
-      cleanup.push(() => new Promise((resolve) => testServer.close(() => resolve())));
+      cleanup.push(() => {
+        testServer.closeAllConnections();
+        return new Promise((resolve) => testServer.close(() => resolve()));
+      });
 
       const session = storage.registerSession("test", process.pid);
       const proxy = await createProxy({
@@ -248,7 +260,10 @@ describe("daemon integration", () => {
 
       await new Promise<void>((resolve) => testServer.listen(0, "127.0.0.1", resolve));
       const testServerAddress = testServer.address() as { port: number };
-      cleanup.push(() => new Promise((resolve) => testServer.close(() => resolve())));
+      cleanup.push(() => {
+        testServer.closeAllConnections();
+        return new Promise((resolve) => testServer.close(() => resolve()));
+      });
 
       const session = storage.registerSession("test", process.pid);
       const proxy = await createProxy({
@@ -290,7 +305,10 @@ describe("daemon integration", () => {
 
       await new Promise<void>((resolve) => testServer.listen(0, "127.0.0.1", resolve));
       const testServerAddress = testServer.address() as { port: number };
-      cleanup.push(() => new Promise((resolve) => testServer.close(() => resolve())));
+      cleanup.push(() => {
+        testServer.closeAllConnections();
+        return new Promise((resolve) => testServer.close(() => resolve()));
+      });
 
       const session = storage.registerSession("test", process.pid);
       const proxy = await createProxy({
@@ -328,7 +346,10 @@ describe("daemon integration", () => {
 
       await new Promise<void>((resolve) => testServer.listen(0, "127.0.0.1", resolve));
       const testServerAddress = testServer.address() as { port: number };
-      cleanup.push(() => new Promise((resolve) => testServer.close(() => resolve())));
+      cleanup.push(() => {
+        testServer.closeAllConnections();
+        return new Promise((resolve) => testServer.close(() => resolve()));
+      });
 
       const session = storage.registerSession("test", process.pid);
       const proxy = await createProxy({
@@ -748,6 +769,7 @@ function makeProxiedRequest(
       method: "GET",
       headers: {
         Host: parsedUrl.host,
+        Connection: "close",
       },
     };
 
@@ -783,6 +805,7 @@ function makeProxiedPostRequest(
       method,
       headers: {
         Host: parsedUrl.host,
+        Connection: "close",
         "Content-Length": String(bodyBuffer.length),
         ...headers,
       },

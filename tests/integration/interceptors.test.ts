@@ -59,7 +59,10 @@ describe("interceptor integration", { timeout: 30_000 }, () => {
     });
     await new Promise<void>((resolve) => testServer.listen(0, "127.0.0.1", resolve));
     const testPort = (testServer.address() as { port: number }).port;
-    cleanup.push(() => new Promise((resolve) => testServer.close(() => resolve())));
+    cleanup.push(() => {
+      testServer.closeAllConnections();
+      return new Promise((resolve) => testServer.close(() => resolve()));
+    });
 
     // Load interceptors via jiti
     const htpxClient = createHtpxClient(storage);
@@ -107,7 +110,7 @@ describe("interceptor integration", { timeout: 30_000 }, () => {
           port: proxyPort,
           path: url,
           method: options?.method ?? "GET",
-          headers: { Host: parsedUrl.host, ...options?.headers },
+          headers: { Host: parsedUrl.host, Connection: "close", ...options?.headers },
         },
         (res) => {
           let body = "";

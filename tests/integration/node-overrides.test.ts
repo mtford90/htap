@@ -59,7 +59,10 @@ describe("node overrides integration", () => {
     });
     await new Promise<void>((resolve) => testServer.listen(0, "127.0.0.1", resolve));
     upstreamPort = (testServer.address() as { port: number }).port;
-    cleanup.push(() => new Promise((resolve) => testServer.close(() => resolve())));
+    cleanup.push(() => {
+      testServer.closeAllConnections();
+      return new Promise((resolve) => testServer.close(() => resolve()));
+    });
 
     // Start proxy
     const proxy = await createProxy({

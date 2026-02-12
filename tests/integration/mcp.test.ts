@@ -106,7 +106,7 @@ describe("MCP integration", () => {
           port: proxyPort,
           path: url,
           method: "GET",
-          headers: { Host: parsedUrl.host },
+          headers: { Host: parsedUrl.host, Connection: "close" },
         },
         (res) => {
           let body = "";
@@ -139,6 +139,7 @@ describe("MCP integration", () => {
           method: "POST",
           headers: {
             Host: parsedUrl.host,
+            Connection: "close",
             "Content-Length": String(bodyBuffer.length),
             ...headers,
           },
@@ -176,7 +177,10 @@ describe("MCP integration", () => {
     });
     await new Promise<void>((resolve) => testServer.listen(0, "127.0.0.1", resolve));
     const testAddr = testServer.address() as { port: number };
-    cleanup.push(() => new Promise((resolve) => testServer.close(() => resolve())));
+    cleanup.push(() => {
+      testServer.closeAllConnections();
+      return new Promise((resolve) => testServer.close(() => resolve()));
+    });
 
     await makeProxiedRequest(proxy.port, `http://127.0.0.1:${testAddr.port}/api/users`);
     await new Promise((resolve) => setTimeout(resolve, 150));
@@ -202,7 +206,10 @@ describe("MCP integration", () => {
     });
     await new Promise<void>((resolve) => testServer.listen(0, "127.0.0.1", resolve));
     const testAddr = testServer.address() as { port: number };
-    cleanup.push(() => new Promise((resolve) => testServer.close(() => resolve())));
+    cleanup.push(() => {
+      testServer.closeAllConnections();
+      return new Promise((resolve) => testServer.close(() => resolve()));
+    });
 
     const baseUrl = `http://127.0.0.1:${testAddr.port}`;
     await makeProxiedRequest(proxy.port, `${baseUrl}/api/get-endpoint`);
@@ -235,7 +242,10 @@ describe("MCP integration", () => {
     });
     await new Promise<void>((resolve) => testServer.listen(0, "127.0.0.1", resolve));
     const testAddr = testServer.address() as { port: number };
-    cleanup.push(() => new Promise((resolve) => testServer.close(() => resolve())));
+    cleanup.push(() => {
+      testServer.closeAllConnections();
+      return new Promise((resolve) => testServer.close(() => resolve()));
+    });
 
     await makeProxiedPostRequest(
       proxy.port,
@@ -300,7 +310,10 @@ describe("MCP integration", () => {
     });
     await new Promise<void>((resolve) => testServer.listen(0, "127.0.0.1", resolve));
     const testAddr = testServer.address() as { port: number };
-    cleanup.push(() => new Promise((resolve) => testServer.close(() => resolve())));
+    cleanup.push(() => {
+      testServer.closeAllConnections();
+      return new Promise((resolve) => testServer.close(() => resolve()));
+    });
 
     await makeProxiedRequest(proxy.port, `http://127.0.0.1:${testAddr.port}/api/secret`);
     await new Promise((resolve) => setTimeout(resolve, 150));
@@ -325,7 +338,10 @@ describe("MCP integration", () => {
     });
     await new Promise<void>((resolve) => testServer.listen(0, "127.0.0.1", resolve));
     const testAddr = testServer.address() as { port: number };
-    cleanup.push(() => new Promise((resolve) => testServer.close(() => resolve())));
+    cleanup.push(() => {
+      testServer.closeAllConnections();
+      return new Promise((resolve) => testServer.close(() => resolve()));
+    });
 
     await makeProxiedRequest(proxy.port, `http://127.0.0.1:${testAddr.port}/api/data`);
     await new Promise((resolve) => setTimeout(resolve, 150));
@@ -371,7 +387,10 @@ describe("MCP integration", () => {
     });
     await new Promise<void>((resolve) => testServer.listen(0, "127.0.0.1", resolve));
     const testAddr = testServer.address() as { port: number };
-    cleanup.push(() => new Promise((resolve) => testServer.close(() => resolve())));
+    cleanup.push(() => {
+      testServer.closeAllConnections();
+      return new Promise((resolve) => testServer.close(() => resolve()));
+    });
 
     const baseUrl = `http://127.0.0.1:${testAddr.port}`;
     await makeProxiedRequest(proxy.port, `${baseUrl}/first`);
@@ -405,7 +424,10 @@ describe("MCP integration", () => {
     });
     await new Promise<void>((resolve) => testServer.listen(0, "127.0.0.1", resolve));
     const testAddr = testServer.address() as { port: number };
-    cleanup.push(() => new Promise((resolve) => testServer.close(() => resolve())));
+    cleanup.push(() => {
+      testServer.closeAllConnections();
+      return new Promise((resolve) => testServer.close(() => resolve()));
+    });
 
     const baseUrl = `http://127.0.0.1:${testAddr.port}`;
     await makeProxiedRequest(proxy.port, `${baseUrl}/api/users`);
@@ -437,7 +459,10 @@ describe("MCP integration", () => {
     });
     await new Promise<void>((resolve) => testServer.listen(0, "127.0.0.1", resolve));
     const testAddr = testServer.address() as { port: number };
-    cleanup.push(() => new Promise((resolve) => testServer.close(() => resolve())));
+    cleanup.push(() => {
+      testServer.closeAllConnections();
+      return new Promise((resolve) => testServer.close(() => resolve()));
+    });
 
     const baseUrl = `http://127.0.0.1:${testAddr.port}`;
     await makeProxiedRequest(proxy.port, `${baseUrl}/ok`);
@@ -465,7 +490,10 @@ describe("MCP integration", () => {
     });
     await new Promise<void>((resolve) => server1.listen(0, "127.0.0.1", resolve));
     const addr1 = server1.address() as { port: number };
-    cleanup.push(() => new Promise((resolve) => server1.close(() => resolve())));
+    cleanup.push(() => {
+      server1.closeAllConnections();
+      return new Promise((resolve) => server1.close(() => resolve()));
+    });
 
     const server2 = http.createServer((req, res) => {
       res.writeHead(200, { "Content-Type": "application/json" });
@@ -473,7 +501,10 @@ describe("MCP integration", () => {
     });
     await new Promise<void>((resolve) => server2.listen(0, "127.0.0.1", resolve));
     const addr2 = server2.address() as { port: number };
-    cleanup.push(() => new Promise((resolve) => server2.close(() => resolve())));
+    cleanup.push(() => {
+      server2.closeAllConnections();
+      return new Promise((resolve) => server2.close(() => resolve()));
+    });
 
     await makeProxiedRequest(proxy.port, `http://127.0.0.1:${addr1.port}/api/one`);
     await makeProxiedRequest(proxy.port, `http://127.0.0.1:${addr2.port}/api/two`);
@@ -547,7 +578,10 @@ describe("MCP integration", () => {
     });
     await new Promise<void>((resolve) => testServer.listen(0, "127.0.0.1", resolve));
     const testAddr = testServer.address() as { port: number };
-    cleanup.push(() => new Promise((resolve) => testServer.close(() => resolve())));
+    cleanup.push(() => {
+      testServer.closeAllConnections();
+      return new Promise((resolve) => testServer.close(() => resolve()));
+    });
 
     const baseUrl = `http://127.0.0.1:${testAddr.port}`;
     await makeProxiedRequest(proxy.port, `${baseUrl}/api/get-it`);
@@ -577,7 +611,10 @@ describe("MCP integration", () => {
     });
     await new Promise<void>((resolve) => testServer.listen(0, "127.0.0.1", resolve));
     const testAddr = testServer.address() as { port: number };
-    cleanup.push(() => new Promise((resolve) => testServer.close(() => resolve())));
+    cleanup.push(() => {
+      testServer.closeAllConnections();
+      return new Promise((resolve) => testServer.close(() => resolve()));
+    });
 
     const baseUrl = `http://127.0.0.1:${testAddr.port}`;
     await makeProxiedRequest(proxy.port, `${baseUrl}/one`);
@@ -603,7 +640,10 @@ describe("MCP integration", () => {
     });
     await new Promise<void>((resolve) => testServer.listen(0, "127.0.0.1", resolve));
     const testAddr = testServer.address() as { port: number };
-    cleanup.push(() => new Promise((resolve) => testServer.close(() => resolve())));
+    cleanup.push(() => {
+      testServer.closeAllConnections();
+      return new Promise((resolve) => testServer.close(() => resolve()));
+    });
 
     const baseUrl = `http://127.0.0.1:${testAddr.port}`;
     await makeProxiedRequest(proxy.port, `${baseUrl}/get-it`);
@@ -630,7 +670,10 @@ describe("MCP integration", () => {
     });
     await new Promise<void>((resolve) => testServer.listen(0, "127.0.0.1", resolve));
     const testAddr = testServer.address() as { port: number };
-    cleanup.push(() => new Promise((resolve) => testServer.close(() => resolve())));
+    cleanup.push(() => {
+      testServer.closeAllConnections();
+      return new Promise((resolve) => testServer.close(() => resolve()));
+    });
 
     await makeProxiedRequest(proxy.port, `http://127.0.0.1:${testAddr.port}/data`);
     await new Promise((resolve) => setTimeout(resolve, 150));
@@ -669,7 +712,10 @@ describe("MCP integration", () => {
     });
     await new Promise<void>((resolve) => testServer.listen(0, "127.0.0.1", resolve));
     const testAddr = testServer.address() as { port: number };
-    cleanup.push(() => new Promise((resolve) => testServer.close(() => resolve())));
+    cleanup.push(() => {
+      testServer.closeAllConnections();
+      return new Promise((resolve) => testServer.close(() => resolve()));
+    });
 
     const baseUrl = `http://127.0.0.1:${testAddr.port}`;
     await makeProxiedRequest(proxy.port, `${baseUrl}/alpha`);
@@ -704,7 +750,10 @@ describe("MCP integration", () => {
     });
     await new Promise<void>((resolve) => testServer.listen(0, "127.0.0.1", resolve));
     const testAddr = testServer.address() as { port: number };
-    cleanup.push(() => new Promise((resolve) => testServer.close(() => resolve())));
+    cleanup.push(() => {
+      testServer.closeAllConnections();
+      return new Promise((resolve) => testServer.close(() => resolve()));
+    });
 
     await makeProxiedRequest(proxy.port, `http://127.0.0.1:${testAddr.port}/exists`);
     await new Promise((resolve) => setTimeout(resolve, 150));
@@ -735,7 +784,10 @@ describe("MCP integration", () => {
     });
     await new Promise<void>((resolve) => testServer.listen(0, "127.0.0.1", resolve));
     const testAddr = testServer.address() as { port: number };
-    cleanup.push(() => new Promise((resolve) => testServer.close(() => resolve())));
+    cleanup.push(() => {
+      testServer.closeAllConnections();
+      return new Promise((resolve) => testServer.close(() => resolve()));
+    });
 
     const baseUrl = `http://127.0.0.1:${testAddr.port}`;
     await makeProxiedRequest(proxy.port, `${baseUrl}/a`);
@@ -765,7 +817,10 @@ describe("MCP integration", () => {
     });
     await new Promise<void>((resolve) => testServer.listen(0, "127.0.0.1", resolve));
     const testAddr = testServer.address() as { port: number };
-    cleanup.push(() => new Promise((resolve) => testServer.close(() => resolve())));
+    cleanup.push(() => {
+      testServer.closeAllConnections();
+      return new Promise((resolve) => testServer.close(() => resolve()));
+    });
 
     await makeProxiedPostRequest(
       proxy.port,
@@ -809,7 +864,10 @@ describe("MCP integration", () => {
     });
     await new Promise<void>((resolve) => testServer.listen(0, "127.0.0.1", resolve));
     const testAddr = testServer.address() as { port: number };
-    cleanup.push(() => new Promise((resolve) => testServer.close(() => resolve())));
+    cleanup.push(() => {
+      testServer.closeAllConnections();
+      return new Promise((resolve) => testServer.close(() => resolve()));
+    });
 
     await makeProxiedRequest(proxy.port, `http://127.0.0.1:${testAddr.port}/api/data`);
     await new Promise((resolve) => setTimeout(resolve, 150));
@@ -838,7 +896,10 @@ describe("MCP integration", () => {
     });
     await new Promise<void>((resolve) => testServer.listen(0, "127.0.0.1", resolve));
     const testAddr = testServer.address() as { port: number };
-    cleanup.push(() => new Promise((resolve) => testServer.close(() => resolve())));
+    cleanup.push(() => {
+      testServer.closeAllConnections();
+      return new Promise((resolve) => testServer.close(() => resolve()));
+    });
 
     await makeProxiedRequest(proxy.port, `http://127.0.0.1:${testAddr.port}/one`);
     await makeProxiedRequest(proxy.port, `http://127.0.0.1:${testAddr.port}/two`);
@@ -867,7 +928,10 @@ describe("MCP integration", () => {
     });
     await new Promise<void>((resolve) => testServer.listen(0, "127.0.0.1", resolve));
     const testAddr = testServer.address() as { port: number };
-    cleanup.push(() => new Promise((resolve) => testServer.close(() => resolve())));
+    cleanup.push(() => {
+      testServer.closeAllConnections();
+      return new Promise((resolve) => testServer.close(() => resolve()));
+    });
 
     await makeProxiedPostRequest(
       proxy.port,
@@ -909,7 +973,10 @@ describe("MCP integration", () => {
     });
     await new Promise<void>((resolve) => testServer.listen(0, "127.0.0.1", resolve));
     const testAddr = testServer.address() as { port: number };
-    cleanup.push(() => new Promise((resolve) => testServer.close(() => resolve())));
+    cleanup.push(() => {
+      testServer.closeAllConnections();
+      return new Promise((resolve) => testServer.close(() => resolve()));
+    });
 
     await makeProxiedRequest(proxy.port, `http://127.0.0.1:${testAddr.port}/image.png`);
     await new Promise((resolve) => setTimeout(resolve, 150));
@@ -1201,7 +1268,10 @@ describe("MCP integration", () => {
     });
     await new Promise<void>((resolve) => testServer.listen(0, "127.0.0.1", resolve));
     const testAddr = testServer.address() as { port: number };
-    cleanup.push(() => new Promise((resolve) => testServer.close(() => resolve())));
+    cleanup.push(() => {
+      testServer.closeAllConnections();
+      return new Promise((resolve) => testServer.close(() => resolve()));
+    });
 
     await makeProxiedPostRequest(
       proxy.port,
