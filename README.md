@@ -15,26 +15,13 @@ No browser extensions, no global system proxy, no separate apps. A MITM proxy ca
 ```bash
 npm install -g procsi
 
-# One-time shell setup
-eval "$(procsi init)"
-
 # In your project directory
-procsi on
+eval "$(procsi on)"
 curl https://api.example.com/users
 procsi tui
 ```
 
 Requires Node.js 20+.
-
-### Shell Setup
-
-Run this once per shell session (or add it to your shell profile):
-
-```bash
-eval "$(procsi init)"
-```
-
-This creates a shell function that lets `procsi on`/`procsi off` set proxy environment variables in your current session.
 
 ## Features
 
@@ -217,7 +204,7 @@ Add procsi to your MCP client config:
 }
 ```
 
-The proxy must be running (`procsi on` or `eval "$(procsi vars)"`) — the MCP server connects to the same daemon as the TUI.
+The proxy must be running (`eval "$(procsi on)"`) — the MCP server connects to the same daemon as the TUI.
 
 ### Agent Skill
 
@@ -330,11 +317,11 @@ procsi_list_requests({ header_name: "authorization", header_target: "request" })
 └─────────────────────────────────────────────────────────────┘
 ```
 
-`procsi on` (via the shell wrapper) starts a daemon, sets `HTTP_PROXY`/`HTTPS_PROXY` in your shell, and captures everything that flows through. `procsi off` unsets them. The TUI connects to the daemon via Unix socket.
+`eval "$(procsi on)"` starts a daemon, sets `HTTP_PROXY`/`HTTPS_PROXY` in your shell, and captures everything that flows through. `eval "$(procsi off)"` unsets them. The TUI connects to the daemon via Unix socket.
 
 ### Environment Variables
 
-`procsi on` sets these in your shell (`procsi off` unsets them). Without the shell wrapper, use `eval "$(procsi vars)"` and `eval "$(procsi vars --clear)"`:
+`eval "$(procsi on)"` sets these in your shell (`eval "$(procsi off)"` unsets them):
 
 | Variable | Purpose |
 |----------|---------|
@@ -472,25 +459,28 @@ Mouse support: click to select, scroll to navigate, click panels to focus.
 | `-v, --verbose` | Increase log verbosity (stackable: `-vv`, `-vvv`) |
 | `-d, --dir <path>` | Override project root directory |
 
-### `procsi init`
+### `procsi on`
 
-Output shell wrapper function. Enables `procsi on`/`procsi off` to set environment variables in the current shell.
-
-### `procsi vars`
-
-Output shell `export` statements to set proxy environment variables. Use with `eval`:
+Output shell `export` statements to start intercepting HTTP traffic. Use with `eval`:
 
 ```bash
-eval "$(procsi vars)"
+eval "$(procsi on)"
 ```
 
-With the shell wrapper from `procsi init`, you can use the simpler `procsi on` instead.
+If run directly in a TTY (without `eval`), shows usage instructions.
 
 | Flag | Description |
 |------|-------------|
 | `-l, --label <label>` | Label this session (visible in TUI and MCP) |
 | `--no-restart` | Don't auto-restart daemon on version mismatch |
-| `--clear` | Output `unset` statements to stop interception |
+
+### `procsi off`
+
+Output shell `unset` statements to stop intercepting HTTP traffic. Use with `eval`:
+
+```bash
+eval "$(procsi off)"
+```
 
 ### `procsi tui`
 
@@ -571,7 +561,7 @@ Check if something else is using the socket:
 ```bash
 procsi status
 procsi daemon stop
-procsi on  # or: eval "$(procsi vars)"
+eval "$(procsi on)"
 ```
 
 ### Terminal too small

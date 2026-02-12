@@ -856,7 +856,7 @@ describe("App keyboard interactions", () => {
       const { lastFrame } = render(<App __testEnableInput />);
       const frame = lastFrame();
 
-      expect(frame).toContain("eval $(procsi vars)");
+      expect(frame).toContain("eval \"$(procsi on)\"");
     });
   });
 

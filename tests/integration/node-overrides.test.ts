@@ -193,7 +193,7 @@ describe("node overrides integration", () => {
   });
 
   it("crashes when NODE_OPTIONS contains literal single quotes around the path", async () => {
-    // Reproduces the bug: `eval $(procsi vars)` used to produce NODE_OPTIONS
+    // Reproduces the bug: `eval "$(procsi on)"` used to produce NODE_OPTIONS
     // with literal single quotes inside a double-quoted shell string.
     // Node.js interprets the quotes as part of the filename and fails.
     const quotedNodeOptions = `--require '${paths.proxyPreloadFile}'`;

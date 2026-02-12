@@ -5,7 +5,7 @@ import {
   formatUnsetVars,
   formatNodeOptionsExport,
   formatNodeOptionsRestore,
-} from "./vars.js";
+} from "./on.js";
 
 describe("formatEnvVars", () => {
   it("formats single env var", () => {

@@ -7,8 +7,7 @@ Use procsi to inspect, filter, and intercept HTTP traffic. Activate when procsi 
 If procsi is not installed or the daemon is not running, you can set it up:
 
 1. **Install**: `npm install -g procsi`
-2. **Shell setup** (one-time): Add `eval "$(procsi init)"` to the user's shell config (`~/.zshrc` or `~/.bashrc`), then source it or ask them to restart their shell
-3. **Start intercepting**: `eval "$(procsi vars)"` in the project directory (or `procsi on` if the shell wrapper is installed)
+2. **Start intercepting**: `eval "$(procsi on)"` in the project directory
 4. **MCP config**: Add procsi to the MCP configuration:
    ```json
    {
@@ -33,7 +32,7 @@ After setup, call `procsi_get_status` to verify the daemon is running.
 
 ## Preflight
 
-Always call `procsi_get_status` first to confirm the daemon is running. If it is not running, try to start it by running `eval "$(procsi vars)"` in the project directory. If procsi is not installed, follow the Installation & Setup steps above.
+Always call `procsi_get_status` first to confirm the daemon is running. If it is not running, try to start it by running `eval "$(procsi on)"` in the project directory. If procsi is not installed, follow the Installation & Setup steps above.
 
 ## MCP Tool Reference
 

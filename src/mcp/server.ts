@@ -962,7 +962,7 @@ export function createProcsiMcpServer(options: McpServerOptions) {
   // --- procsi_list_sessions ---
   server.tool(
     "procsi_list_sessions",
-    "List all active proxy sessions. Each session represents a process that registered with the daemon (e.g. a shell running `eval $(procsi vars)`).",
+    'List all active proxy sessions. Each session represents a process that registered with the daemon (e.g. a shell running `eval "$(procsi on)"`).',
     {},
     async () => {
       try {

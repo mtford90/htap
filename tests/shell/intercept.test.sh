@@ -57,90 +57,55 @@ init_test_project() {
 }
 
 # ------------------------------------------------------------------------------
-# Test: procsi init outputs valid shell function
+# Test: procsi on outputs env vars
 # ------------------------------------------------------------------------------
-test_init_outputs_function() {
-  local output
-  output=$(node "$PROCSI_BIN" init)
-
-  if echo "$output" | grep -q "procsi()"; then
-    pass "procsi init outputs function definition"
-  else
-    fail "procsi init outputs function definition" "Output: $output"
-    return
-  fi
-
-  if echo "$output" | grep -q 'eval'; then
-    pass "procsi init includes eval for on/off"
-  else
-    fail "procsi init includes eval for on/off" "Output: $output"
-  fi
-}
-
-# ------------------------------------------------------------------------------
-# Test: sourcing procsi init creates function
-# ------------------------------------------------------------------------------
-test_sourcing_creates_function() {
-  # Source the init output
-  eval "$(node "$PROCSI_BIN" init)"
-
-  if type procsi &>/dev/null; then
-    pass "sourcing procsi init creates procsi function"
-  else
-    fail "sourcing procsi init creates procsi function" "procsi function not found after sourcing"
-  fi
-}
-
-# ------------------------------------------------------------------------------
-# Test: procsi vars outputs env vars
-# ------------------------------------------------------------------------------
-test_vars_outputs_env_vars() {
+test_on_outputs_env_vars() {
   init_test_project
 
   local output
-  output=$(node "$PROCSI_BIN" vars --label=test-session 2>&1)
+  output=$(node "$PROCSI_BIN" on --label=test-session 2>&1)
 
   # Check for HTTP_PROXY
   if echo "$output" | grep -q 'export HTTP_PROXY='; then
-    pass "procsi vars outputs HTTP_PROXY"
+    pass "procsi on outputs HTTP_PROXY"
   else
-    fail "procsi vars outputs HTTP_PROXY" "Output: $output"
+    fail "procsi on outputs HTTP_PROXY" "Output: $output"
     return
   fi
 
   # Check for HTTPS_PROXY
   if echo "$output" | grep -q 'export HTTPS_PROXY='; then
-    pass "procsi vars outputs HTTPS_PROXY"
+    pass "procsi on outputs HTTPS_PROXY"
   else
-    fail "procsi vars outputs HTTPS_PROXY" "Output: $output"
+    fail "procsi on outputs HTTPS_PROXY" "Output: $output"
   fi
 
   # Check for SSL_CERT_FILE
   if echo "$output" | grep -q 'export SSL_CERT_FILE='; then
-    pass "procsi vars outputs SSL_CERT_FILE"
+    pass "procsi on outputs SSL_CERT_FILE"
   else
-    fail "procsi vars outputs SSL_CERT_FILE" "Output: $output"
+    fail "procsi on outputs SSL_CERT_FILE" "Output: $output"
   fi
 
   # Check for NODE_EXTRA_CA_CERTS
   if echo "$output" | grep -q 'export NODE_EXTRA_CA_CERTS='; then
-    pass "procsi vars outputs NODE_EXTRA_CA_CERTS"
+    pass "procsi on outputs NODE_EXTRA_CA_CERTS"
   else
-    fail "procsi vars outputs NODE_EXTRA_CA_CERTS" "Output: $output"
+    fail "procsi on outputs NODE_EXTRA_CA_CERTS" "Output: $output"
   fi
 
   # Check for session ID
   if echo "$output" | grep -q 'export PROCSI_SESSION_ID='; then
-    pass "procsi vars outputs PROCSI_SESSION_ID"
+    pass "procsi on outputs PROCSI_SESSION_ID"
   else
-    fail "procsi vars outputs PROCSI_SESSION_ID" "Output: $output"
+    fail "procsi on outputs PROCSI_SESSION_ID" "Output: $output"
   fi
 
   # Check for label
   if echo "$output" | grep -q 'export PROCSI_LABEL='; then
-    pass "procsi vars outputs PROCSI_LABEL when provided"
+    pass "procsi on outputs PROCSI_LABEL when provided"
   else
-    fail "procsi vars outputs PROCSI_LABEL when provided" "Output: $output"
+    fail "procsi on outputs PROCSI_LABEL when provided" "Output: $output"
   fi
 
   # Stop daemon after test
@@ -148,13 +113,13 @@ test_vars_outputs_env_vars() {
 }
 
 # ------------------------------------------------------------------------------
-# Test: procsi vars env vars can be evaluated
+# Test: procsi on env vars can be evaluated
 # ------------------------------------------------------------------------------
-test_vars_env_vars_evaluable() {
+test_on_env_vars_evaluable() {
   init_test_project
 
   # Evaluate the output
-  eval "$(node "$PROCSI_BIN" vars --label=eval-test 2>&1 | grep '^export')"
+  eval "$(node "$PROCSI_BIN" on --label=eval-test 2>&1 | grep '^export')"
 
   # Check env vars are set
   if [[ -n "${HTTP_PROXY:-}" ]]; then
@@ -186,8 +151,8 @@ test_vars_env_vars_evaluable() {
 test_status_shows_running() {
   init_test_project
 
-  # Start daemon via vars
-  eval "$(node "$PROCSI_BIN" vars 2>&1 | grep '^export')"
+  # Start daemon via on
+  eval "$(node "$PROCSI_BIN" on 2>&1 | grep '^export')"
 
   # Check status
   local output
@@ -216,8 +181,8 @@ test_status_shows_running() {
 test_stop_daemon() {
   init_test_project
 
-  # Start daemon via vars
-  eval "$(node "$PROCSI_BIN" vars 2>&1 | grep '^export')"
+  # Start daemon via on
+  eval "$(node "$PROCSI_BIN" on 2>&1 | grep '^export')"
 
   # Stop daemon
   local output
@@ -247,8 +212,8 @@ test_stop_daemon() {
 test_clear_requests() {
   init_test_project
 
-  # Start daemon via vars
-  eval "$(node "$PROCSI_BIN" vars 2>&1 | grep '^export')"
+  # Start daemon via on
+  eval "$(node "$PROCSI_BIN" on 2>&1 | grep '^export')"
 
   # Clear requests
   local output
@@ -280,10 +245,8 @@ test_clear_requests() {
 echo "=== procsi shell integration tests ==="
 echo ""
 
-test_init_outputs_function
-test_sourcing_creates_function
-test_vars_outputs_env_vars
-test_vars_env_vars_evaluable
+test_on_outputs_env_vars
+test_on_env_vars_evaluable
 test_status_shows_running
 test_clear_requests
 test_stop_daemon
