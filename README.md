@@ -2,7 +2,7 @@
 
 [![npm version](https://img.shields.io/npm/v/procsi.svg)](https://www.npmjs.com/package/procsi)
 [![CI](https://github.com/mtford90/procsi/actions/workflows/ci.yml/badge.svg)](https://github.com/mtford90/procsi/actions/workflows/ci.yml)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![License: AGPL v3](https://img.shields.io/badge/License-AGPL_v3-blue.svg)](https://www.gnu.org/licenses/agpl-3.0)
 
 HTTP interception for the terminal. Each project gets its own proxy, its own traffic database, its own mocks — all in a `.procsi/` directory that lives alongside your code.
 
@@ -584,4 +584,4 @@ Your HTTP client needs to respect proxy environment variables. Browsers typicall
 
 ## Licence
 
-MIT
+AGPL-3.0-or-later
