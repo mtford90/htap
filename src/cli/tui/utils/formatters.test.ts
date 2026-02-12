@@ -8,6 +8,7 @@ import {
   padLeft,
   formatMethod,
   formatStatus,
+  breakUrl,
 } from "./formatters.js";
 
 describe("formatRelativeTime", () => {
@@ -176,6 +177,23 @@ describe("formatMethod", () => {
   it("should uppercase methods", () => {
     expect(formatMethod("get")).toBe("GET    ");
     expect(formatMethod("post")).toBe("POST   ");
+  });
+});
+
+describe("breakUrl", () => {
+  it("should insert zero-width space after :// to prevent terminal hyperlinking", () => {
+    expect(breakUrl("https://api.example.com/foo")).toBe("https://\u200Bapi.example.com/foo");
+    expect(breakUrl("http://localhost:3000/bar")).toBe("http://\u200Blocalhost:3000/bar");
+  });
+
+  it("should handle URLs without a scheme", () => {
+    expect(breakUrl("/api/foo")).toBe("/api/foo");
+    expect(breakUrl("localhost:3000")).toBe("localhost:3000");
+  });
+
+  it("should only break the first occurrence of ://", () => {
+    const url = "https://example.com/redirect?to=http://other.com";
+    expect(breakUrl(url)).toBe("https://\u200Bexample.com/redirect?to=http://other.com");
   });
 });
 

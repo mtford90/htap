@@ -71,7 +71,8 @@ describe("AccordionPanel", () => {
       const frame = lastFrame();
 
       expect(frame).toContain("GET");
-      expect(frame).toContain("http://example.com/api/users");
+      // URL contains a zero-width space after :// to prevent terminal hyperlinking
+      expect(frame).toContain("http://\u200Bexample.com/api/users");
     });
 
     it("shows request headers when Request section is expanded", () => {
