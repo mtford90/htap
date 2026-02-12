@@ -96,6 +96,24 @@ TypeScript config files in `.htpx/interceptors/` that can mock, modify, or obser
 
 ---
 
+## Bugs
+
+- [ ] Mouse wheel scrolls through accordion sections — should only scroll the request list
+- [ ] URLs rendered as clickable hyperlinks by terminals — suppress terminal hyperlink detection
+- [ ] Long URLs truncate the HTTP method in request details header (e.g. `GET` → `GE`)
+
+---
+
+## Up Next
+
+- [ ] **Labels** — tag/label requests or sessions for organisation and filtering
+- [ ] **Regexp filter** — support regex patterns in the filter bar
+- [ ] **Multiple filters** — compose filters (e.g. filter by `bigcommerce` AND `variants`)
+- [ ] **TUI body search** — search through request/response bodies from within the TUI (not just MCP)
+- [ ] **Remove `htpx init`** — internalise initialisation; `htpx init` sounds important but does nothing the auto-init doesn't already handle
+
+---
+
 ## Phase 3: MCP Write — Request Replay + AI-driven Interceptors
 
 Extend MCP with write operations for request replay and AI-assisted interceptor management.

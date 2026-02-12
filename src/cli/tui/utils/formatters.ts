@@ -201,6 +201,14 @@ export function getStatusText(status: number | undefined): string {
 }
 
 /**
+ * Insert a zero-width space after "://" to prevent terminals from
+ * auto-detecting URLs and rendering them as clickable hyperlinks.
+ */
+export function breakUrl(url: string): string {
+  return url.replace("://", "://\u200B");
+}
+
+/**
  * Extract short content type for display (e.g., "application/json" -> "json")
  */
 export function shortContentType(contentType: string | undefined): string {

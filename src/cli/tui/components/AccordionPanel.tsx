@@ -16,7 +16,7 @@ import { Box, Text, type DOMElement } from "ink";
 import type { CapturedRequest } from "../../../shared/types.js";
 import { AccordionSection } from "./AccordionSection.js";
 import { HeadersContent, BodyContent, TruncatedBodyContent } from "./AccordionContent.js";
-import { formatSize, getStatusText, shortContentType } from "../utils/formatters.js";
+import { formatSize, getStatusText, shortContentType, formatMethod, breakUrl } from "../utils/formatters.js";
 // Box drawing characters for the bottom border
 const BOX = {
   bottomLeft: "└",
@@ -173,11 +173,12 @@ export const AccordionPanel = forwardRef<DOMElement, AccordionPanelProps>(functi
             </Box>
           )}
           <Box marginBottom={1}>
-            <Text color="green" bold>
-              {request.method}
-            </Text>
-            <Text> </Text>
-            <Text wrap="truncate">{request.url}</Text>
+            <Box width={8} flexShrink={0}>
+              <Text color="green" bold>
+                {formatMethod(request.method)}
+              </Text>
+            </Box>
+            <Text wrap="truncate">{breakUrl(request.url)}</Text>
           </Box>
           <HeadersContent headers={request.requestHeaders} maxLines={getContentLines(heights[SECTION_REQUEST] ?? 1) - 2} />
         </Box>

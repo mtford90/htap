@@ -184,15 +184,6 @@ function AppContent({ __testEnableInput, projectRoot }: AppProps): React.ReactEl
     }
   });
 
-  // Handle scroll wheel on accordion panel for navigating sections
-  useOnWheel(accordionPanelRef, (event) => {
-    if (event.button === "wheel-up") {
-      setFocusedSection((prev) => Math.max(prev - 1, 0));
-    } else if (event.button === "wheel-down") {
-      setFocusedSection((prev) => Math.min(prev + 1, 3));
-    }
-  });
-
   // Handle click on panels to activate them
   useOnClick(listPanelRef, () => setActivePanel("list"));
   useOnClick(accordionPanelRef, () => setActivePanel("accordion"));
