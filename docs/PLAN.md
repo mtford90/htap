@@ -2,113 +2,54 @@
 
 ## Completed
 
-- [x] Add LICENSE file (MIT)
-- [x] Add npm badges to README
-- [x] Test global install (`npm install -g procsi`)
-- [x] Set up npm publish in CI (auto-publish on `v*` tags)
-- [x] Improve `procsi intercept` UX - detect direct vs eval usage
-- [x] Copy curl to clipboard instead of printing after TUI exit
-- [x] **UX/UI fixes (7.1–7.8)**: Help overlay (?), extended navigation (g/G/Ctrl+u/Ctrl+d), loading spinner, minimum terminal size check, focus indicator (» + bold), empty state guidance, status indicators (✓/→/✗), DELETE method magenta colour
-- [x] **Code review fixes (2026-02-07)**: All 24 items addressed — shared `getGlobalOptions` helper, FilterBar lifecycle/cast fixes, `isFilterActive` extraction + tests, JSON pretty-print tests, body preview truncation, DB indices, search length bounds, cursor indicator, and more
-- [x] Full URL in request list — toggle with `u` key
-- [x] Request/response body viewing — accordion UI in details pane
-- [x] Request/response size display — payload sizes in list and details
-- [x] Request filtering — fuzzy search, HTTP method, status codes
-- [x] Publish proxy details — show connection details for use anywhere
-- [x] Support any directory — climb to `~/` if no project/git root found
-- [x] Directory scope override — `--dir` flag
-- [x] Global procsi instance — `~/` scope
-- [x] Mouse support — click to select requests, panels, etc.
-- [x] JSON explorer — manipulate/explore request/response bodies
-- [x] Export modal — open in editor, copy to clipboard, save to file
-- [x] Pretty request/response with syntax highlighting
-- [x] Copy request/response body when focused
-- [x] Context-sensitive status bar hints
-- [x] Text viewer modal
+<details>
+<summary>Core TUI & CLI (v0.1–v0.2)</summary>
 
----
+- Request/response body viewing, size display, syntax highlighting
+- Accordion UI, JSON explorer, text viewer, export modal (editor/clipboard/file)
+- Request filtering (fuzzy search, method, status codes), full URL toggle (`u`)
+- Extended navigation (g/G/Ctrl+u/Ctrl+d), mouse support, context-sensitive hints
+- Help overlay, loading spinner, min terminal size, focus indicators, status indicators
+- Copy body (`y`), copy cURL (`c`), HAR export (`H`)
+- Project scoping (`.procsi/`), directory override (`--dir`), global instance (`~/`)
+- CI publish, npm badges, LICENSE
 
-## Phase 1: Read-only MCP — Traffic Inspection ✓
+</details>
 
-Let AI discover `.procsi/` and inspect captured traffic. No mocking yet — purely read-only.
+<details>
+<summary>Phase 1: Read-only MCP — Traffic Inspection</summary>
 
-**Tools:**
+MCP server (`procsi mcp`) connecting to the daemon's control socket for AI-driven traffic inspection.
 
-- [x] `procsi_get_status` — proxy status, port, captured request count
-- [x] `procsi_list_requests` — search/filter captured requests (by URL, method, status, headers)
-- [x] `procsi_get_request` — fetch full request details (headers, body, timing)
-- [x] `procsi_search_bodies` — full-text search through request/response body content
-- [x] `procsi_query_json` — extract values from JSON bodies using JSONPath expressions
-- [x] `procsi_count_requests` — count requests matching a filter
-- [x] `procsi_clear_requests` — delete all captured requests
-- [x] `procsi_list_sessions` — list active proxy sessions
+**Tools:** `procsi_get_status`, `procsi_list_requests`, `procsi_get_request`, `procsi_search_bodies`, `procsi_query_json`, `procsi_count_requests`, `procsi_clear_requests`, `procsi_list_sessions`
 
-**Filtering:** All query tools support method, status range (Nxx patterns), URL search, host, path prefix, time window, header name/value/target. Text and JSON output formats.
+**Filtering:** method, status range, URL, host, path prefix, time window, header name/value/target. Text and JSON output formats.
 
-**Architecture:**
+</details>
 
-- MCP server connects to the daemon's existing control socket
-- Reuses existing SQLite query infrastructure from the TUI's data layer
-- Ships as `procsi mcp` subcommand (stdio-based MCP server)
-- Content-type columns added to DB for efficient body search filtering
-- Header filtering via `json_extract()` on stored JSON header columns
-- JSON body querying via `json_extract(CAST(body AS TEXT), ?)` with content-type gating
-- README documented with setup, tool reference, filtering guide, and example workflows
-- Code review completed and all findings addressed
+<details>
+<summary>Phase 2: Config-as-code — Mocks & Interceptors</summary>
 
----
+TypeScript interceptor files in `.procsi/interceptors/` — mock, modify, or observe HTTP traffic via the `forward()` pattern.
 
-## Phase 2: Config-as-code — Mocks & Interceptors ✓
+- `jiti` TypeScript loader, hot-reload via `fs.watch`, first-match semantics
+- `InterceptorContext` with frozen request, `forward()`, `procsi` client, `ctx.log()`
+- Match timeout (5s), handler timeout (30s), response validation
+- MCP tools: `procsi_list_interceptors`, `procsi_reload_interceptors`, `intercepted_by` filter
+- CLI: `procsi interceptors list|reload|init`
+- TUI: M/I indicators, interceptor badge, detail pane info
+- `procsi/interceptors` barrel export for consumer types
 
-TypeScript config files in `.procsi/interceptors/` that can mock, modify, or observe HTTP traffic with full access to procsi's query API.
+</details>
 
-**API — the `forward()` pattern:**
+<details>
+<summary>Bug fixes</summary>
 
-- [x] Three execution modes from one `handler` function: Mock (return without forward), Modify (call forward + alter), Observe (call forward + return unchanged)
-- [x] `InterceptorContext` with frozen request, `forward()`, `procsi` client, `ctx.log()`
-- [x] First-match semantics — files loaded alphabetically, first matching interceptor wins
-- [x] Safety: match timeout (5s), handler timeout (30s), response validation, stale entry cleanup
+- Mouse wheel scroll confined to request list
+- Terminal hyperlink suppression
+- Method truncation on long URLs
 
-**Infrastructure:**
-
-- [x] `jiti` runtime TypeScript loader for `.ts` interceptor files
-- [x] `interceptor-loader.ts` — scan, load, validate, hot-reload with `fs.watch`
-- [x] `interceptor-runner.ts` — deferred `forward()` pattern bridging mockttp's beforeRequest/beforeResponse
-- [x] `procsi-client.ts` — in-process wrapper around `RequestRepository` for interceptor query access
-- [x] DB migration v5 — `intercepted_by` and `interception_type` columns
-- [x] `InterceptorInfo`, `InterceptionType` types; extended `CapturedRequest`, `CapturedRequestSummary`, `DaemonStatus`, `RequestFilter`
-
-**MCP tools:**
-
-- [x] `procsi_list_interceptors` — list loaded interceptors with status
-- [x] `procsi_reload_interceptors` — hot-reload interceptors from disk
-- [x] Extended `procsi_list_requests`, `procsi_get_request`, `procsi_count_requests`, `procsi_search_bodies` with `intercepted_by` filter
-- [x] Interception metadata (`[M]`/`[I]` indicators) in text and JSON output
-
-**CLI:**
-
-- [x] `procsi interceptors list` — table of loaded interceptors
-- [x] `procsi interceptors reload` — trigger reload
-- [x] `procsi interceptors init` — scaffold example interceptor file
-- [x] `procsi intercept` — reports interceptor count on startup
-
-**TUI:**
-
-- [x] M/I indicator column in request list (magenta/cyan)
-- [x] `[N interceptors]` badge in status bar
-- [x] "Intercepted by" info in detail pane
-
-**Type exports:**
-
-- [x] `procsi/interceptors` barrel export for consumer type imports
-
----
-
-## Bugs
-
-- [x] Mouse wheel scrolls through accordion sections — should only scroll the request list
-- [x] URLs rendered as clickable hyperlinks by terminals — suppress terminal hyperlink detection
-- [x] Long URLs truncate the HTTP method in request details header (e.g. `GET` → `GE`)
+</details>
 
 ---
 
@@ -123,8 +64,6 @@ TypeScript config files in `.procsi/interceptors/` that can mock, modify, or obs
 ---
 
 ## Phase 3: MCP Write — Request Replay + AI-driven Interceptors
-
-Extend MCP with write operations for request replay and AI-assisted interceptor management.
 
 **New MCP tools:**
 
@@ -142,16 +81,11 @@ Extend MCP with write operations for request replay and AI-assisted interceptor 
 
 Extend the existing cURL export (`c` key) with more formats.
 
-**Formats:**
-
 - [ ] `fetch` — JavaScript Fetch API
 - [ ] `requests` — Python requests library
 - [ ] `httpie` — HTTPie CLI
 
-**Implementation:**
-
-- New formatter functions alongside existing `generateCurl()`
-- Either a submenu on `c` key or separate keys/modal for format selection
+New formatter functions alongside existing `generateCurl()`. Submenu or modal for format selection.
 
 ---
 
