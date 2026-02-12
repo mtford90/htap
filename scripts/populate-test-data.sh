@@ -30,7 +30,7 @@ if [ -d "$PROCSI_DIR" ]; then
     # Stop daemon if running
     if [ -f "$PROCSI_DIR/daemon.pid" ]; then
         echo "  Stopping existing daemon..."
-        cd "$PROJECT_ROOT" && node dist/cli/index.js stop 2>/dev/null || true
+        cd "$PROJECT_ROOT" && node dist/cli/index.js daemon stop 2>/dev/null || true
     fi
 
     echo "  Removing $PROCSI_DIR..."
@@ -52,11 +52,11 @@ echo ""
 echo -e "${YELLOW}Step 3: Starting procsi daemon...${NC}"
 cd "$PROJECT_ROOT"
 
-# Run intercept command and capture the environment variables
-INTERCEPT_OUTPUT=$(node dist/cli/index.js intercept 2>&1)
+# Run vars command and capture the environment variables
+VARS_OUTPUT=$(node dist/cli/index.js vars 2>&1)
 
 # Extract the proxy URL and CA cert path from the output
-eval "$INTERCEPT_OUTPUT"
+eval "$VARS_OUTPUT"
 
 echo "  Proxy URL: $HTTP_PROXY"
 echo "  CA Cert: $NODE_EXTRA_CA_CERTS"
