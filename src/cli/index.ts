@@ -11,6 +11,10 @@ import { projectCommand } from "./commands/project.js";
 import { daemonCommand } from "./commands/daemon.js";
 import { tuiCommand } from "./commands/tui.js";
 import { statusCommand } from "./commands/status.js";
+import { requestsCommand } from "./commands/requests.js";
+import { requestCommand } from "./commands/request.js";
+import { sessionsCommand } from "./commands/sessions.js";
+import { completionsCommand } from "./commands/completions.js";
 import { getProcsiVersion } from "../shared/version.js";
 
 program
@@ -35,6 +39,10 @@ program.addCommand(projectCommand);
 program.addCommand(daemonCommand);
 program.addCommand(tuiCommand);
 program.addCommand(statusCommand);
+program.addCommand(requestsCommand);
+program.addCommand(requestCommand);
+program.addCommand(sessionsCommand);
+program.addCommand(completionsCommand);
 
 program.addHelpText(
   "after",

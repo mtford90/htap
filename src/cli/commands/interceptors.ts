@@ -4,7 +4,9 @@ import { Command } from "commander";
 import { ControlClient } from "../../shared/control-client.js";
 import { getProcsiPaths } from "../../shared/project.js";
 import { isDaemonRunning } from "../../shared/daemon.js";
+import type { InterceptorEventLevel } from "../../shared/types.js";
 import { requireProjectRoot, getErrorMessage, getGlobalOptions } from "./helpers.js";
+import { formatInterceptorEventTable } from "../formatters/detail.js";
 
 const EXAMPLE_INTERCEPTOR_FILENAME = "example.ts";
 
@@ -171,11 +173,158 @@ const initSubcommand = new Command("init")
     console.log("  - Run: procsi interceptors reload");
   });
 
+const FOLLOW_POLL_INTERVAL_MS = 1000;
+const EVENT_LOG_LEVELS: InterceptorEventLevel[] = ["info", "warn", "error"];
+
+const logsClearSubcommand = new Command("clear")
+  .description("Clear interceptor event log")
+  .action(async (_, command: Command) => {
+    const globalOpts = getGlobalOptions(command);
+    const projectRoot = requireProjectRoot(globalOpts.dir);
+    const paths = getProcsiPaths(projectRoot);
+
+    const running = await isDaemonRunning(projectRoot);
+    if (!running) {
+      console.log("Daemon is not running");
+      process.exit(0);
+    }
+
+    const client = new ControlClient(paths.controlSocketFile);
+    try {
+      await client.clearInterceptorEvents();
+      console.log("  Interceptor events cleared");
+    } catch (err) {
+      console.error(`Error clearing events: ${getErrorMessage(err)}`);
+      process.exit(1);
+    } finally {
+      client.close();
+    }
+  });
+
+const logsSubcommand = new Command("logs")
+  .description("View interceptor event log")
+  .option("--name <interceptor>", "filter by interceptor name")
+  .option("--level <level>", `filter by level (${EVENT_LOG_LEVELS.join(", ")})`)
+  .option("--limit <n>", "max events", "50")
+  .option("--follow", "live tail — poll for new events")
+  .option("--json", "JSON output")
+  .addCommand(logsClearSubcommand)
+  .action(
+    async (
+      opts: {
+        name?: string;
+        level?: string;
+        limit?: string;
+        follow?: boolean;
+        json?: boolean;
+      },
+      command: Command
+    ) => {
+      const globalOpts = getGlobalOptions(command);
+      const projectRoot = requireProjectRoot(globalOpts.dir);
+      const paths = getProcsiPaths(projectRoot);
+
+      const running = await isDaemonRunning(projectRoot);
+      if (!running) {
+        console.log("Daemon is not running");
+        process.exit(0);
+      }
+
+      const client = new ControlClient(paths.controlSocketFile);
+      const limit = parseInt(opts.limit ?? "50", 10);
+      const level = opts.level as InterceptorEventLevel | undefined;
+
+      try {
+        const result = await client.getInterceptorEvents({
+          limit,
+          level,
+          interceptor: opts.name,
+        });
+
+        if (opts.json && !opts.follow) {
+          console.log(JSON.stringify(result, null, 2));
+          return;
+        }
+
+        if (!opts.follow) {
+          if (result.events.length === 0) {
+            console.log("  No interceptor events");
+            return;
+          }
+          console.log(formatInterceptorEventTable(result.events));
+          return;
+        }
+
+        // --follow: print initial batch then poll for new events
+        if (result.events.length > 0) {
+          if (opts.json) {
+            for (const event of result.events) {
+              console.log(JSON.stringify(event));
+            }
+          } else {
+            console.log(formatInterceptorEventTable(result.events));
+          }
+        }
+
+        const lastInitialEvent = result.events[result.events.length - 1];
+        let lastSeq = lastInitialEvent?.seq ?? 0;
+
+        // Graceful shutdown on Ctrl+C
+        let stopping = false;
+        const cleanup = () => {
+          stopping = true;
+          client.close();
+        };
+        process.on("SIGINT", cleanup);
+        process.on("SIGTERM", cleanup);
+
+        while (!stopping) {
+          await new Promise((resolve) => setTimeout(resolve, FOLLOW_POLL_INTERVAL_MS));
+          if (stopping) break;
+
+          try {
+            const newResult = await client.getInterceptorEvents({
+              afterSeq: lastSeq,
+              level,
+              interceptor: opts.name,
+            });
+
+            if (newResult.events.length > 0) {
+              if (opts.json) {
+                for (const event of newResult.events) {
+                  console.log(JSON.stringify(event));
+                }
+              } else {
+                console.log(formatInterceptorEventTable(newResult.events));
+              }
+              const lastNewEvent = newResult.events[newResult.events.length - 1];
+              if (lastNewEvent) {
+                lastSeq = lastNewEvent.seq;
+              }
+            }
+          } catch {
+            // Connection lost — stop polling
+            if (!stopping) {
+              console.error("  Lost connection to daemon");
+            }
+            break;
+          }
+        }
+      } catch (err) {
+        console.error(`Error fetching events: ${getErrorMessage(err)}`);
+        process.exit(1);
+      } finally {
+        client.close();
+      }
+    }
+  );
+
 export const interceptorsCommand = new Command("interceptors")
   .description("Manage request interceptors")
   .addCommand(listSubcommand)
   .addCommand(reloadSubcommand)
   .addCommand(initSubcommand)
+  .addCommand(logsSubcommand)
   .action(async (_, command: Command) => {
     // Default action when no subcommand is specified — behaves like `list`
     await listAction(command);

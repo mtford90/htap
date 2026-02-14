@@ -35,6 +35,17 @@ The long-term vision centres on **mocks & interceptors as code** — TypeScript 
 
 **MCP integration** is a first-class concern: AI agents should be able to discover `.procsi`, communicate with the proxy, search through captured traffic, and write/manage mock rules via the config-as-code system.
 
+### CLI Design Philosophy — Gradual Discovery
+
+The CLI follows a **gradual discovery** pattern — each command's output hints at what you can do next, so usage builds on itself naturally:
+
+- **Resources as nouns**: `requests`, `sessions`, `interceptors` — collections are plural
+- **Single resources by ID**: `request <id>` — singular with identifier
+- **Actions as subcommands**: `export`, `search`, `query`, `count`, `clear`
+- **Filters as flags**: `--method`, `--status`, `--host`, `--path`, etc.
+- **Output drives next usage**: Every command's output includes contextual hints suggesting related commands. Short IDs in list views can be directly used in detail commands.
+- **Human and agent friendly**: Human-readable tables and colours by default, `--json` for structured machine output. Colours and hints suppressed when stdout is piped.
+
 ## Architecture
 
 ```

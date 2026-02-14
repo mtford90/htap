@@ -51,6 +51,28 @@ TypeScript interceptor files in `.procsi/interceptors/` — mock, modify, or obs
 
 </details>
 
+<details>
+<summary>CLI Query Interface</summary>
+
+Scriptable CLI commands exposing the same search/filter/export capabilities as the TUI and MCP. Follows a "gradual discovery" pattern where each command's output hints at related commands.
+
+- `procsi requests` — list/filter with `--method`, `--status`, `--host`, `--path`, `--since`/`--before`, `--header`, `--intercepted-by`, `--json`
+- `procsi requests search <query>` — full-text body search
+- `procsi requests query <jsonpath>` — JSONPath query on bodies
+- `procsi requests count` — count matching requests
+- `procsi requests clear` — clear captured requests (with confirmation)
+- `procsi request <id>` — single request detail (supports abbreviated IDs)
+- `procsi request <id> body` — dump response body (raw, pipeable); `--request` for request body
+- `procsi request <id> export curl|har` — export in various formats
+- `procsi sessions` — list active proxy sessions
+- `procsi interceptors logs` — event log with `--name`, `--level`, `--follow` (live tail), `--json`
+- `procsi interceptors logs clear` — clear event log
+- `procsi completions zsh|bash|fish` — shell completion script generation
+- Human-friendly time parser for `--since`/`--before` (5m, 2h, 10am, yesterday, monday, ISO dates)
+- Colour-coded output with NO_COLOR/pipe detection; `--json` for machine output
+
+</details>
+
 ---
 
 ## Up Next
@@ -61,19 +83,7 @@ TypeScript interceptor files in `.procsi/interceptors/` — mock, modify, or obs
 - [ ] **TUI body search** — search through request/response bodies from within the TUI (not just MCP)
 - [x] **Remove `procsi init`** — replaced `init`/`vars` with `procsi on`/`procsi off` as real CLI subcommands
 - [ ] **Simplify README** — current README is ~580 lines; trim it to a quick-start + feature highlights + architecture diagram and move detailed reference (MCP tools/filters, full keybindings, CLI reference, interceptor cookbook) to a GitHub wiki. Inspiration: [sql-tap](https://github.com/mickamy/sql-tap) keeps its README short and scannable
-- [ ] **CLI query interface** — expose the same search/filter/export capabilities available in the TUI and MCP as traditional CLI commands. REST-API-inspired structure: resources as nouns (`requests`, `interceptors`), actions as subcommands, filters as flags. Requests get short identifiers in output so they can be piped into per-request commands. Rough shape (to be fleshed out):
-  ```
-  procsi requests                                  # list recent requests
-  procsi requests --domain example.com --limit 50  # filter by domain
-  procsi requests --status 5xx --method POST       # filter by status/method
-  procsi request <id>                              # full detail for a single request
-  procsi request <id> export --format har          # export a request
-  procsi request <id> export --format curl         # export as curl
-  procsi bodies --search "error_code"              # full-text body search
-  procsi interceptors logs                           # interceptor logs (tail-style)
-  procsi interceptors logs --name mock-users         # filter by interceptor name
-  procsi interceptors logs --follow                  # live tail
-  ```
+- [x] **CLI query interface** — see Completed section above
 - [ ] **Fake domains / virtual hosts** — interceptors should work with non-existent domains/paths so you can mock entirely fictional APIs (e.g. `curl http://my-fake-api.local/users`). Currently a request to a non-routable host would fail before the interceptor can respond. Needs some kind of pre-request hook so interceptors can catch and reply without ever hitting upstream — essentially turning procsi into a lightweight mock server for any domain you like
 
 ---
