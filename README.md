@@ -4,34 +4,30 @@
 [![CI](https://github.com/mtford90/procsi/actions/workflows/ci.yml/badge.svg)](https://github.com/mtford90/procsi/actions/workflows/ci.yml)
 [![License: AGPL v3](https://img.shields.io/badge/License-AGPL_v3-blue.svg)](https://www.gnu.org/licenses/agpl-3.0)
 
-HTTP interception for the terminal. Each project gets its own proxy, its own traffic database, its own mocks — all in a `.procsi/` directory that lives alongside your code.
+Procsi is a terminal-based HTTP proxy with a powerful MCP server. Quickly intercept, inspect & rewrite HTTP traffic.
 
 ![procsi demo](demo.gif)
 
-No browser extensions, no global system proxy, no separate apps. A MITM proxy captures your traffic, a lazygit-style TUI lets you browse it, TypeScript files let you mock it, and AI agents can query and manipulate all of it via MCP.
+## Feature Highlights
+
+- **Project isolation** — each project gets its own `.procsi/` directory with a separate daemon, database, CA cert and interceptors. 
+- **MCP server** — AI agents get full access to your captured traffic and can write interceptor files for you. Search, filter, inspect, mock — all via tool calls.
+- **Interceptors** — mock, modify or observe traffic with `.ts` files. Match on anything, query past traffic from within handlers, compose complex scenarios.
 
 ## Quick Start
 
 ```bash
 npm install -g procsi
 
-# In your project directory
+# Configure environment e.g. HTTP_PROXY
 eval "$(procsi on)"
+
+# Send a request
 curl https://api.example.com/users
+
+# Open UI
 procsi tui
 ```
-
-Requires Node.js 20+.
-
-## Features
-
-- **Project-scoped** — each project gets its own `.procsi/` directory with a separate daemon, database, CA cert and interceptors. No cross-project bleed.
-- **TypeScript interceptors** — mock, modify or observe traffic with `.ts` files. Match on anything, query past traffic from within handlers, compose complex scenarios.
-- **MCP server** — AI agents get full access to your captured traffic and can write interceptor files for you. Search, filter, inspect, mock — all via tool calls.
-- **Terminal TUI** — vim-style keybindings, mouse support, JSON explorer, filtering. Stays in your terminal where you're already working.
-- **HTTPS** — automatic CA certificate generation and trust
-- **Export** — copy as curl, export as HAR, save bodies to disk
-- **Zero config** — works with curl, wget, Node.js, Python, Go, Rust and anything else that respects `HTTP_PROXY`
 
 ## Project Isolation
 
@@ -50,7 +46,120 @@ your-project/
 └── src/...
 ```
 
-Separate daemon, separate database, separate certificates. You can run procsi in multiple projects at the same time without them interfering with each other.
+Separate daemon, database, certificates etc. You can run procsi in multiple projects at the same time without them interfering with each other.
+
+## Use cases
+
+- AI analysis
+- Chaos monkey
+- Mock out APIs that do not yet exist
+
+## MCP Integration
+
+procsi has a built-in [MCP](https://modelcontextprotocol.io/) server that gives AI agents full access to your captured traffic and interceptor system. Agents can search through requests, inspect headers and bodies, and write interceptor files directly into `.procsi/interceptors/`.
+
+This means you can ask things like:
+
+- "Find all failing requests to the payments API and write mocks that return valid responses"
+- "Make every 5th request to /api/users return a 429 so I can test rate limiting"
+- "What's the average response time for requests to the auth service in the last hour?"
+- "Write an interceptor that logs all requests with missing auth headers"
+- "Send me a notification whenever an api request fails"
+
+The agent reads your traffic, writes the TypeScript, and procsi hot-reloads it.
+
+### Setup
+
+Add procsi to your MCP client config:
+
+```json
+{
+  "mcpServers": {
+    "procsi": {
+      "command": "procsi",
+      "args": ["mcp"]
+    }
+  }
+}
+```
+
+The proxy must be running (`eval "$(procsi on)"`) — the MCP server connects to the same daemon as the TUI.
+
+### Agent Skill
+
+procsi also ships an agent skill that teaches AI assistants how to use the MCP tools properly. Gets you better results out of the box.
+
+**Claude Code:**
+
+```bash
+/plugin marketplace add mtford90/procsi
+/plugin install procsi
+```
+
+**npm-agentskills** (works with Cursor, Copilot, Codex, etc.):
+
+```bash
+npx agents export --target claude
+```
+
+### Available Tools
+
+| Tool | Description |
+|------|-------------|
+| `procsi_get_status` | Daemon status, proxy port, request count |
+| `procsi_list_requests` | Search and filter captured requests |
+| `procsi_get_request` | Full request details by ID (headers, bodies, timing) |
+| `procsi_search_bodies` | Full-text search through body content |
+| `procsi_query_json` | Extract values from JSON bodies via JSONPath |
+| `procsi_count_requests` | Count matching requests |
+| `procsi_clear_requests` | Delete all captured requests |
+| `procsi_list_sessions` | List active proxy sessions |
+| `procsi_list_interceptors` | List loaded interceptors with status and errors |
+| `procsi_reload_interceptors` | Reload interceptors from disk |
+
+### Filtering
+
+Most tools accept these filters:
+
+| Parameter | Description | Example |
+|-----------|-------------|---------|
+| `method` | HTTP method(s), comma-separated | `"GET,POST"` |
+| `status_range` | Status code, Nxx pattern, or range | `"4xx"`, `"401"`, `"500-503"` |
+| `search` | Substring match on URL/path | `"api/users"` |
+| `host` | Exact or suffix match (prefix with `.`) | `"api.example.com"`, `".example.com"` |
+| `path` | Path prefix match | `"/api/v2"` |
+| `since` / `before` | Time window (ISO 8601) | `"2024-01-15T10:30:00Z"` |
+| `header_name` | Filter by header existence or value | `"content-type"` |
+| `header_value` | Exact header value (requires `header_name`) | `"application/json"` |
+| `header_target` | Which headers to search | `"request"`, `"response"`, `"both"` |
+| `intercepted_by` | Filter by interceptor name | `"mock-users"` |
+| `offset` | Pagination offset (0-based) | `0` |
+| `limit` | Max results (default 50, max 500) | `100` |
+
+`procsi_get_request` accepts comma-separated IDs for batch fetching (e.g. `"id1,id2,id3"`).
+
+`procsi_query_json` also takes:
+
+| Parameter | Description | Example |
+|-----------|-------------|---------|
+| `target` | Which body to query: `"request"`, `"response"`, or `"both"` (default) | `"response"` |
+| `value` | Exact value match after JSONPath extraction | `"active"` |
+
+### Output Formats
+
+All query tools accept a `format` parameter:
+
+- `text` (default) — markdown summaries, readable by humans and AI
+- `json` — structured JSON for programmatic use
+
+### Examples
+
+```
+procsi_list_requests({ status_range: "5xx", path: "/api" })
+procsi_search_bodies({ query: "error_code", method: "POST" })
+procsi_query_json({ json_path: "$.user.id", target: "response" })
+procsi_list_requests({ header_name: "authorization", header_target: "request" })
+```
 
 ## Interceptors
 
@@ -175,112 +284,6 @@ export default {
 - Errors fall through gracefully (never crashes the proxy)
 - `ctx.log()` writes to `.procsi/procsi.log` since `console.log` goes nowhere in the daemon
 - Use `satisfies Interceptor` for full intellisense
-
-## MCP Integration
-
-procsi has a built-in [MCP](https://modelcontextprotocol.io/) server that gives AI agents full access to your captured traffic and interceptor system. Agents can search through requests, inspect headers and bodies, and write interceptor files directly into `.procsi/interceptors/`.
-
-This means you can ask things like:
-
-- "Find all failing requests to the payments API and write mocks that return valid responses"
-- "Make every 5th request to /api/users return a 429 so I can test rate limiting"
-- "What's the average response time for requests to the auth service in the last hour?"
-- "Write an interceptor that logs all requests with missing auth headers"
-
-The agent reads your traffic, writes the TypeScript, and procsi hot-reloads it.
-
-### Setup
-
-Add procsi to your MCP client config:
-
-```json
-{
-  "mcpServers": {
-    "procsi": {
-      "command": "procsi",
-      "args": ["mcp"]
-    }
-  }
-}
-```
-
-The proxy must be running (`eval "$(procsi on)"`) — the MCP server connects to the same daemon as the TUI.
-
-### Agent Skill
-
-procsi also ships an agent skill that teaches AI assistants how to use the MCP tools properly. Gets you better results out of the box.
-
-**Claude Code:**
-
-```bash
-/plugin marketplace add mtford90/procsi
-/plugin install procsi
-```
-
-**npm-agentskills** (works with Cursor, Copilot, Codex, etc.):
-
-```bash
-npx agents export --target claude
-```
-
-### Available Tools
-
-| Tool | Description |
-|------|-------------|
-| `procsi_get_status` | Daemon status, proxy port, request count |
-| `procsi_list_requests` | Search and filter captured requests |
-| `procsi_get_request` | Full request details by ID (headers, bodies, timing) |
-| `procsi_search_bodies` | Full-text search through body content |
-| `procsi_query_json` | Extract values from JSON bodies via JSONPath |
-| `procsi_count_requests` | Count matching requests |
-| `procsi_clear_requests` | Delete all captured requests |
-| `procsi_list_sessions` | List active proxy sessions |
-| `procsi_list_interceptors` | List loaded interceptors with status and errors |
-| `procsi_reload_interceptors` | Reload interceptors from disk |
-
-### Filtering
-
-Most tools accept these filters:
-
-| Parameter | Description | Example |
-|-----------|-------------|---------|
-| `method` | HTTP method(s), comma-separated | `"GET,POST"` |
-| `status_range` | Status code, Nxx pattern, or range | `"4xx"`, `"401"`, `"500-503"` |
-| `search` | Substring match on URL/path | `"api/users"` |
-| `host` | Exact or suffix match (prefix with `.`) | `"api.example.com"`, `".example.com"` |
-| `path` | Path prefix match | `"/api/v2"` |
-| `since` / `before` | Time window (ISO 8601) | `"2024-01-15T10:30:00Z"` |
-| `header_name` | Filter by header existence or value | `"content-type"` |
-| `header_value` | Exact header value (requires `header_name`) | `"application/json"` |
-| `header_target` | Which headers to search | `"request"`, `"response"`, `"both"` |
-| `intercepted_by` | Filter by interceptor name | `"mock-users"` |
-| `offset` | Pagination offset (0-based) | `0` |
-| `limit` | Max results (default 50, max 500) | `100` |
-
-`procsi_get_request` accepts comma-separated IDs for batch fetching (e.g. `"id1,id2,id3"`).
-
-`procsi_query_json` also takes:
-
-| Parameter | Description | Example |
-|-----------|-------------|---------|
-| `target` | Which body to query: `"request"`, `"response"`, or `"both"` (default) | `"response"` |
-| `value` | Exact value match after JSONPath extraction | `"active"` |
-
-### Output Formats
-
-All query tools accept a `format` parameter:
-
-- `text` (default) — markdown summaries, readable by humans and AI
-- `json` — structured JSON for programmatic use
-
-### Examples
-
-```
-procsi_list_requests({ status_range: "5xx", path: "/api" })
-procsi_search_bodies({ query: "error_code", method: "POST" })
-procsi_query_json({ json_path: "$.user.id", target: "response" })
-procsi_list_requests({ header_name: "authorization", header_target: "request" })
-```
 
 ## How It Works
 
@@ -570,7 +573,7 @@ The TUI needs at least 60 columns by 10 rows.
 
 ### Requests not appearing
 
-Your HTTP client needs to respect proxy environment variables. Browsers typically don't — use curl, wget, or language-level HTTP clients instead.
+Your HTTP client needs to respect proxy environment variables. 
 
 ## Licence
 
