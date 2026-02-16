@@ -77,14 +77,51 @@ Scriptable CLI commands exposing the same search/filter/export capabilities as t
 
 ## Up Next
 
-- [ ] **Labels** — tag/label requests or sessions for organisation and filtering
-- [ ] **Regexp filter** — support regex patterns in the filter bar
+Each feature should be considered across all three surfaces where applicable:
+- **TUI** — interactive terminal UI (filter bar, keybindings, modals)
+- **CLI** — REST-like commands (`procsi requests --flag`)
+- **MCP** — AI-facing tools (`procsi_list_requests` etc.)
+
+---
+
+- [ ] **Saved requests (bookmarks)** — save/bookmark individual requests for later reference, persisting them beyond `clear` operations
+  - **Storage:** new `saved_requests` table in SQLite (or a `saved` flag on the requests table); saved requests excluded from `clear` by default
+  - **TUI:** keybinding (e.g. `b`) to toggle bookmark on selected request, visual indicator on bookmarked rows, filter to show only saved requests
+  - **CLI:** `procsi requests --saved` filter flag; `procsi request <id> save` / `procsi request <id> unsave` to toggle
+  - **MCP:** `saved` filter param on `procsi_list_requests`, `procsi_save_request` / `procsi_unsave_request` tools
+
+- [ ] **Request sources** — automatically identify where requests come from, with optional user override
+  - **Daemon:** resolve parent PID to process name on session creation; store `source` on the session; accept `--source` override via `procsi on`
+  - **TUI:** show source on request list rows (subtle, like the interceptor badge); source field in filter bar
+  - **CLI:** `--source` filter flag on `procsi requests` / `procsi sessions`; `procsi on --source "dev server"` to set manually
+  - **MCP:** `source` filter param on `procsi_list_requests` / `procsi_list_sessions`
+
+- [ ] **Regexp filter** — support regex patterns in search/filter across all surfaces
+  - **TUI:** detect `/pattern/` syntax in the filter bar search field, apply as regex match on URL
+  - **CLI:** `--search` accepts `/pattern/` for regex, or a `--regex` flag
+  - **MCP:** `regex` param on `procsi_list_requests` / `procsi_search_bodies`
+
 - [ ] **Multiple filters** — compose filters (e.g. filter by `bigcommerce` AND `variants`)
-- [ ] **TUI body search** — search through request/response bodies from within the TUI (not just MCP)
+  - **TUI:** support space-separated terms in the search field as AND conditions; method + status already compose
+  - **CLI:** already supports combining `--method`, `--status`, `--host`, `--path`, `--search` etc. — extend `--search` to support multiple terms (AND logic)
+  - **MCP:** already supports multiple filter params — extend `search` param to support AND logic
+
+- [ ] **Body search in TUI** — search through request/response bodies from within the TUI
+  - **CLI:** already has `procsi requests search <query>` — done
+  - **MCP:** already has `procsi_search_bodies` — done
+  - **TUI:** new keybinding (e.g. `s`) to open body search modal, results shown as filtered request list
+
 - [x] **Remove `procsi init`** — replaced `init`/`vars` with `procsi on`/`procsi off` as real CLI subcommands
-- [ ] **Simplify README** — current README is ~580 lines; trim it to a quick-start + feature highlights + architecture diagram and move detailed reference (MCP tools/filters, full keybindings, CLI reference, interceptor cookbook) to a GitHub wiki. Inspiration: [sql-tap](https://github.com/mickamy/sql-tap) keeps its README short and scannable
+
+- [ ] **Simplify README** — current README is ~700 lines; trim to quick-start + feature highlights + architecture diagram and move detailed reference (MCP tools/filters, full keybindings, CLI reference, interceptor cookbook) to a GitHub wiki. Inspiration: [sql-tap](https://github.com/mickamy/sql-tap) keeps its README short and scannable
+
 - [x] **CLI query interface** — see Completed section above
+
 - [ ] **Fake domains / virtual hosts** — interceptors should work with non-existent domains/paths so you can mock entirely fictional APIs (e.g. `curl http://my-fake-api.local/users`). Currently a request to a non-routable host would fail before the interceptor can respond. Needs some kind of pre-request hook so interceptors can catch and reply without ever hitting upstream — essentially turning procsi into a lightweight mock server for any domain you like
+  - **Daemon:** pre-request interception hook; respond before upstream resolution
+  - **TUI:** no special changes needed (intercepted requests already display)
+  - **CLI:** no special changes needed
+  - **MCP:** `procsi_write_interceptor` (Phase 3) covers creating these
 
 ---
 
