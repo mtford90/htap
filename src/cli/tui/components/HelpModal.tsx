@@ -46,6 +46,8 @@ const HELP_SECTIONS: HelpSection[] = [
       { key: "H", description: "Export HAR" },
       { key: "y", description: "Copy body to clipboard" },
       { key: "s", description: "Export body content" },
+      { key: "b", description: "Toggle bookmark" },
+      { key: "x/D", description: "Clear requests" },
       { key: "u", description: "Toggle full URL" },
       { key: "/", description: "Filter requests" },
       { key: "r", description: "Refresh" },

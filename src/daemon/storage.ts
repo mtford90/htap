@@ -48,6 +48,7 @@ CREATE TABLE IF NOT EXISTS requests (
     response_content_type TEXT,
     intercepted_by TEXT,
     interception_type TEXT CHECK(interception_type IN ('modified', 'mocked')),
+    saved INTEGER DEFAULT 0,
     created_at INTEGER DEFAULT (unixepoch()),
     FOREIGN KEY (session_id) REFERENCES sessions(id)
 );
@@ -103,6 +104,11 @@ const MIGRATIONS: Migration[] = [
       ALTER TABLE requests ADD COLUMN intercepted_by TEXT;
       ALTER TABLE requests ADD COLUMN interception_type TEXT;
     `,
+  },
+  {
+    version: 6,
+    description: "Add saved/bookmark column",
+    sql: `ALTER TABLE requests ADD COLUMN saved INTEGER DEFAULT 0;`,
   },
 ];
 
@@ -227,6 +233,12 @@ function applyFilterConditions(
   if (filter.interceptedBy) {
     conditions.push("intercepted_by = ?");
     params.push(filter.interceptedBy);
+  }
+
+  if (filter.saved === true) {
+    conditions.push("saved = 1");
+  } else if (filter.saved === false) {
+    conditions.push("saved = 0");
   }
 
   if (filter.headerName) {
@@ -619,7 +631,8 @@ export class RequestRepository {
         COALESCE(LENGTH(request_body), 0) as request_body_size,
         COALESCE(LENGTH(response_body), 0) as response_body_size,
         intercepted_by,
-        interception_type
+        interception_type,
+        saved
       FROM requests
       ${whereClause}
       ORDER BY timestamp DESC
@@ -712,7 +725,8 @@ export class RequestRepository {
         COALESCE(LENGTH(request_body), 0) as request_body_size,
         COALESCE(LENGTH(response_body), 0) as response_body_size,
         intercepted_by,
-        interception_type
+        interception_type,
+        saved
       FROM requests
       ${whereClause}
       ORDER BY timestamp DESC
@@ -876,10 +890,26 @@ export class RequestRepository {
   }
 
   /**
-   * Delete all requests (useful for cleanup).
+   * Mark a request as saved (bookmarked). Returns whether a row was affected.
+   */
+  bookmarkRequest(id: string): boolean {
+    const result = this.db.prepare("UPDATE requests SET saved = 1 WHERE id = ?").run(id);
+    return result.changes > 0;
+  }
+
+  /**
+   * Remove the saved (bookmark) flag from a request. Returns whether a row was affected.
+   */
+  unbookmarkRequest(id: string): boolean {
+    const result = this.db.prepare("UPDATE requests SET saved = 0 WHERE id = ?").run(id);
+    return result.changes > 0;
+  }
+
+  /**
+   * Delete all unsaved requests. Saved (bookmarked) requests are preserved.
    */
   clearRequests(): void {
-    this.db.exec("DELETE FROM requests");
+    this.db.exec("DELETE FROM requests WHERE saved = 0");
   }
 
   /**
@@ -912,7 +942,9 @@ export class RequestRepository {
 
     this.insertsSinceLastEvictionCheck = 0;
 
-    const { count } = this.db.prepare("SELECT COUNT(*) as count FROM requests").get() as DbCountRow;
+    const { count } = this.db
+      .prepare("SELECT COUNT(*) as count FROM requests WHERE saved = 0")
+      .get() as DbCountRow;
 
     if (count <= this.maxStoredRequests) {
       return;
@@ -923,7 +955,7 @@ export class RequestRepository {
     this.db
       .prepare(
         `DELETE FROM requests WHERE id IN (
-          SELECT id FROM requests ORDER BY timestamp ASC LIMIT ?
+          SELECT id FROM requests WHERE saved = 0 ORDER BY timestamp ASC LIMIT ?
         )`
       )
       .run(excess);
@@ -953,6 +985,7 @@ export class RequestRepository {
         row.interception_type === "modified" || row.interception_type === "mocked"
           ? row.interception_type
           : undefined,
+      ...(row.saved === 1 ? { saved: true } : {}),
     };
   }
 
@@ -989,6 +1022,7 @@ export class RequestRepository {
         row.interception_type === "modified" || row.interception_type === "mocked"
           ? row.interception_type
           : undefined,
+      ...(row.saved === 1 ? { saved: true } : {}),
     };
   }
 }
@@ -1012,6 +1046,7 @@ interface DbRequestRow {
   duration_ms: number | null;
   intercepted_by: string | null;
   interception_type: string | null;
+  saved: number;
   created_at: number;
 }
 
@@ -1030,6 +1065,7 @@ interface DbRequestSummaryRow {
   response_body_size: number;
   intercepted_by: string | null;
   interception_type: string | null;
+  saved: number;
 }
 
 interface DbSessionRow {

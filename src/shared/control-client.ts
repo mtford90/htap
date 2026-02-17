@@ -244,10 +244,24 @@ export class ControlClient {
   }
 
   /**
-   * Clear all requests.
+   * Clear all unsaved requests.
    */
   async clearRequests(): Promise<void> {
     await this.request<{ success: boolean }>("clearRequests");
+  }
+
+  /**
+   * Mark a request as saved (bookmarked).
+   */
+  async saveRequest(id: string): Promise<{ success: boolean }> {
+    return this.request<{ success: boolean }>("saveRequest", { id });
+  }
+
+  /**
+   * Remove the saved (bookmark) flag from a request.
+   */
+  async unsaveRequest(id: string): Promise<{ success: boolean }> {
+    return this.request<{ success: boolean }>("unsaveRequest", { id });
   }
 
   /**

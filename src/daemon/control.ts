@@ -55,6 +55,8 @@ interface ControlHandlers {
   searchBodies: ControlHandler;
   queryJsonBodies: ControlHandler;
   clearRequests: ControlHandler;
+  saveRequest: ControlHandler;
+  unsaveRequest: ControlHandler;
   listInterceptors: ControlHandler;
   reloadInterceptors: ControlHandler;
   getInterceptorEvents: ControlHandler;
@@ -154,6 +156,10 @@ function optionalFilter(params: Record<string, unknown>): RequestFilter | undefi
 
   if (typeof f["interceptedBy"] === "string") {
     result.interceptedBy = f["interceptedBy"];
+  }
+
+  if (typeof f["saved"] === "boolean") {
+    result.saved = f["saved"];
   }
 
   return Object.keys(result).length > 0 ? result : undefined;
@@ -278,6 +284,18 @@ export function createControlServer(options: ControlServerOptions): ControlServe
     clearRequests: (): { success: boolean } => {
       storage.clearRequests();
       return { success: true };
+    },
+
+    saveRequest: (params): { success: boolean } => {
+      const id = requireString(params, "id");
+      const success = storage.bookmarkRequest(id);
+      return { success };
+    },
+
+    unsaveRequest: (params): { success: boolean } => {
+      const id = requireString(params, "id");
+      const success = storage.unbookmarkRequest(id);
+      return { success };
     },
 
     listInterceptors: (): InterceptorInfo[] => {

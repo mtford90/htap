@@ -274,7 +274,8 @@ export function formatSummary(req: CapturedRequestSummary): string {
     : "";
   const interceptionTag =
     req.interceptionType === "mocked" ? " [M]" : req.interceptionType === "modified" ? " [I]" : "";
-  return `[${req.id}] ${ts} ${req.method} ${req.url}${status}${duration}${bodySizes}${interceptionTag}`;
+  const savedTag = req.saved ? " [S]" : "";
+  return `[${req.id}] ${ts} ${req.method} ${req.url}${status}${duration}${bodySizes}${interceptionTag}${savedTag}`;
 }
 
 const MIN_HTTP_STATUS = 100;
@@ -344,6 +345,7 @@ export function buildFilter(params: {
   header_value?: string;
   header_target?: "request" | "response" | "both";
   intercepted_by?: string;
+  saved?: boolean;
 }): RequestFilter | undefined {
   const filter: RequestFilter = {};
 
@@ -393,6 +395,9 @@ export function buildFilter(params: {
   }
   if (params.intercepted_by) {
     filter.interceptedBy = params.intercepted_by;
+  }
+  if (params.saved !== undefined) {
+    filter.saved = params.saved;
   }
 
   return Object.keys(filter).length > 0 ? filter : undefined;
@@ -515,6 +520,10 @@ export function createProcsiMcpServer(options: McpServerOptions) {
         .string()
         .optional()
         .describe("Filter by interceptor name. Only returns requests handled by this interceptor."),
+      saved: z
+        .boolean()
+        .optional()
+        .describe("Filter by saved/bookmarked state. true = only saved, false = only unsaved."),
       limit: z
         .number()
         .optional()
@@ -690,6 +699,10 @@ export function createProcsiMcpServer(options: McpServerOptions) {
         .string()
         .optional()
         .describe("Filter by interceptor name. Only returns requests handled by this interceptor."),
+      saved: z
+        .boolean()
+        .optional()
+        .describe("Filter by saved/bookmarked state. true = only saved, false = only unsaved."),
       limit: z
         .number()
         .optional()
@@ -800,6 +813,10 @@ export function createProcsiMcpServer(options: McpServerOptions) {
         .string()
         .optional()
         .describe("Filter by interceptor name. Only returns requests handled by this interceptor."),
+      saved: z
+        .boolean()
+        .optional()
+        .describe("Filter by saved/bookmarked state. true = only saved, false = only unsaved."),
       format: FORMAT_SCHEMA,
     },
     async (params) => {
@@ -884,6 +901,10 @@ export function createProcsiMcpServer(options: McpServerOptions) {
         .enum(["request", "response", "both"])
         .optional()
         .describe('Which headers to search: "request", "response", or "both" (default "both").'),
+      saved: z
+        .boolean()
+        .optional()
+        .describe("Filter by saved/bookmarked state. true = only saved, false = only unsaved."),
       limit: z
         .number()
         .optional()
@@ -954,6 +975,52 @@ export function createProcsiMcpServer(options: McpServerOptions) {
       } catch (err) {
         return textResult(
           `Failed to clear requests: ${err instanceof Error ? err.message : "Unknown error"}`,
+          true
+        );
+      }
+    }
+  );
+
+  // --- procsi_save_request ---
+  server.tool(
+    "procsi_save_request",
+    "Save (bookmark) a captured HTTP request so it persists across clear operations. Saved requests are not deleted by procsi_clear_requests and are not evicted by the storage limit.",
+    {
+      id: z.string().describe("The request ID to save/bookmark."),
+    },
+    async (params) => {
+      try {
+        const result = await client.saveRequest(params.id);
+        if (result.success) {
+          return textResult(`Request ${params.id} saved.`);
+        }
+        return textResult(`Request ${params.id} not found.`, true);
+      } catch (err) {
+        return textResult(
+          `Failed to save request: ${err instanceof Error ? err.message : "Unknown error"}`,
+          true
+        );
+      }
+    }
+  );
+
+  // --- procsi_unsave_request ---
+  server.tool(
+    "procsi_unsave_request",
+    "Remove the saved/bookmark flag from a captured HTTP request. The request will then be subject to normal clear and eviction behaviour.",
+    {
+      id: z.string().describe("The request ID to unsave/unbookmark."),
+    },
+    async (params) => {
+      try {
+        const result = await client.unsaveRequest(params.id);
+        if (result.success) {
+          return textResult(`Request ${params.id} unsaved.`);
+        }
+        return textResult(`Request ${params.id} not found.`, true);
+      } catch (err) {
+        return textResult(
+          `Failed to unsave request: ${err instanceof Error ? err.message : "Unknown error"}`,
           true
         );
       }

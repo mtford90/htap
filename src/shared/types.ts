@@ -23,6 +23,7 @@ export interface CapturedRequest {
   durationMs?: number;
   interceptedBy?: string;
   interceptionType?: InterceptionType;
+  saved?: boolean;
 }
 
 /**
@@ -46,6 +47,7 @@ export interface CapturedRequestSummary {
   responseBodySize: number;
   interceptedBy?: string;
   interceptionType?: InterceptionType;
+  saved?: boolean;
 }
 
 export interface Session {
@@ -76,6 +78,7 @@ export interface RequestFilter {
   headerValue?: string; // header value to match (requires headerName)
   headerTarget?: "request" | "response" | "both"; // which headers to search (default "both")
   interceptedBy?: string; // filter by interceptor name
+  saved?: boolean; // true = only saved, false = only unsaved, undefined = all
 }
 
 /**

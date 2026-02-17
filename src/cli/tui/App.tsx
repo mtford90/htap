@@ -66,7 +66,7 @@ function AppContent({ __testEnableInput, projectRoot }: AppProps): React.ReactEl
   const [filter, setFilter] = useState<RequestFilter>({});
   const [showFilter, setShowFilter] = useState(false);
 
-  const { requests, isLoading, error, refresh, getFullRequest, getAllFullRequests } = useRequests({
+  const { requests, isLoading, error, refresh, getFullRequest, getAllFullRequests, toggleSaved, clearRequests } = useRequests({
     filter,
     projectRoot,
     pollInterval: config?.pollInterval,
@@ -98,6 +98,9 @@ function AppContent({ __testEnableInput, projectRoot }: AppProps): React.ReactEl
 
   // Interceptor log modal state
   const [showInterceptorLog, setShowInterceptorLog] = useState(false);
+
+  // Clear confirmation state — when true, the next 'y' press confirms the clear
+  const [pendingClear, setPendingClear] = useState(false);
 
   // Proxy details for info modal (one-time sync read)
   const proxyPort = useMemo(() => {
@@ -326,6 +329,19 @@ function AppContent({ __testEnableInput, projectRoot }: AppProps): React.ReactEl
   // Handle keyboard input (only when raw mode is supported, i.e. running in a TTY)
   useInput(
     (input, key) => {
+      // Handle clear confirmation — any key other than 'y' cancels
+      if (pendingClear) {
+        setPendingClear(false);
+        if (input === "y") {
+          void clearRequests().then((success) => {
+            showStatus(success ? "Requests cleared (bookmarks preserved)" : "Failed to clear requests");
+          });
+        } else {
+          setStatusMessage(undefined);
+        }
+        return;
+      }
+
       // Navigation - behaviour depends on active panel
       if (input === "j" || key.downArrow) {
         if (activePanel === "list") {
@@ -536,6 +552,28 @@ function AppContent({ __testEnableInput, projectRoot }: AppProps): React.ReactEl
           setShowSaveModal(true);
         } else if (activePanel === "accordion" && (focusedSection === SECTION_REQUEST_BODY || focusedSection === SECTION_RESPONSE_BODY)) {
           showStatus("No body to export");
+        }
+      } else if (input === "x" || input === "D") {
+        // Clear all unsaved requests (with confirmation)
+        if (requests.length > 0) {
+          setPendingClear(true);
+          showStatus("Clear all requests? (y to confirm, any key to cancel)");
+        } else {
+          showStatus("No requests to clear");
+        }
+      } else if (input === "b" && !key.ctrl) {
+        // Toggle bookmark on selected request
+        if (selectedSummary) {
+          const currentlySaved = selectedSummary.saved === true;
+          void toggleSaved(selectedSummary.id, currentlySaved).then((success) => {
+            if (success) {
+              showStatus(currentlySaved ? "Bookmark removed" : "Bookmarked");
+            } else {
+              showStatus("Failed to toggle bookmark");
+            }
+          });
+        } else {
+          showStatus("No request selected");
         }
       }
     },

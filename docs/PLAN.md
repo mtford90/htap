@@ -78,13 +78,14 @@ Scriptable CLI commands exposing the same search/filter/export capabilities as t
 ## Up Next
 
 Each feature should be considered across all three surfaces where applicable:
+
 - **TUI** — interactive terminal UI (filter bar, keybindings, modals)
 - **CLI** — REST-like commands (`procsi requests --flag`)
 - **MCP** — AI-facing tools (`procsi_list_requests` etc.)
 
 ---
 
-- [ ] **Saved requests (bookmarks)** — save/bookmark individual requests for later reference, persisting them beyond `clear` operations
+- [x] **Saved requests (bookmarks)** — save/bookmark individual requests for later reference, persisting them beyond `clear` operations
   - **Storage:** new `saved_requests` table in SQLite (or a `saved` flag on the requests table); saved requests excluded from `clear` by default
   - **TUI:** keybinding (e.g. `b`) to toggle bookmark on selected request, visual indicator on bookmarked rows, filter to show only saved requests
   - **CLI:** `procsi requests --saved` filter flag; `procsi request <id> save` / `procsi request <id> unsave` to toggle
@@ -154,7 +155,11 @@ New formatter functions alongside existing `generateCurl()`. Submenu or modal fo
 ## Phase 5: Remaining Features
 
 - [ ] **WebSocket support** — Capture and display WebSocket traffic (frames, messages, connection lifecycle)
-- [ ] **Launch Chromium** — `procsi chrome` spawns Chromium pre-configured to use the proxy
+- [ ] **Launch browser** — `procsi browser [chrome|firefox|safari]` spawns a browser pre-configured to use the proxy with the CA cert trusted
+  - **Chrome/Chromium:** `--proxy-server` and `--ignore-certificate-errors-spki-list` flags, isolated profile via `--user-data-dir`
+  - **Firefox:** fresh profile with proxy prefs and CA cert injected via `user.js` / `certutil`
+  - **Safari:** system proxy + Keychain trust for the CA cert (macOS only, requires elevated permissions)
+  - Auto-detect installed browsers; default to first available if no argument given
 - [ ] **Cross-platform CI** — Run integration tests across platforms via GitHub Actions
 
 ---

@@ -30,6 +30,8 @@ const KEY_HINTS: KeyHint[] = [
   { key: "H", action: "HAR", visible: (ctx) => ctx.hasRequests },
   { key: "y", action: "yank", visible: (ctx) => ctx.onBodySection },
   { key: "s", action: "export", visible: (ctx) => ctx.onBodySection },
+  { key: "b", action: "bookmark", visible: (ctx) => ctx.hasSelection },
+  { key: "x", action: "clear", visible: (ctx) => ctx.hasRequests },
   { key: "u", action: "URL" },
   { key: "/", action: "filter" },
   { key: "L", action: "events", visible: (ctx) => ctx.hasEvents },

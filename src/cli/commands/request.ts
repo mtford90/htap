@@ -138,6 +138,62 @@ const exportSubcommand = new Command("export")
     }
   });
 
+const saveSubcommand = new Command("save")
+  .description("Save (bookmark) a request so it persists across clear operations")
+  .action(async (_opts: Record<string, unknown>, command: Command) => {
+    const parentOpts = command.parent?.args ?? [];
+    const idPrefix = parentOpts[0];
+    if (!idPrefix || typeof idPrefix !== "string") {
+      console.error("Usage: procsi request <id> save");
+      process.exit(1);
+    }
+
+    const { client } = await connectToDaemon(command);
+    try {
+      const request = await resolveRequest(client, idPrefix);
+      const result = await client.saveRequest(request.id);
+      if (result.success) {
+        console.log(`  Request ${request.id.slice(0, SHORT_ID_LENGTH)} saved`);
+      } else {
+        console.error(`  Failed to save request`);
+        process.exit(1);
+      }
+    } catch (err) {
+      console.error(`Error: ${getErrorMessage(err)}`);
+      process.exit(1);
+    } finally {
+      client.close();
+    }
+  });
+
+const unsaveSubcommand = new Command("unsave")
+  .description("Remove the saved/bookmark flag from a request")
+  .action(async (_opts: Record<string, unknown>, command: Command) => {
+    const parentOpts = command.parent?.args ?? [];
+    const idPrefix = parentOpts[0];
+    if (!idPrefix || typeof idPrefix !== "string") {
+      console.error("Usage: procsi request <id> unsave");
+      process.exit(1);
+    }
+
+    const { client } = await connectToDaemon(command);
+    try {
+      const request = await resolveRequest(client, idPrefix);
+      const result = await client.unsaveRequest(request.id);
+      if (result.success) {
+        console.log(`  Request ${request.id.slice(0, SHORT_ID_LENGTH)} unsaved`);
+      } else {
+        console.error(`  Failed to unsave request`);
+        process.exit(1);
+      }
+    } catch (err) {
+      console.error(`Error: ${getErrorMessage(err)}`);
+      process.exit(1);
+    } finally {
+      client.close();
+    }
+  });
+
 // --- Main `request` command ---
 
 export const requestCommand = new Command("request")
@@ -146,6 +202,8 @@ export const requestCommand = new Command("request")
   .option("--json", "JSON output")
   .addCommand(bodySubcommand)
   .addCommand(exportSubcommand)
+  .addCommand(saveSubcommand)
+  .addCommand(unsaveSubcommand)
   .action(async (id: string, opts: { json?: boolean }, command: Command) => {
     const { client } = await connectToDaemon(command);
     try {
@@ -158,11 +216,7 @@ export const requestCommand = new Command("request")
 
       console.log(formatRequestDetail(request));
 
-      const hint = formatHint([
-        "body for full body",
-        "export curl|har",
-        "body --request for request body",
-      ]);
+      const hint = formatHint(["body for full body", "export curl|har", "save|unsave to bookmark"]);
       if (hint) {
         console.log("");
         console.log(hint);

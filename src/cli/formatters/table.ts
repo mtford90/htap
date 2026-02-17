@@ -45,6 +45,15 @@ function interceptionIndicator(type: InterceptionType | undefined): string {
   return "   ";
 }
 
+/**
+ * Render a saved/bookmark indicator: [S] for saved requests.
+ */
+function savedIndicator(saved: boolean | undefined): string {
+  if (!saved) return "   ";
+  const colour = useColour();
+  return colour ? `${YELLOW}[S]${RESET}` : "[S]";
+}
+
 export interface TableOptions {
   /** Maximum URL column width. Defaults to 50. */
   urlWidth?: number;
@@ -79,9 +88,10 @@ export function formatRequestTable(
     const duration = padLeft(formatDuration(req.durationMs), 10);
     const size = padLeft(formatSize(req.responseBodySize || undefined), 8);
     const indicator = interceptionIndicator(req.interceptionType);
+    const saved = savedIndicator(req.saved);
 
     lines.push(
-      `  ${shortId}  ${method}  ${status}  ${paddedUrl}  ${duration}  ${size} ${indicator}`
+      `  ${shortId}  ${method}  ${status}  ${paddedUrl}  ${duration}  ${size} ${indicator}${saved}`
     );
   }
 
