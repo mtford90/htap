@@ -186,10 +186,13 @@ function applyFilterConditions(
   }
 
   if (filter.search) {
-    const escaped = escapeLikeWildcards(filter.search);
-    const pattern = `%${escaped}%`;
-    conditions.push("(url LIKE ? ESCAPE '\\' OR path LIKE ? ESCAPE '\\')");
-    params.push(pattern, pattern);
+    const terms = filter.search.split(/\s+/).filter(Boolean);
+    for (const term of terms) {
+      const escaped = escapeLikeWildcards(term);
+      const pattern = `%${escaped}%`;
+      conditions.push("(url LIKE ? ESCAPE '\\' OR path LIKE ? ESCAPE '\\')");
+      params.push(pattern, pattern);
+    }
   }
 
   if (filter.host) {

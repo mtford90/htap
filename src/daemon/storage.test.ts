@@ -425,6 +425,41 @@ describe("RequestRepository", () => {
       expect(results[0]?.path).toBe("/health");
     });
 
+    it("filters by multi-term search (AND logic)", () => {
+      seedRequests();
+      // "users" AND "POST" would match URL containing "users" — but we're matching URL/path
+      // Use terms that narrow to a single result: "users" matches 4, "1" narrows to 2 (/users/1)
+      const results = repo.listRequests({ filter: { search: "users 1" } });
+      expect(results).toHaveLength(2); // PUT /users/1 and DELETE /users/1
+      expect(results.every((r) => r.url.includes("users") && r.url.includes("1"))).toBe(true);
+    });
+
+    it("multi-term search requires ALL terms to match", () => {
+      seedRequests();
+      // "health" matches 1, "login" matches 1 — no request matches both
+      const results = repo.listRequests({ filter: { search: "health login" } });
+      expect(results).toHaveLength(0);
+    });
+
+    it("single-term search still works as before", () => {
+      seedRequests();
+      const results = repo.listRequests({ filter: { search: "users" } });
+      expect(results).toHaveLength(4);
+    });
+
+    it("ignores extra whitespace in multi-term search", () => {
+      seedRequests();
+      const results = repo.listRequests({ filter: { search: "  users   1  " } });
+      expect(results).toHaveLength(2);
+    });
+
+    it("whitespace-only search returns all results", () => {
+      seedRequests();
+      const allResults = repo.listRequests({});
+      const results = repo.listRequests({ filter: { search: "   " } });
+      expect(results).toHaveLength(allResults.length);
+    });
+
     it("combines method + status + search filters", () => {
       seedRequests();
       const results = repo.listRequests({

@@ -324,6 +324,25 @@ describe("FilterBar", () => {
     expect(frame).toContain("Enter=close");
     expect(frame).toContain("Esc=cancel");
     expect(frame).toContain("Tab=switch");
+    expect(frame).toContain("space=AND");
+  });
+
+
+  it("multi-word search emits the full string including spaces", async () => {
+    const onFilterChange = vi.fn();
+    const { stdin } = render(
+      <FilterBar {...defaultProps} onFilterChange={onFilterChange} />,
+    );
+
+    for (const ch of "foo bar") {
+      stdin.write(ch);
+      await tick();
+    }
+
+    // Wait for debounce
+    await tick(250);
+
+    expect(onFilterChange).toHaveBeenCalledWith({ search: "foo bar" });
   });
 
   it("typing in search does not affect method or status", async () => {

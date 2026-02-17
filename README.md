@@ -4,13 +4,13 @@
 [![CI](https://github.com/mtford90/procsi/actions/workflows/ci.yml/badge.svg)](https://github.com/mtford90/procsi/actions/workflows/ci.yml)
 [![License: AGPL v3](https://img.shields.io/badge/License-AGPL_v3-blue.svg)](https://www.gnu.org/licenses/agpl-3.0)
 
-Procsi is a terminal-based HTTP proxy with a powerful MCP server. Quickly intercept, inspect & rewrite HTTP traffic.
+Procsi is a terminal-based, project-isolated HTTP proxy with a powerful CLI & MCP server. Quickly intercept, inspect & rewrite HTTP traffic from the comfort of your terminal or favourite AI agent.
 
 ![procsi demo](demo.gif)
 
 ## Feature Highlights
 
-- **Project isolation** — each project gets its own `.procsi/` directory with a separate daemon, database, CA cert and interceptors. 
+- **Project isolation** — each project gets its own `.procsi/` directory with a separate daemon, database, CA cert and interceptors
 - **MCP server** — AI agents get full access to your captured traffic and can write interceptor files for you. Search, filter, inspect, mock — all via tool calls.
 - **Interceptors** — mock, modify or observe traffic with `.ts` files. Match on anything, query past traffic from within handlers, compose complex scenarios.
 
@@ -104,46 +104,46 @@ npx agents export --target claude
 
 ### Available Tools
 
-| Tool | Description |
-|------|-------------|
-| `procsi_get_status` | Daemon status, proxy port, request count |
-| `procsi_list_requests` | Search and filter captured requests |
-| `procsi_get_request` | Full request details by ID (headers, bodies, timing) |
-| `procsi_search_bodies` | Full-text search through body content |
-| `procsi_query_json` | Extract values from JSON bodies via JSONPath |
-| `procsi_count_requests` | Count matching requests |
-| `procsi_clear_requests` | Delete all captured requests |
-| `procsi_list_sessions` | List active proxy sessions |
-| `procsi_list_interceptors` | List loaded interceptors with status and errors |
-| `procsi_reload_interceptors` | Reload interceptors from disk |
+| Tool                         | Description                                          |
+| ---------------------------- | ---------------------------------------------------- |
+| `procsi_get_status`          | Daemon status, proxy port, request count             |
+| `procsi_list_requests`       | Search and filter captured requests                  |
+| `procsi_get_request`         | Full request details by ID (headers, bodies, timing) |
+| `procsi_search_bodies`       | Full-text search through body content                |
+| `procsi_query_json`          | Extract values from JSON bodies via JSONPath         |
+| `procsi_count_requests`      | Count matching requests                              |
+| `procsi_clear_requests`      | Delete all captured requests                         |
+| `procsi_list_sessions`       | List active proxy sessions                           |
+| `procsi_list_interceptors`   | List loaded interceptors with status and errors      |
+| `procsi_reload_interceptors` | Reload interceptors from disk                        |
 
 ### Filtering
 
 Most tools accept these filters:
 
-| Parameter | Description | Example |
-|-----------|-------------|---------|
-| `method` | HTTP method(s), comma-separated | `"GET,POST"` |
-| `status_range` | Status code, Nxx pattern, or range | `"4xx"`, `"401"`, `"500-503"` |
-| `search` | Substring match on URL/path | `"api/users"` |
-| `host` | Exact or suffix match (prefix with `.`) | `"api.example.com"`, `".example.com"` |
-| `path` | Path prefix match | `"/api/v2"` |
-| `since` / `before` | Time window (ISO 8601) | `"2024-01-15T10:30:00Z"` |
-| `header_name` | Filter by header existence or value | `"content-type"` |
-| `header_value` | Exact header value (requires `header_name`) | `"application/json"` |
-| `header_target` | Which headers to search | `"request"`, `"response"`, `"both"` |
-| `intercepted_by` | Filter by interceptor name | `"mock-users"` |
-| `offset` | Pagination offset (0-based) | `0` |
-| `limit` | Max results (default 50, max 500) | `100` |
+| Parameter          | Description                                 | Example                               |
+| ------------------ | ------------------------------------------- | ------------------------------------- |
+| `method`           | HTTP method(s), comma-separated             | `"GET,POST"`                          |
+| `status_range`     | Status code, Nxx pattern, or range          | `"4xx"`, `"401"`, `"500-503"`         |
+| `search`           | Substring match on URL/path                 | `"api/users"`                         |
+| `host`             | Exact or suffix match (prefix with `.`)     | `"api.example.com"`, `".example.com"` |
+| `path`             | Path prefix match                           | `"/api/v2"`                           |
+| `since` / `before` | Time window (ISO 8601)                      | `"2024-01-15T10:30:00Z"`              |
+| `header_name`      | Filter by header existence or value         | `"content-type"`                      |
+| `header_value`     | Exact header value (requires `header_name`) | `"application/json"`                  |
+| `header_target`    | Which headers to search                     | `"request"`, `"response"`, `"both"`   |
+| `intercepted_by`   | Filter by interceptor name                  | `"mock-users"`                        |
+| `offset`           | Pagination offset (0-based)                 | `0`                                   |
+| `limit`            | Max results (default 50, max 500)           | `100`                                 |
 
 `procsi_get_request` accepts comma-separated IDs for batch fetching (e.g. `"id1,id2,id3"`).
 
 `procsi_query_json` also takes:
 
-| Parameter | Description | Example |
-|-----------|-------------|---------|
-| `target` | Which body to query: `"request"`, `"response"`, or `"both"` (default) | `"response"` |
-| `value` | Exact value match after JSONPath extraction | `"active"` |
+| Parameter | Description                                                           | Example      |
+| --------- | --------------------------------------------------------------------- | ------------ |
+| `target`  | Which body to query: `"request"`, `"response"`, or `"both"` (default) | `"response"` |
+| `value`   | Exact value match after JSONPath extraction                           | `"active"`   |
 
 ### Output Formats
 
@@ -257,21 +257,21 @@ export default {
 
 ### Handler Context
 
-| Property | Description |
-|----------|-------------|
-| `ctx.request` | The incoming request (frozen, read-only) |
+| Property        | Description                               |
+| --------------- | ----------------------------------------- |
+| `ctx.request`   | The incoming request (frozen, read-only)  |
 | `ctx.forward()` | Forward to upstream, returns the response |
-| `ctx.procsi` | Query captured traffic (see below) |
-| `ctx.log(msg)` | Write to `.procsi/procsi.log` |
+| `ctx.procsi`    | Query captured traffic (see below)        |
+| `ctx.log(msg)`  | Write to `.procsi/procsi.log`             |
 
 #### `ctx.procsi`
 
-| Method | Description |
-|--------|-------------|
-| `countRequests(filter?)` | Count matching requests |
-| `listRequests({ filter?, limit?, offset? })` | List request summaries |
-| `getRequest(id)` | Full request details by ID |
-| `searchBodies({ query, ...filter? })` | Full-text search through bodies |
+| Method                                       | Description                                  |
+| -------------------------------------------- | -------------------------------------------- |
+| `countRequests(filter?)`                     | Count matching requests                      |
+| `listRequests({ filter?, limit?, offset? })` | List request summaries                       |
+| `getRequest(id)`                             | Full request details by ID                   |
+| `searchBodies({ query, ...filter? })`        | Full-text search through bodies              |
 | `queryJsonBodies({ json_path, ...filter? })` | Extract values from JSON bodies via JSONPath |
 
 ### How Interceptors Work
@@ -326,15 +326,15 @@ export default {
 
 `eval "$(procsi on)"` sets these in your shell (`eval "$(procsi off)"` unsets them):
 
-| Variable | Purpose |
-|----------|---------|
-| `HTTP_PROXY` | Proxy URL for HTTP clients |
-| `HTTPS_PROXY` | Proxy URL for HTTPS clients |
-| `SSL_CERT_FILE` | CA cert path (curl, git, etc.) |
-| `REQUESTS_CA_BUNDLE` | CA cert path (Python requests) |
-| `NODE_EXTRA_CA_CERTS` | CA cert path (Node.js) |
-| `PROCSI_SESSION_ID` | UUID identifying the current session |
-| `PROCSI_LABEL` | Session label (when `-l` flag used) |
+| Variable              | Purpose                              |
+| --------------------- | ------------------------------------ |
+| `HTTP_PROXY`          | Proxy URL for HTTP clients           |
+| `HTTPS_PROXY`         | Proxy URL for HTTPS clients          |
+| `SSL_CERT_FILE`       | CA cert path (curl, git, etc.)       |
+| `REQUESTS_CA_BUNDLE`  | CA cert path (Python requests)       |
+| `NODE_EXTRA_CA_CERTS` | CA cert path (Node.js)               |
+| `PROCSI_SESSION_ID`   | UUID identifying the current session |
+| `PROCSI_LABEL`        | Session label (when `-l` flag used)  |
 
 ## Configuration
 
@@ -349,12 +349,12 @@ Create `.procsi/config.json` to override defaults. All fields are optional:
 }
 ```
 
-| Setting | Default | Description |
-|---------|---------|-------------|
-| `maxStoredRequests` | `5000` | Max requests in the database. Oldest evicted automatically. |
-| `maxBodySize` | `10485760` (10 MB) | Max body size to capture. Larger bodies are proxied but not stored. |
-| `maxLogSize` | `10485760` (10 MB) | Max log file size before rotation. |
-| `pollInterval` | `2000` | TUI polling interval in ms. Lower = faster updates, more IPC traffic. |
+| Setting             | Default            | Description                                                           |
+| ------------------- | ------------------ | --------------------------------------------------------------------- |
+| `maxStoredRequests` | `5000`             | Max requests in the database. Oldest evicted automatically.           |
+| `maxBodySize`       | `10485760` (10 MB) | Max body size to capture. Larger bodies are proxied but not stored.   |
+| `maxLogSize`        | `10485760` (10 MB) | Max log file size before rotation.                                    |
+| `pollInterval`      | `2000`             | TUI polling interval in ms. Lower = faster updates, more IPC traffic. |
 
 Missing or invalid values fall back to defaults.
 
@@ -362,14 +362,14 @@ Missing or invalid values fall back to defaults.
 
 Anything that respects `HTTP_PROXY` works:
 
-| Client | Support |
-|--------|---------|
-| curl | Automatic |
-| wget | Automatic |
+| Client                       | Support                    |
+| ---------------------------- | -------------------------- |
+| curl                         | Automatic                  |
+| wget                         | Automatic                  |
 | Node.js (fetch, axios, etc.) | With `NODE_EXTRA_CA_CERTS` |
-| Python (requests, httpx) | With `REQUESTS_CA_BUNDLE` |
-| Go | Automatic |
-| Rust (reqwest) | Automatic |
+| Python (requests, httpx)     | With `REQUESTS_CA_BUNDLE`  |
+| Go                           | Automatic                  |
+| Rust (reqwest)               | Automatic                  |
 
 ## Export
 
@@ -397,59 +397,59 @@ Mouse support: click to select, scroll to navigate, click panels to focus.
 
 ### Main View
 
-| Key | Action |
-|-----|--------|
-| `j`/`k` or `↑`/`↓` | Navigate up/down |
-| `g` / `G` | Jump to first / last item |
-| `Ctrl+u` / `Ctrl+d` | Half-page up / down |
-| `Ctrl+f` / `Ctrl+b` | Full-page down / up |
-| `Tab` / `Shift+Tab` | Next / previous panel |
-| `1`-`5` | Jump to section (list / request / request body / response / response body) |
-| `Enter` | Open body in full-screen viewer |
-| `/` | Open filter bar |
-| `u` | Toggle full URL display |
-| `c` | Copy request as curl |
-| `y` | Copy body to clipboard |
-| `s` | Export body (opens export modal) |
-| `H` | Export all as HAR |
-| `r` | Refresh |
-| `?` | Help |
-| `i` | Proxy connection info |
-| `q` | Quit |
+| Key                 | Action                                                                     |
+| ------------------- | -------------------------------------------------------------------------- |
+| `j`/`k` or `↑`/`↓`  | Navigate up/down                                                           |
+| `g` / `G`           | Jump to first / last item                                                  |
+| `Ctrl+u` / `Ctrl+d` | Half-page up / down                                                        |
+| `Ctrl+f` / `Ctrl+b` | Full-page down / up                                                        |
+| `Tab` / `Shift+Tab` | Next / previous panel                                                      |
+| `1`-`5`             | Jump to section (list / request / request body / response / response body) |
+| `Enter`             | Open body in full-screen viewer                                            |
+| `/`                 | Open filter bar                                                            |
+| `u`                 | Toggle full URL display                                                    |
+| `c`                 | Copy request as curl                                                       |
+| `y`                 | Copy body to clipboard                                                     |
+| `s`                 | Export body (opens export modal)                                           |
+| `H`                 | Export all as HAR                                                          |
+| `r`                 | Refresh                                                                    |
+| `?`                 | Help                                                                       |
+| `i`                 | Proxy connection info                                                      |
+| `q`                 | Quit                                                                       |
 
 ### Filter Bar (`/`)
 
-| Key | Action |
-|-----|--------|
-| `Tab` / `Shift+Tab` | Cycle between search, method, status fields |
-| `←` / `→` | Cycle method (ALL/GET/POST/PUT/PATCH/DELETE) or status (ALL/2xx-5xx) |
-| `Return` | Apply filter |
-| `Esc` | Cancel and revert |
+| Key                 | Action                                                               |
+| ------------------- | -------------------------------------------------------------------- |
+| `Tab` / `Shift+Tab` | Cycle between search, method, status fields                          |
+| `←` / `→`           | Cycle method (ALL/GET/POST/PUT/PATCH/DELETE) or status (ALL/2xx-5xx) |
+| `Return`            | Apply filter                                                         |
+| `Esc`               | Cancel and revert                                                    |
 
 ### JSON Explorer (Enter on a JSON body)
 
-| Key | Action |
-|-----|--------|
-| `j`/`k` | Navigate nodes |
-| `Enter`/`l` | Expand/collapse node |
-| `h` | Collapse node |
-| `e` / `c` | Expand / collapse all |
-| `/` | Filter by path |
-| `n` / `N` | Next / previous match |
-| `y` | Copy value |
-| `q` / `Esc` | Close |
+| Key         | Action                |
+| ----------- | --------------------- |
+| `j`/`k`     | Navigate nodes        |
+| `Enter`/`l` | Expand/collapse node  |
+| `h`         | Collapse node         |
+| `e` / `c`   | Expand / collapse all |
+| `/`         | Filter by path        |
+| `n` / `N`   | Next / previous match |
+| `y`         | Copy value            |
+| `q` / `Esc` | Close                 |
 
 ### Text Viewer (Enter on a non-JSON body)
 
-| Key | Action |
-|-----|--------|
-| `j`/`k` | Scroll line by line |
-| `Space` | Page down |
-| `g` / `G` | Top / bottom |
-| `/` | Search text |
-| `n` / `N` | Next / previous match |
-| `y` | Copy to clipboard |
-| `q` / `Esc` | Close |
+| Key         | Action                |
+| ----------- | --------------------- |
+| `j`/`k`     | Scroll line by line   |
+| `Space`     | Page down             |
+| `g` / `G`   | Top / bottom          |
+| `/`         | Search text           |
+| `n` / `N`   | Next / previous match |
+| `y`         | Copy to clipboard     |
+| `q` / `Esc` | Close                 |
 
 </details>
 
@@ -457,10 +457,10 @@ Mouse support: click to select, scroll to navigate, click panels to focus.
 
 ### Global Options
 
-| Flag | Description |
-|------|-------------|
-| `-v, --verbose` | Increase log verbosity (stackable: `-vv`, `-vvv`) |
-| `-d, --dir <path>` | Override project root directory |
+| Flag               | Description                                       |
+| ------------------ | ------------------------------------------------- |
+| `-v, --verbose`    | Increase log verbosity (stackable: `-vv`, `-vvv`) |
+| `-d, --dir <path>` | Override project root directory                   |
 
 ### `procsi on`
 
@@ -472,10 +472,10 @@ eval "$(procsi on)"
 
 If run directly in a TTY (without `eval`), shows usage instructions.
 
-| Flag | Description |
-|------|-------------|
-| `-l, --label <label>` | Label this session (visible in TUI and MCP) |
-| `--no-restart` | Don't auto-restart daemon on version mismatch |
+| Flag                  | Description                                   |
+| --------------------- | --------------------------------------------- |
+| `-l, --label <label>` | Label this session (visible in TUI and MCP)   |
+| `--no-restart`        | Don't auto-restart daemon on version mismatch |
 
 ### `procsi off`
 
@@ -489,8 +489,8 @@ eval "$(procsi off)"
 
 Open the interactive TUI.
 
-| Flag | Description |
-|------|-------------|
+| Flag   | Description                                 |
+| ------ | ------------------------------------------- |
 | `--ci` | CI mode: render once and exit (for testing) |
 
 ### `procsi status`
@@ -525,21 +525,21 @@ procsi requests --limit 100 --offset 50      # pagination
 procsi requests --json                       # JSON output
 ```
 
-| Flag | Description |
-|------|-------------|
-| `--method <methods>` | Filter by HTTP method (comma-separated) |
-| `--status <range>` | Status range: `2xx`, `4xx`, exact `401`, etc. |
-| `--host <host>` | Filter by hostname |
-| `--path <prefix>` | Filter by path prefix |
-| `--search <text>` | Substring match on URL |
-| `--since <time>` | Since time (5m, 2h, 10am, yesterday, monday, 2024-01-01) |
-| `--before <time>` | Before time (same formats as --since) |
-| `--header <spec>` | Header name or name:value |
-| `--header-target <target>` | `request`, `response`, or `both` (default) |
-| `--intercepted-by <name>` | Filter by interceptor name |
-| `--limit <n>` | Max results (default 50) |
-| `--offset <n>` | Skip results (default 0) |
-| `--json` | JSON output |
+| Flag                       | Description                                              |
+| -------------------------- | -------------------------------------------------------- |
+| `--method <methods>`       | Filter by HTTP method (comma-separated)                  |
+| `--status <range>`         | Status range: `2xx`, `4xx`, exact `401`, etc.            |
+| `--host <host>`            | Filter by hostname                                       |
+| `--path <prefix>`          | Filter by path prefix                                    |
+| `--search <text>`          | Substring match on URL                                   |
+| `--since <time>`           | Since time (5m, 2h, 10am, yesterday, monday, 2024-01-01) |
+| `--before <time>`          | Before time (same formats as --since)                    |
+| `--header <spec>`          | Header name or name:value                                |
+| `--header-target <target>` | `request`, `response`, or `both` (default)               |
+| `--intercepted-by <name>`  | Filter by interceptor name                               |
+| `--limit <n>`              | Max results (default 50)                                 |
+| `--offset <n>`             | Skip results (default 0)                                 |
+| `--json`                   | JSON output                                              |
 
 #### `procsi requests search <query>`
 
@@ -589,8 +589,8 @@ procsi request a1b2c3d export har
 
 List active proxy sessions.
 
-| Flag | Description |
-|------|-------------|
+| Flag     | Description |
+| -------- | ----------- |
 | `--json` | JSON output |
 
 ### `procsi clear`
@@ -634,13 +634,13 @@ procsi interceptors logs --follow                # live tail (Ctrl+C to stop)
 procsi interceptors logs --follow --json         # live tail as NDJSON
 ```
 
-| Flag | Description |
-|------|-------------|
-| `--name <interceptor>` | Filter by interceptor name |
-| `--level <level>` | Filter by level (info, warn, error) |
-| `--limit <n>` | Max events (default 50) |
-| `--follow` | Live tail — poll for new events |
-| `--json` | JSON output |
+| Flag                   | Description                         |
+| ---------------------- | ----------------------------------- |
+| `--name <interceptor>` | Filter by interceptor name          |
+| `--level <level>`      | Filter by level (info, warn, error) |
+| `--limit <n>`          | Max events (default 50)             |
+| `--follow`             | Live tail — poll for new events     |
+| `--json`               | JSON output                         |
 
 #### `procsi interceptors logs clear`
 
@@ -690,13 +690,11 @@ procsi daemon stop
 eval "$(procsi on)"
 ```
 
-### Terminal too small
-
-The TUI needs at least 60 columns by 10 rows.
-
 ### Requests not appearing
 
-Your HTTP client needs to respect proxy environment variables. 
+Your HTTP client needs to respect proxy environment variables.
+
+There are workarounds implemented for node - e.g. fetch override. Other libraries in different environments may need a similar treatment.
 
 ## Licence
 
