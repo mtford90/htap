@@ -227,7 +227,7 @@ export function FilterBar({
         {currentStatus}
       </Text>
       <Text color="gray">{"  "}</Text>
-      <Text dimColor>Tab=switch Enter=close Esc=cancel</Text>
+      <Text dimColor>Tab=switch Enter=close Esc=cancel space=AND</Text>
     </Box>
   );
 }
