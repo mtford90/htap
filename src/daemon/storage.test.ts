@@ -997,7 +997,7 @@ describe("RequestRepository", () => {
       // Verify user_version was set to latest migration
       const checkDb = new Database(migrationDbPath);
       const version = checkDb.pragma("user_version", { simple: true });
-      expect(version).toBe(5);
+      expect(version).toBe(6);
       checkDb.close();
 
       migratedRepo.close();
@@ -1008,7 +1008,7 @@ describe("RequestRepository", () => {
       // The default repo from beforeEach is a fresh DB
       const checkDb = new Database(dbPath);
       const version = checkDb.pragma("user_version", { simple: true });
-      expect(version).toBe(5);
+      expect(version).toBe(6);
       checkDb.close();
     });
 
@@ -2051,6 +2051,209 @@ describe("RequestRepository", () => {
       expect(results[0]?.id).toBe(id2);
       expect(results[0]?.method).toBe("POST");
       expect(results[0]?.interceptedBy).toBe("filter-test");
+    });
+  });
+
+  describe("bookmarks (saved requests)", () => {
+    let sessionId: string;
+
+    beforeEach(() => {
+      const session = repo.registerSession("test", 1);
+      sessionId = session.id;
+    });
+
+    function insertRequest(path = "/test"): string {
+      return repo.saveRequest({
+        sessionId,
+        timestamp: Date.now(),
+        method: "GET",
+        url: `https://api.example.com${path}`,
+        host: "api.example.com",
+        path,
+        requestHeaders: {},
+      });
+    }
+
+    describe("bookmarkRequest/unbookmarkRequest", () => {
+      it("bookmarkRequest sets saved flag", () => {
+        const id = insertRequest();
+
+        const result = repo.bookmarkRequest(id);
+
+        expect(result).toBe(true);
+        const request = repo.getRequest(id);
+        expect(request?.saved).toBe(true);
+      });
+
+      it("unbookmarkRequest clears saved flag", () => {
+        const id = insertRequest();
+        repo.bookmarkRequest(id);
+
+        const result = repo.unbookmarkRequest(id);
+
+        expect(result).toBe(true);
+        const request = repo.getRequest(id);
+        expect(request?.saved).not.toBe(true);
+      });
+
+      it("bookmarkRequest returns false for non-existent ID", () => {
+        const result = repo.bookmarkRequest("non-existent-id");
+        expect(result).toBe(false);
+      });
+
+      it("unbookmarkRequest returns false for non-existent ID", () => {
+        const result = repo.unbookmarkRequest("non-existent-id");
+        expect(result).toBe(false);
+      });
+    });
+
+    describe("clearRequests preserves saved", () => {
+      it("only deletes unsaved requests", () => {
+        const id1 = insertRequest("/first");
+        const id2 = insertRequest("/second");
+        const id3 = insertRequest("/third");
+
+        // Bookmark the second one
+        repo.bookmarkRequest(id2);
+
+        repo.clearRequests();
+
+        // Only the bookmarked request should remain
+        expect(repo.countRequests()).toBe(1);
+        const remaining = repo.getRequest(id2);
+        expect(remaining).toBeDefined();
+        expect(remaining?.path).toBe("/second");
+        expect(remaining?.saved).toBe(true);
+
+        // Others should be gone
+        expect(repo.getRequest(id1)).toBeUndefined();
+        expect(repo.getRequest(id3)).toBeUndefined();
+      });
+    });
+
+    describe("filter saved", () => {
+      it("saved: true returns only saved requests", () => {
+        const id1 = insertRequest("/first");
+        const id2 = insertRequest("/second");
+        const id3 = insertRequest("/third");
+
+        // Bookmark two of them
+        repo.bookmarkRequest(id1);
+        repo.bookmarkRequest(id3);
+
+        const results = repo.listRequestsSummary({ filter: { saved: true } });
+
+        expect(results).toHaveLength(2);
+        const ids = results.map((r) => r.id);
+        expect(ids).toContain(id1);
+        expect(ids).toContain(id3);
+        expect(ids).not.toContain(id2);
+      });
+
+      it("saved: false returns only unsaved requests", () => {
+        const id1 = insertRequest("/first");
+        const id2 = insertRequest("/second");
+        const id3 = insertRequest("/third");
+
+        // Bookmark two of them
+        repo.bookmarkRequest(id1);
+        repo.bookmarkRequest(id3);
+
+        const results = repo.listRequestsSummary({ filter: { saved: false } });
+
+        expect(results).toHaveLength(1);
+        expect(results[0]?.id).toBe(id2);
+      });
+
+      it("no filter returns all requests", () => {
+        insertRequest("/first");
+        insertRequest("/second");
+        const id3 = insertRequest("/third");
+
+        repo.bookmarkRequest(id3);
+
+        const results = repo.listRequestsSummary();
+
+        expect(results).toHaveLength(3);
+      });
+    });
+
+    describe("eviction skips saved requests", () => {
+      it("preserves bookmarked request during eviction", () => {
+        // Create a repo with small cap
+        const smallRepo = new RequestRepository(dbPath + "-bookmark-evict", undefined, undefined, {
+          maxStoredRequests: 10,
+        });
+        const evictSession = smallRepo.registerSession("test", 1);
+
+        // Insert a request and bookmark it
+        const bookmarkedId = smallRepo.saveRequest({
+          sessionId: evictSession.id,
+          timestamp: 1000,
+          method: "GET",
+          url: "https://api.example.com/bookmarked",
+          host: "api.example.com",
+          path: "/bookmarked",
+          requestHeaders: {},
+        });
+        smallRepo.bookmarkRequest(bookmarkedId);
+
+        // Insert 200 more unsaved requests to trigger eviction
+        for (let i = 0; i < 200; i++) {
+          smallRepo.saveRequest({
+            sessionId: evictSession.id,
+            timestamp: 2000 + i,
+            method: "GET",
+            url: `https://api.example.com/${i}`,
+            host: "api.example.com",
+            path: `/${i}`,
+            requestHeaders: {},
+          });
+        }
+
+        // Verify the bookmarked request still exists
+        const bookmarked = smallRepo.getRequest(bookmarkedId);
+        expect(bookmarked).toBeDefined();
+        expect(bookmarked?.path).toBe("/bookmarked");
+        expect(bookmarked?.saved).toBe(true);
+
+        // Verify the bookmarked request is preserved
+        // Note: After 200 inserts (plus 1 bookmarked), eviction has fired twice
+        // (at insert 100 and 200), but not at 201. So we have 11 unsaved requests
+        // until the next eviction at insert 300.
+        const totalCount = smallRepo.countRequests();
+        const savedCount = smallRepo.countRequests({ filter: { saved: true } });
+        const unsavedCount = smallRepo.countRequests({ filter: { saved: false } });
+
+        expect(savedCount).toBe(1);
+        expect(unsavedCount).toBe(11);
+        expect(totalCount).toBe(12);
+
+        smallRepo.close();
+        fs.unlinkSync(dbPath + "-bookmark-evict");
+      });
+    });
+
+    describe("listRequestsSummary includes saved flag", () => {
+      it("returns saved flag in summary", () => {
+        const id = insertRequest();
+        repo.bookmarkRequest(id);
+
+        const summaries = repo.listRequestsSummary();
+
+        expect(summaries).toHaveLength(1);
+        expect(summaries[0]?.id).toBe(id);
+        expect(summaries[0]?.saved).toBe(true);
+      });
+
+      it("returns saved flag for unsaved requests", () => {
+        insertRequest();
+
+        const summaries = repo.listRequestsSummary();
+
+        expect(summaries).toHaveLength(1);
+        expect(summaries[0]?.saved).not.toBe(true);
+      });
     });
   });
 });

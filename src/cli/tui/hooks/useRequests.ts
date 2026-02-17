@@ -30,6 +30,10 @@ interface UseRequestsResult {
   getFullRequest: (id: string) => Promise<CapturedRequest | null>;
   /** Fetch all requests with full data (for exports) */
   getAllFullRequests: () => Promise<CapturedRequest[]>;
+  /** Toggle the saved/bookmark state of a request */
+  toggleSaved: (id: string, currentlySaved: boolean) => Promise<boolean>;
+  /** Clear all unsaved requests */
+  clearRequests: () => Promise<boolean>;
 }
 
 /**
@@ -144,6 +148,41 @@ export function useRequests(options: UseRequestsOptions = {}): UseRequestsResult
     }
   }, []);
 
+  // Toggle saved/bookmark state and force refresh
+  const toggleSaved = useCallback(
+    async (id: string, currentlySaved: boolean): Promise<boolean> => {
+      const client = clientRef.current;
+      if (!client) return false;
+      try {
+        const result = currentlySaved
+          ? await client.unsaveRequest(id)
+          : await client.saveRequest(id);
+        if (result.success) {
+          lastCountRef.current = 0; // Force full refresh
+          await fetchRequests();
+        }
+        return result.success;
+      } catch {
+        return false;
+      }
+    },
+    [fetchRequests]
+  );
+
+  // Clear all unsaved requests
+  const clearRequests = useCallback(async (): Promise<boolean> => {
+    const client = clientRef.current;
+    if (!client) return false;
+    try {
+      await client.clearRequests();
+      lastCountRef.current = 0;
+      await fetchRequests();
+      return true;
+    } catch {
+      return false;
+    }
+  }, [fetchRequests]);
+
   // Initial fetch
   useEffect(() => {
     void fetchRequests();
@@ -165,5 +204,7 @@ export function useRequests(options: UseRequestsOptions = {}): UseRequestsResult
     refresh,
     getFullRequest,
     getAllFullRequests,
+    toggleSaved,
+    clearRequests,
   };
 }

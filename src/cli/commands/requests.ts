@@ -37,6 +37,7 @@ interface RequestsFlags {
   header?: string;
   headerTarget?: string;
   interceptedBy?: string;
+  saved?: boolean;
   limit?: string;
   offset?: string;
   json?: boolean;
@@ -101,6 +102,10 @@ function buildFilter(opts: RequestsFlags): RequestFilter {
     filter.interceptedBy = opts.interceptedBy;
   }
 
+  if (opts.saved) {
+    filter.saved = true;
+  }
+
   return filter;
 }
 
@@ -124,7 +129,8 @@ function addFilterFlags(cmd: Command): Command {
     .option("--before <time>", "filter before time (same formats as --since)")
     .option("--header <spec>", "filter by header name or name:value")
     .option("--header-target <target>", "which headers to search (request, response, both)", "both")
-    .option("--intercepted-by <name>", "filter by interceptor name");
+    .option("--intercepted-by <name>", "filter by interceptor name")
+    .option("--saved", "show only saved/bookmarked requests");
 }
 
 // --- Subcommands ---

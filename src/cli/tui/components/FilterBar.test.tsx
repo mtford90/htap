@@ -15,7 +15,7 @@ describe("FilterBar", () => {
     filter: {},
     onFilterChange: vi.fn(),
     onClose: vi.fn(),
-    width: 80,
+    width: 100,
   };
 
   it("renders the search prompt", () => {
@@ -79,6 +79,10 @@ describe("FilterBar", () => {
     expect(lastFrame()).not.toContain("█");
 
     // Tab to status field
+    stdin.write("\t");
+    await tick();
+
+    // Tab to saved field
     stdin.write("\t");
     await tick();
 
@@ -362,5 +366,52 @@ describe("FilterBar", () => {
 
     // Should only have search, no method or status filter
     expect(onFilterChange).toHaveBeenCalledWith({ search: "message" });
+  });
+
+  it("saved toggle cycles between ALL and YES", async () => {
+    const { lastFrame, stdin } = render(<FilterBar {...defaultProps} />);
+
+    // Tab 3 times to reach saved field (search → method → status → saved)
+    stdin.write("\t");
+    await tick();
+    stdin.write("\t");
+    await tick();
+    stdin.write("\t");
+    await tick();
+
+    // Verify it shows "ALL"
+    expect(lastFrame()).toContain("ALL");
+
+    // Press right arrow to toggle to YES
+    stdin.write("\x1b[C");
+    await tick();
+    expect(lastFrame()).toContain("YES");
+
+    // Press right arrow again to toggle back to ALL
+    stdin.write("\x1b[C");
+    await tick();
+    expect(lastFrame()).toContain("ALL");
+  });
+
+  it("saved filter applies live (debounced)", async () => {
+    const onFilterChange = vi.fn();
+    const { stdin } = render(
+      <FilterBar {...defaultProps} onFilterChange={onFilterChange} />,
+    );
+
+    // Tab 3 times to saved field
+    stdin.write("\t");
+    await tick();
+    stdin.write("\t");
+    await tick();
+    stdin.write("\t");
+    await tick();
+
+    // Press right arrow (toggles to YES)
+    stdin.write("\x1b[C");
+    // Wait for debounce
+    await tick(250);
+
+    expect(onFilterChange).toHaveBeenCalledWith({ saved: true });
   });
 });

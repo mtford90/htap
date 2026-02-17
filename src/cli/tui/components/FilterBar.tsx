@@ -16,8 +16,8 @@ const STATUS_CYCLE = ["2xx", "3xx", "4xx", "5xx"] as const;
 const MAX_SEARCH_LENGTH = 200;
 const FILTER_DEBOUNCE_MS = 150;
 
-type FilterField = "search" | "method" | "status";
-const FIELD_ORDER: FilterField[] = ["search", "method", "status"];
+type FilterField = "search" | "method" | "status" | "saved";
+const FIELD_ORDER: FilterField[] = ["search", "method", "status", "saved"];
 
 export interface FilterBarProps {
   isActive: boolean;
@@ -57,6 +57,9 @@ export function FilterBar({
     }
     return 0;
   });
+  const [savedIndex, setSavedIndex] = useState<number>(() => {
+    return filter.saved === true ? 1 : 0;
+  });
   const [focusedField, setFocusedField] = useState<FilterField>("search");
 
   function buildFilter(): RequestFilter {
@@ -78,6 +81,10 @@ export function FilterBar({
       if (status) {
         result.statusRange = status;
       }
+    }
+
+    if (savedIndex > 0) {
+      result.saved = true;
     }
 
     return result;
@@ -104,7 +111,7 @@ export function FilterBar({
         clearTimeout(debounceRef.current);
       }
     };
-  }, [search, methodIndex, statusIndex, onFilterChange]);
+  }, [search, methodIndex, statusIndex, savedIndex, onFilterChange]);
 
   // Cleanup debounce timer on unmount
   useEffect(() => {
@@ -185,12 +192,20 @@ export function FilterBar({
         }
         return;
       }
+
+      if (focusedField === "saved") {
+        if (key.rightArrow || key.downArrow || key.leftArrow || key.upArrow) {
+          setSavedIndex((prev) => (prev === 0 ? 1 : 0));
+        }
+        return;
+      }
     },
     { isActive },
   );
 
   const currentMethod = methodIndex > 0 ? METHOD_CYCLE[methodIndex - 1] : "ALL";
   const currentStatus = statusIndex > 0 ? STATUS_CYCLE[statusIndex - 1] : "ALL";
+  const currentSaved = savedIndex > 0 ? "YES" : "ALL";
 
   return (
     <Box
@@ -225,6 +240,15 @@ export function FilterBar({
         underline={focusedField === "status"}
       >
         {currentStatus}
+      </Text>
+      <Text color="gray">{"  "}</Text>
+      <Text dimColor>saved:</Text>
+      <Text
+        color={savedIndex > 0 ? "yellow" : "white"}
+        bold={focusedField === "saved"}
+        underline={focusedField === "saved"}
+      >
+        {currentSaved}
       </Text>
       <Text color="gray">{"  "}</Text>
       <Text dimColor>Tab=switch Enter=close Esc=cancel space=AND</Text>

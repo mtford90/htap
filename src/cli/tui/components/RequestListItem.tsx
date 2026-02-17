@@ -146,8 +146,9 @@ export const RequestListItem = memo(function RequestListItem({
   const statusIndicator = getStatusIndicator(request.responseStatus);
   const duration = formatDuration(request.durationMs);
 
-  const indicator = isSelected ? "❯ " : "  ";
-  const indicatorColour = isSelected ? "cyan" : undefined;
+  const savedChar = request.saved ? "*" : " ";
+  const indicator = isSelected ? `❯${savedChar}` : ` ${savedChar}`;
+  const indicatorColour = isSelected ? "cyan" : request.saved ? "yellow" : undefined;
   const interception = getInterceptionIndicator(request.interceptionType);
 
   return (
