@@ -172,6 +172,12 @@ export const AccordionPanel = forwardRef<DOMElement, AccordionPanelProps>(functi
               )}
             </Box>
           )}
+          {request.source && request.source !== "daemon" && (
+            <Box marginBottom={1}>
+              <Text color="blue" bold>Source: </Text>
+              <Text>{request.source}</Text>
+            </Box>
+          )}
           <Box marginBottom={1}>
             <Box width={8} flexShrink={0}>
               <Text color="green" bold>

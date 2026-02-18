@@ -11,6 +11,7 @@ import type {
   InterceptorEventType,
   InterceptorInfo,
   JsonQueryResult,
+  RegisteredSession,
   RequestFilter,
   Session,
 } from "../shared/types.js";
@@ -21,6 +22,7 @@ import {
   type ControlResponse,
 } from "../shared/control-client.js";
 import { createLogger, type LogLevel, type Logger } from "../shared/logger.js";
+import { resolveProcessName } from "../shared/process-name.js";
 
 export { ControlClient } from "../shared/control-client.js";
 
@@ -162,6 +164,10 @@ function optionalFilter(params: Record<string, unknown>): RequestFilter | undefi
     result.saved = f["saved"];
   }
 
+  if (typeof f["source"] === "string") {
+    result.source = f["source"];
+  }
+
   return Object.keys(result).length > 0 ? result : undefined;
 }
 
@@ -208,10 +214,17 @@ export function createControlServer(options: ControlServerOptions): ControlServe
       };
     },
 
-    registerSession: (params): Session => {
+    registerSession: (params): RegisteredSession => {
       const label = optionalString(params, "label");
       const pid = optionalNumber(params, "pid");
-      return storage.registerSession(label, pid);
+      let source = optionalString(params, "source");
+
+      // Auto-resolve process name from PID if source not provided
+      if (!source && pid !== undefined) {
+        source = resolveProcessName(pid);
+      }
+
+      return storage.registerSession(label, pid, source);
     },
 
     listSessions: (): Session[] => {

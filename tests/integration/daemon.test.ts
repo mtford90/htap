@@ -11,6 +11,11 @@ import { createControlServer } from "../../src/daemon/control.js";
 import { ControlClient } from "../../src/shared/control-client.js";
 import { ensureProcsiDir, getProcsiPaths } from "../../src/shared/project.js";
 import { getProcsiVersion } from "../../src/shared/version.js";
+import {
+  PROCSI_RUNTIME_SOURCE_HEADER,
+  PROCSI_SESSION_ID_HEADER,
+  PROCSI_SESSION_TOKEN_HEADER,
+} from "../../src/shared/constants.js";
 
 describe("daemon integration", () => {
   let tempDir: string;
@@ -107,6 +112,85 @@ describe("daemon integration", () => {
       const requests = storage.listRequests();
       expect(requests.length).toBeGreaterThanOrEqual(1);
       expect(requests.find((r) => r.sessionId === DAEMON_SESSION_ID)).toBeDefined();
+    });
+
+    it("ignores untrusted internal session attribution headers", async () => {
+      const daemonSessionId = "daemon";
+      storage.ensureSession(daemonSessionId, "daemon", process.pid, "daemon");
+      const trustedSession = storage.registerSession("trusted", process.pid, "shell");
+
+      const proxy = await createProxy({
+        caKeyPath: paths.caKeyFile,
+        caCertPath: paths.caCertFile,
+        storage,
+        sessionId: daemonSessionId,
+      });
+      cleanup.push(proxy.stop);
+
+      const testServer = http.createServer((req, res) => {
+        res.writeHead(200);
+        res.end("ok");
+      });
+      await new Promise<void>((resolve) => testServer.listen(0, "127.0.0.1", resolve));
+      const testServerAddress = testServer.address() as { port: number };
+      cleanup.push(() => {
+        testServer.closeAllConnections();
+        return new Promise((resolve) => testServer.close(() => resolve()));
+      });
+
+      await makeProxiedRequest(proxy.port, `http://127.0.0.1:${testServerAddress.port}/spoofed`, {
+        [PROCSI_SESSION_ID_HEADER]: trustedSession.id,
+        [PROCSI_SESSION_TOKEN_HEADER]: "invalid-token",
+        [PROCSI_RUNTIME_SOURCE_HEADER]: "node",
+      });
+      await new Promise((resolve) => setTimeout(resolve, 100));
+
+      const requests = storage.listRequests();
+      const captured = requests.find((r) => r.path === "/spoofed");
+      expect(captured).toBeDefined();
+      expect(captured?.sessionId).toBe(daemonSessionId);
+      expect(captured?.source).toBe("daemon");
+      expect(captured?.requestHeaders[PROCSI_SESSION_ID_HEADER]).toBeUndefined();
+      expect(captured?.requestHeaders[PROCSI_SESSION_TOKEN_HEADER]).toBeUndefined();
+      expect(captured?.requestHeaders[PROCSI_RUNTIME_SOURCE_HEADER]).toBeUndefined();
+    });
+
+    it("uses trusted internal session attribution headers when token is valid", async () => {
+      const daemonSessionId = "daemon";
+      storage.ensureSession(daemonSessionId, "daemon", process.pid, "daemon");
+      const trustedSession = storage.registerSession("trusted", process.pid, "shell");
+
+      const proxy = await createProxy({
+        caKeyPath: paths.caKeyFile,
+        caCertPath: paths.caCertFile,
+        storage,
+        sessionId: daemonSessionId,
+      });
+      cleanup.push(proxy.stop);
+
+      const testServer = http.createServer((req, res) => {
+        res.writeHead(200);
+        res.end("ok");
+      });
+      await new Promise<void>((resolve) => testServer.listen(0, "127.0.0.1", resolve));
+      const testServerAddress = testServer.address() as { port: number };
+      cleanup.push(() => {
+        testServer.closeAllConnections();
+        return new Promise((resolve) => testServer.close(() => resolve()));
+      });
+
+      await makeProxiedRequest(proxy.port, `http://127.0.0.1:${testServerAddress.port}/trusted`, {
+        [PROCSI_SESSION_ID_HEADER]: trustedSession.id,
+        [PROCSI_SESSION_TOKEN_HEADER]: trustedSession.token,
+        [PROCSI_RUNTIME_SOURCE_HEADER]: "node",
+      });
+      await new Promise((resolve) => setTimeout(resolve, 100));
+
+      const requests = storage.listRequests();
+      const captured = requests.find((r) => r.path === "/trusted");
+      expect(captured).toBeDefined();
+      expect(captured?.sessionId).toBe(trustedSession.id);
+      expect(captured?.source).toBe("node");
     });
 
     it("captures HTTP requests through the proxy", async () => {
@@ -763,7 +847,8 @@ describe("daemon integration", () => {
  */
 function makeProxiedRequest(
   proxyPort: number,
-  url: string
+  url: string,
+  headers: Record<string, string> = {}
 ): Promise<{ statusCode: number; body: string }> {
   return new Promise((resolve, reject) => {
     const parsedUrl = new URL(url);
@@ -776,6 +861,7 @@ function makeProxiedRequest(
       headers: {
         Host: parsedUrl.host,
         Connection: "close",
+        ...headers,
       },
     };
 

@@ -45,6 +45,7 @@ describe("formatEnvVars", () => {
       REQUESTS_CA_BUNDLE: "/path/to/ca.pem",
       NODE_EXTRA_CA_CERTS: "/path/to/ca.pem",
       PROCSI_SESSION_ID: "abc-123",
+      PROCSI_SESSION_TOKEN: "token-123",
       PROCSI_LABEL: "test-session",
     });
 
@@ -54,6 +55,7 @@ describe("formatEnvVars", () => {
     expect(result).toContain("export REQUESTS_CA_BUNDLE=");
     expect(result).toContain("export NODE_EXTRA_CA_CERTS=");
     expect(result).toContain("export PROCSI_SESSION_ID=");
+    expect(result).toContain("export PROCSI_SESSION_TOKEN=");
     expect(result).toContain("export PROCSI_LABEL=");
   });
 
@@ -118,6 +120,7 @@ describe("formatUnsetVars", () => {
       "REQUESTS_CA_BUNDLE",
       "NODE_EXTRA_CA_CERTS",
       "PROCSI_SESSION_ID",
+      "PROCSI_SESSION_TOKEN",
       "PROCSI_LABEL",
     ]);
 
@@ -127,6 +130,7 @@ describe("formatUnsetVars", () => {
     expect(result).toContain("unset REQUESTS_CA_BUNDLE");
     expect(result).toContain("unset NODE_EXTRA_CA_CERTS");
     expect(result).toContain("unset PROCSI_SESSION_ID");
+    expect(result).toContain("unset PROCSI_SESSION_TOKEN");
     expect(result).toContain("unset PROCSI_LABEL");
   });
 });

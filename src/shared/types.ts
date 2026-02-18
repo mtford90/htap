@@ -8,6 +8,7 @@ export interface CapturedRequest {
   id: string;
   sessionId: string;
   label?: string;
+  source?: string;
   timestamp: number;
   method: string;
   url: string;
@@ -34,6 +35,7 @@ export interface CapturedRequestSummary {
   id: string;
   sessionId: string;
   label?: string;
+  source?: string;
   timestamp: number;
   method: string;
   url: string;
@@ -53,8 +55,13 @@ export interface CapturedRequestSummary {
 export interface Session {
   id: string;
   label?: string;
+  source?: string;
   pid: number;
   startedAt: number;
+}
+
+export interface RegisteredSession extends Session {
+  token: string;
 }
 
 export interface DaemonStatus {
@@ -79,6 +86,7 @@ export interface RequestFilter {
   headerTarget?: "request" | "response" | "both"; // which headers to search (default "both")
   interceptedBy?: string; // filter by interceptor name
   saved?: boolean; // true = only saved, false = only unsaved, undefined = all
+  source?: string; // filter by request source (e.g. "node", "python", "curl")
 }
 
 /**

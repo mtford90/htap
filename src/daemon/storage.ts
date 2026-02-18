@@ -1,10 +1,12 @@
 import Database from "better-sqlite3";
+import { randomBytes } from "node:crypto";
 import { v4 as uuidv4 } from "uuid";
 import type {
   CapturedRequest,
   CapturedRequestSummary,
   InterceptionType,
   JsonQueryResult,
+  RegisteredSession,
   RequestFilter,
   Session,
 } from "../shared/types.js";
@@ -18,13 +20,16 @@ import { DEFAULT_MAX_STORED_REQUESTS } from "../shared/config.js";
 
 const DEFAULT_QUERY_LIMIT = 1000;
 const EVICTION_CHECK_INTERVAL = 100;
+const SESSION_TOKEN_BYTES = 16;
 
 const SCHEMA = `
 CREATE TABLE IF NOT EXISTS sessions (
     id TEXT PRIMARY KEY,
     label TEXT,
     pid INTEGER NOT NULL,
-    started_at INTEGER NOT NULL
+    started_at INTEGER NOT NULL,
+    source TEXT,
+    internal_token TEXT
 );
 
 CREATE TABLE IF NOT EXISTS requests (
@@ -48,6 +53,7 @@ CREATE TABLE IF NOT EXISTS requests (
     response_content_type TEXT,
     intercepted_by TEXT,
     interception_type TEXT CHECK(interception_type IN ('modified', 'mocked')),
+    source TEXT,
     saved INTEGER DEFAULT 0,
     created_at INTEGER DEFAULT (unixepoch()),
     FOREIGN KEY (session_id) REFERENCES sessions(id)
@@ -110,11 +116,28 @@ const MIGRATIONS: Migration[] = [
     description: "Add saved/bookmark column",
     sql: `ALTER TABLE requests ADD COLUMN saved INTEGER DEFAULT 0;`,
   },
+  {
+    version: 7,
+    description: "Add source column for request/session attribution",
+    sql: `
+      ALTER TABLE sessions ADD COLUMN source TEXT;
+      ALTER TABLE requests ADD COLUMN source TEXT;
+    `,
+  },
+  {
+    version: 8,
+    description: "Add internal session token for trusted runtime attribution headers",
+    sql: `ALTER TABLE sessions ADD COLUMN internal_token TEXT;`,
+  },
 ];
 
 const STATUS_RANGE_MULTIPLIER = 100;
 const MIN_HTTP_STATUS = 100;
 const MAX_HTTP_STATUS = 599;
+
+function generateSessionToken(): string {
+  return randomBytes(SESSION_TOKEN_BYTES).toString("hex");
+}
 
 /**
  * Escape SQL LIKE wildcards in user input to prevent unintended pattern matching.
@@ -241,6 +264,11 @@ function applyFilterConditions(
     conditions.push("saved = 0");
   }
 
+  if (filter.source) {
+    conditions.push("source = ?");
+    params.push(filter.source);
+  }
+
   if (filter.headerName) {
     const name = filter.headerName.toLowerCase();
     const jsonPath = `$."${name}"`;
@@ -342,20 +370,29 @@ export class RequestRepository {
   /**
    * Register a new session.
    */
-  registerSession(label?: string, pid: number = process.pid): Session {
-    const session: Session = {
+  registerSession(label?: string, pid: number = process.pid, source?: string): RegisteredSession {
+    const session: RegisteredSession = {
       id: uuidv4(),
       label,
+      source,
+      token: generateSessionToken(),
       pid,
       startedAt: Date.now(),
     };
 
     const stmt = this.db.prepare(`
-      INSERT INTO sessions (id, label, pid, started_at)
-      VALUES (?, ?, ?, ?)
+      INSERT INTO sessions (id, label, pid, started_at, source, internal_token)
+      VALUES (?, ?, ?, ?, ?, ?)
     `);
 
-    stmt.run(session.id, session.label ?? null, session.pid, session.startedAt);
+    stmt.run(
+      session.id,
+      session.label ?? null,
+      session.pid,
+      session.startedAt,
+      session.source ?? null,
+      session.token
+    );
 
     return session;
   }
@@ -365,13 +402,13 @@ export class RequestRepository {
    * If the session already exists, returns it unchanged.
    * If not, creates a new session with the given ID.
    */
-  ensureSession(id: string, label?: string, pid: number = process.pid): Session {
+  ensureSession(id: string, label?: string, pid: number = process.pid, source?: string): Session {
     const startedAt = Date.now();
     const stmt = this.db.prepare(`
-      INSERT OR IGNORE INTO sessions (id, label, pid, started_at)
-      VALUES (?, ?, ?, ?)
+      INSERT OR IGNORE INTO sessions (id, label, pid, started_at, source, internal_token)
+      VALUES (?, ?, ?, ?, ?, ?)
     `);
-    stmt.run(id, label ?? null, pid, startedAt);
+    stmt.run(id, label ?? null, pid, startedAt, source ?? null, null);
 
     // Return the session (either newly created or existing)
     const existing = this.getSession(id);
@@ -380,7 +417,26 @@ export class RequestRepository {
     }
 
     // This should never happen since we just inserted, but satisfies the type checker
-    return { id, label, pid, startedAt };
+    return { id, label, source, pid, startedAt };
+  }
+
+  /**
+   * Validate a session ID/token pair and return that session's source when valid.
+   */
+  getSessionAuth(id: string, token: string): { source?: string } | undefined {
+    const stmt = this.db.prepare(`
+      SELECT source
+      FROM sessions
+      WHERE id = ? AND internal_token = ?
+      LIMIT 1
+    `);
+    const row = stmt.get(id, token) as DbSessionAuthRow | undefined;
+    if (!row) {
+      return undefined;
+    }
+    return {
+      source: row.source ?? undefined,
+    };
   }
 
   /**
@@ -388,7 +444,7 @@ export class RequestRepository {
    */
   getSession(id: string): Session | undefined {
     const stmt = this.db.prepare(`
-      SELECT id, label, pid, started_at as startedAt
+      SELECT id, label, pid, started_at as startedAt, source
       FROM sessions
       WHERE id = ?
     `);
@@ -402,6 +458,7 @@ export class RequestRepository {
     return {
       id: row.id,
       label: row.label ?? undefined,
+      source: row.source ?? undefined,
       pid: row.pid,
       startedAt: row.startedAt,
     };
@@ -412,7 +469,7 @@ export class RequestRepository {
    */
   listSessions(): Session[] {
     const stmt = this.db.prepare(`
-      SELECT id, label, pid, started_at as startedAt
+      SELECT id, label, pid, started_at as startedAt, source
       FROM sessions
       ORDER BY started_at DESC
     `);
@@ -422,6 +479,7 @@ export class RequestRepository {
     return rows.map((row) => ({
       id: row.id,
       label: row.label ?? undefined,
+      source: row.source ?? undefined,
       pid: row.pid,
       startedAt: row.startedAt,
     }));
@@ -441,9 +499,9 @@ export class RequestRepository {
       INSERT INTO requests (
         id, session_id, label, timestamp, method, url, host, path,
         request_headers, request_body, request_body_truncated, response_status, response_headers,
-        response_body, response_body_truncated, duration_ms, request_content_type
+        response_body, response_body_truncated, duration_ms, request_content_type, source
       )
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `);
 
     stmt.run(
@@ -463,7 +521,8 @@ export class RequestRepository {
       request.responseBody ?? null,
       request.responseBodyTruncated ? 1 : 0,
       request.durationMs ?? null,
-      requestContentType
+      requestContentType,
+      request.source ?? null
     );
 
     this.logger?.debug("Request saved", {
@@ -621,6 +680,7 @@ export class RequestRepository {
         id,
         session_id,
         label,
+        source,
         timestamp,
         method,
         url,
@@ -715,6 +775,7 @@ export class RequestRepository {
         id,
         session_id,
         label,
+        source,
         timestamp,
         method,
         url,
@@ -971,6 +1032,7 @@ export class RequestRepository {
       id: row.id,
       sessionId: row.session_id,
       label: row.label ?? undefined,
+      source: row.source ?? undefined,
       timestamp: row.timestamp,
       method: row.method,
       url: row.url,
@@ -1002,6 +1064,7 @@ export class RequestRepository {
       id: row.id,
       sessionId: row.session_id,
       label: row.label ?? undefined,
+      source: row.source ?? undefined,
       timestamp: row.timestamp,
       method: row.method,
       url: row.url,
@@ -1031,6 +1094,7 @@ interface DbRequestRow {
   id: string;
   session_id: string;
   label: string | null;
+  source: string | null;
   timestamp: number;
   method: string;
   url: string;
@@ -1054,6 +1118,7 @@ interface DbRequestSummaryRow {
   id: string;
   session_id: string;
   label: string | null;
+  source: string | null;
   timestamp: number;
   method: string;
   url: string;
@@ -1073,6 +1138,11 @@ interface DbSessionRow {
   label: string | null;
   pid: number;
   startedAt: number;
+  source: string | null;
+}
+
+interface DbSessionAuthRow {
+  source: string | null;
 }
 
 interface DbJsonQueryRow {

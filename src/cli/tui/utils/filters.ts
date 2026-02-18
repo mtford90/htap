@@ -12,6 +12,7 @@ export function isFilterActive(filter: RequestFilter): boolean {
     filter.pathPrefix !== undefined ||
     filter.since !== undefined ||
     filter.before !== undefined ||
-    filter.saved !== undefined
+    filter.saved !== undefined ||
+    filter.source !== undefined
   );
 }

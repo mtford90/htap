@@ -38,6 +38,7 @@ interface RequestsFlags {
   headerTarget?: string;
   interceptedBy?: string;
   saved?: boolean;
+  source?: string;
   limit?: string;
   offset?: string;
   json?: boolean;
@@ -106,6 +107,10 @@ function buildFilter(opts: RequestsFlags): RequestFilter {
     filter.saved = true;
   }
 
+  if (opts.source) {
+    filter.source = opts.source;
+  }
+
   return filter;
 }
 
@@ -130,7 +135,8 @@ function addFilterFlags(cmd: Command): Command {
     .option("--header <spec>", "filter by header name or name:value")
     .option("--header-target <target>", "which headers to search (request, response, both)", "both")
     .option("--intercepted-by <name>", "filter by interceptor name")
-    .option("--saved", "show only saved/bookmarked requests");
+    .option("--saved", "show only saved/bookmarked requests")
+    .option("--source <name>", "filter by request source (e.g. node, python)");
 }
 
 // --- Subcommands ---

@@ -66,7 +66,7 @@ describe("FilterBar", () => {
     expect(lastFrame()).toContain("users");
   });
 
-  it("Tab cycles focus from search to method to status", async () => {
+  it("Tab cycles focus from search to method to status to saved to source", async () => {
     const { lastFrame, stdin } = render(<FilterBar {...defaultProps} />);
 
     // Initially focused on search — cursor should be visible
@@ -83,6 +83,10 @@ describe("FilterBar", () => {
     await tick();
 
     // Tab to saved field
+    stdin.write("\t");
+    await tick();
+
+    // Tab to source field
     stdin.write("\t");
     await tick();
 
@@ -329,6 +333,39 @@ describe("FilterBar", () => {
     expect(frame).toContain("Esc=cancel");
     expect(frame).toContain("Tab=switch");
     expect(frame).toContain("space=AND");
+  });
+
+  it("renders source label", () => {
+    const { lastFrame } = render(<FilterBar {...defaultProps} />);
+    expect(lastFrame()).toContain("source:");
+  });
+
+  it("source field accepts text input", async () => {
+    const onFilterChange = vi.fn();
+    const { stdin } = render(
+      <FilterBar {...defaultProps} onFilterChange={onFilterChange} />,
+    );
+
+    // Tab 4 times to reach source field (search → method → status → saved → source)
+    stdin.write("\t");
+    await tick();
+    stdin.write("\t");
+    await tick();
+    stdin.write("\t");
+    await tick();
+    stdin.write("\t");
+    await tick();
+
+    // Type "node"
+    for (const ch of "node") {
+      stdin.write(ch);
+      await tick();
+    }
+
+    // Wait for debounce
+    await tick(250);
+
+    expect(onFilterChange).toHaveBeenCalledWith({ source: "node" });
   });
 
 

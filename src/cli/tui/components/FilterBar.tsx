@@ -16,8 +16,8 @@ const STATUS_CYCLE = ["2xx", "3xx", "4xx", "5xx"] as const;
 const MAX_SEARCH_LENGTH = 200;
 const FILTER_DEBOUNCE_MS = 150;
 
-type FilterField = "search" | "method" | "status" | "saved";
-const FIELD_ORDER: FilterField[] = ["search", "method", "status", "saved"];
+type FilterField = "search" | "method" | "status" | "saved" | "source";
+const FIELD_ORDER: FilterField[] = ["search", "method", "status", "saved", "source"];
 
 export interface FilterBarProps {
   isActive: boolean;
@@ -60,6 +60,7 @@ export function FilterBar({
   const [savedIndex, setSavedIndex] = useState<number>(() => {
     return filter.saved === true ? 1 : 0;
   });
+  const [source, setSource] = useState(filter.source ?? "");
   const [focusedField, setFocusedField] = useState<FilterField>("search");
 
   function buildFilter(): RequestFilter {
@@ -87,6 +88,10 @@ export function FilterBar({
       result.saved = true;
     }
 
+    if (source.trim()) {
+      result.source = source.trim();
+    }
+
     return result;
   }
 
@@ -111,7 +116,7 @@ export function FilterBar({
         clearTimeout(debounceRef.current);
       }
     };
-  }, [search, methodIndex, statusIndex, savedIndex, onFilterChange]);
+  }, [search, methodIndex, statusIndex, savedIndex, source, onFilterChange]);
 
   // Cleanup debounce timer on unmount
   useEffect(() => {
@@ -199,6 +204,21 @@ export function FilterBar({
         }
         return;
       }
+
+      if (focusedField === "source") {
+        if (key.backspace || key.delete) {
+          setSource((prev) => prev.slice(0, -1));
+          return;
+        }
+
+        if (input && input.length === 1 && !key.ctrl && !key.meta) {
+          setSource((prev) => {
+            if (prev.length >= MAX_SEARCH_LENGTH) return prev;
+            return prev + input;
+          });
+        }
+        return;
+      }
     },
     { isActive },
   );
@@ -250,6 +270,12 @@ export function FilterBar({
       >
         {currentSaved}
       </Text>
+      <Text color="gray">{"  "}</Text>
+      <Text dimColor>source:</Text>
+      <Text color={source ? "yellow" : "white"} bold={focusedField === "source"} underline={focusedField === "source"}>
+        {source || "ALL"}
+      </Text>
+      {isActive && focusedField === "source" && <Text color="cyan">█</Text>}
       <Text color="gray">{"  "}</Text>
       <Text dimColor>Tab=switch Enter=close Esc=cancel space=AND</Text>
     </Box>

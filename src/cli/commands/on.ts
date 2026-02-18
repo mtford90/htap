@@ -80,112 +80,116 @@ export function formatNodeOptionsRestore(): string {
 export const onCommand = new Command("on")
   .description("Output shell export statements to start intercepting HTTP traffic")
   .option("-l, --label <label>", "Label for this session")
+  .option("-s, --source <name>", "Label the source process (auto-detected from PID if omitted)")
   .option("--no-restart", "Do not auto-restart daemon on version mismatch")
-  .action(async (options: { label?: string; restart: boolean }, command: Command) => {
-    // If stdout is a TTY, user ran directly — show instructions instead
-    if (process.stdout.isTTY) {
-      console.log("To intercept HTTP traffic, run:");
-      console.log("");
-      console.log('  eval "$(procsi on)"');
-      console.log("");
-      console.log("This sets the required environment variables in your shell.");
-      return;
-    }
-
-    const label = options.label;
-    const autoRestart = options.restart;
-    const globalOpts = getGlobalOptions(command);
-    const verbosity = globalOpts.verbose;
-    const logLevel = parseVerbosity(verbosity);
-
-    // Find project root (auto-creates .procsi if needed)
-    const projectRoot = findOrCreateProjectRoot(undefined, globalOpts.dir);
-    ensureProcsiDir(projectRoot);
-
-    const paths = getProcsiPaths(projectRoot);
-
-    try {
-      // Start daemon if not already running
-      const proxyPort = await startDaemon(projectRoot, {
-        logLevel,
-        autoRestart,
-        onVersionMismatch: (running, cli) => {
-          if (autoRestart) {
-            console.log(`# procsi: restarting daemon (version mismatch: ${running} -> ${cli})`);
-          } else {
-            console.log(
-              `# procsi warning: daemon version mismatch (running: ${running}, CLI: ${cli})`
-            );
-            console.log(`# Use 'procsi daemon restart' to update.`);
-          }
-        },
-      });
-      const proxyUrl = `http://127.0.0.1:${proxyPort}`;
-
-      // Write the Node.js preload script to .procsi/
-      writeNodePreloadScript(paths.proxyPreloadFile);
-
-      // Register session with daemon
-      const client = new ControlClient(paths.controlSocketFile);
-      try {
-        const session = await client.registerSession(label, process.ppid);
-
-        // Build environment variables
-        const envVars: Record<string, string> = {
-          HTTP_PROXY: proxyUrl,
-          HTTPS_PROXY: proxyUrl,
-          // Lowercase variants — many Unix tools check lowercase only
-          http_proxy: proxyUrl,
-          https_proxy: proxyUrl,
-          // Python requests library
-          SSL_CERT_FILE: paths.caCertFile,
-          REQUESTS_CA_BUNDLE: paths.caCertFile,
-          // Node.js
-          NODE_EXTRA_CA_CERTS: paths.caCertFile,
-          // Node.js runtime overrides (global-agent + undici)
-          ...getNodeEnvVars(proxyUrl),
-          // procsi session tracking
-          PROCSI_SESSION_ID: session.id,
-        };
-
-        if (label) {
-          envVars["PROCSI_LABEL"] = label;
-        }
-
-        // Report interceptor status
-        try {
-          const interceptors = await client.listInterceptors();
-          if (interceptors.length > 0) {
-            const errorCount = interceptors.filter((i) => i.error).length;
-            const loadedCount = interceptors.length - errorCount;
-            if (errorCount > 0) {
-              console.log(
-                `# Loaded ${loadedCount} interceptors (${errorCount} failed) from .procsi/interceptors/`
-              );
-            } else {
-              console.log(`# Loaded ${loadedCount} interceptors from .procsi/interceptors/`);
-            }
-          }
-        } catch {
-          // Interceptor info not available — not critical
-        }
-
-        // Output env vars for eval
-        console.log(formatEnvVars(envVars));
-
-        // NODE_OPTIONS requires raw shell expansion, output separately
-        console.log(formatNodeOptionsExport(paths.proxyPreloadFile));
-
-        // Output confirmation as a comment (shown but not executed)
-        const labelInfo = label ? ` (label: ${label})` : "";
-        console.log(`# procsi: intercepting traffic${labelInfo}`);
-        console.log(`# Proxy: ${proxyUrl}`);
-        console.log(`# Session: ${session.id}`);
-      } finally {
-        client.close();
+  .action(
+    async (options: { label?: string; source?: string; restart: boolean }, command: Command) => {
+      // If stdout is a TTY, user ran directly — show instructions instead
+      if (process.stdout.isTTY) {
+        console.log("To intercept HTTP traffic, run:");
+        console.log("");
+        console.log('  eval "$(procsi on)"');
+        console.log("");
+        console.log("This sets the required environment variables in your shell.");
+        return;
       }
-    } catch (err) {
-      console.error(`# procsi error: ${getErrorMessage(err)}`);
-      process.exit(1);
+
+      const label = options.label;
+      const autoRestart = options.restart;
+      const globalOpts = getGlobalOptions(command);
+      const verbosity = globalOpts.verbose;
+      const logLevel = parseVerbosity(verbosity);
+
+      // Find project root (auto-creates .procsi if needed)
+      const projectRoot = findOrCreateProjectRoot(undefined, globalOpts.dir);
+      ensureProcsiDir(projectRoot);
+
+      const paths = getProcsiPaths(projectRoot);
+
+      try {
+        // Start daemon if not already running
+        const proxyPort = await startDaemon(projectRoot, {
+          logLevel,
+          autoRestart,
+          onVersionMismatch: (running, cli) => {
+            if (autoRestart) {
+              console.log(`# procsi: restarting daemon (version mismatch: ${running} -> ${cli})`);
+            } else {
+              console.log(
+                `# procsi warning: daemon version mismatch (running: ${running}, CLI: ${cli})`
+              );
+              console.log(`# Use 'procsi daemon restart' to update.`);
+            }
+          },
+        });
+        const proxyUrl = `http://127.0.0.1:${proxyPort}`;
+
+        // Write the Node.js preload script to .procsi/
+        writeNodePreloadScript(paths.proxyPreloadFile);
+
+        // Register session with daemon
+        const client = new ControlClient(paths.controlSocketFile);
+        try {
+          const session = await client.registerSession(label, process.ppid, options.source);
+
+          // Build environment variables
+          const envVars: Record<string, string> = {
+            HTTP_PROXY: proxyUrl,
+            HTTPS_PROXY: proxyUrl,
+            // Lowercase variants — many Unix tools check lowercase only
+            http_proxy: proxyUrl,
+            https_proxy: proxyUrl,
+            // Python requests library
+            SSL_CERT_FILE: paths.caCertFile,
+            REQUESTS_CA_BUNDLE: paths.caCertFile,
+            // Node.js
+            NODE_EXTRA_CA_CERTS: paths.caCertFile,
+            // Node.js runtime overrides (global-agent + undici)
+            ...getNodeEnvVars(proxyUrl),
+            // procsi session tracking
+            PROCSI_SESSION_ID: session.id,
+            PROCSI_SESSION_TOKEN: session.token,
+          };
+
+          if (label) {
+            envVars["PROCSI_LABEL"] = label;
+          }
+
+          // Report interceptor status
+          try {
+            const interceptors = await client.listInterceptors();
+            if (interceptors.length > 0) {
+              const errorCount = interceptors.filter((i) => i.error).length;
+              const loadedCount = interceptors.length - errorCount;
+              if (errorCount > 0) {
+                console.log(
+                  `# Loaded ${loadedCount} interceptors (${errorCount} failed) from .procsi/interceptors/`
+                );
+              } else {
+                console.log(`# Loaded ${loadedCount} interceptors from .procsi/interceptors/`);
+              }
+            }
+          } catch {
+            // Interceptor info not available — not critical
+          }
+
+          // Output env vars for eval
+          console.log(formatEnvVars(envVars));
+
+          // NODE_OPTIONS requires raw shell expansion, output separately
+          console.log(formatNodeOptionsExport(paths.proxyPreloadFile));
+
+          // Output confirmation as a comment (shown but not executed)
+          const labelInfo = label ? ` (label: ${label})` : "";
+          console.log(`# procsi: intercepting traffic${labelInfo}`);
+          console.log(`# Proxy: ${proxyUrl}`);
+          console.log(`# Session: ${session.id}`);
+        } finally {
+          client.close();
+        }
+      } catch (err) {
+        console.error(`# procsi error: ${getErrorMessage(err)}`);
+        process.exit(1);
+      }
     }
-  });
+  );

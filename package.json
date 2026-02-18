@@ -38,6 +38,7 @@
     "lint:fix": "eslint src tests --fix",
     "format": "prettier --write \"src/**/*.ts\" \"tests/**/*.ts\"",
     "format:check": "prettier --check \"src/**/*.ts\" \"tests/**/*.ts\"",
+    "seed": "npx tsx scripts/seed.ts",
     "typecheck": "tsc --noEmit",
     "prepare": "husky"
   },

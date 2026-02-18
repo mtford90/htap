@@ -101,6 +101,13 @@ test_on_outputs_env_vars() {
     fail "procsi on outputs PROCSI_SESSION_ID" "Output: $output"
   fi
 
+  # Check for session token
+  if echo "$output" | grep -q 'export PROCSI_SESSION_TOKEN='; then
+    pass "procsi on outputs PROCSI_SESSION_TOKEN"
+  else
+    fail "procsi on outputs PROCSI_SESSION_TOKEN" "Output: $output"
+  fi
+
   # Check for label
   if echo "$output" | grep -q 'export PROCSI_LABEL='; then
     pass "procsi on outputs PROCSI_LABEL when provided"
@@ -139,6 +146,12 @@ test_on_env_vars_evaluable() {
     pass "PROCSI_SESSION_ID is set after eval"
   else
     fail "PROCSI_SESSION_ID is set after eval" "PROCSI_SESSION_ID is empty or unset"
+  fi
+
+  if [[ -n "${PROCSI_SESSION_TOKEN:-}" ]]; then
+    pass "PROCSI_SESSION_TOKEN is set after eval"
+  else
+    fail "PROCSI_SESSION_TOKEN is set after eval" "PROCSI_SESSION_TOKEN is empty or unset"
   fi
 
   # Stop daemon after test

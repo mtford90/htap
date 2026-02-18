@@ -4,6 +4,11 @@ import type { RequestRepository } from "./storage.js";
 import type { InterceptorRunner } from "./interceptor-runner.js";
 import type { InterceptorRequest, InterceptorResponse } from "../shared/types.js";
 import { createLogger, type LogLevel } from "../shared/logger.js";
+import {
+  PROCSI_RUNTIME_SOURCE_HEADER,
+  PROCSI_SESSION_ID_HEADER,
+  PROCSI_SESSION_TOKEN_HEADER,
+} from "../shared/constants.js";
 
 /**
  * Response object passed to beforeResponse callback.
@@ -20,6 +25,9 @@ interface PassThroughResponse {
 
 /** Default maximum body size to capture (10MB) */
 export const DEFAULT_MAX_BODY_SIZE = 10 * 1024 * 1024;
+const MAX_RUNTIME_SOURCE_LENGTH = 32;
+const RUNTIME_SOURCE_PATTERN = /^[a-z0-9._-]+$/;
+const LEGACY_SESSION_HEADER = "x-procsi-session";
 
 export interface ProxyOptions {
   port?: number;
@@ -42,6 +50,19 @@ export interface ProxyServer {
   stop: () => Promise<void>;
 }
 
+function normaliseRuntimeSource(value: unknown): string | undefined {
+  if (typeof value !== "string") {
+    return undefined;
+  }
+
+  const trimmed = value.trim().toLowerCase();
+  if (!trimmed || trimmed.length > MAX_RUNTIME_SOURCE_LENGTH) {
+    return undefined;
+  }
+
+  return RUNTIME_SOURCE_PATTERN.test(trimmed) ? trimmed : undefined;
+}
+
 /**
  * Create and start a MITM proxy server that captures all HTTP/HTTPS traffic.
  */
@@ -58,6 +79,34 @@ export async function createProxy(options: ProxyOptions): Promise<ProxyServer> {
   >();
 
   const maxBodySize = options.maxBodySize ?? DEFAULT_MAX_BODY_SIZE;
+
+  // Cache session source lookups to avoid repeated DB queries
+  const sessionSourceCache = new Map<string, string | undefined>();
+  function getSessionSource(sid: string): string | undefined {
+    if (!sessionSourceCache.has(sid)) {
+      const session = storage.getSession(sid);
+      sessionSourceCache.set(sid, session?.source);
+    }
+    return sessionSourceCache.get(sid);
+  }
+
+  // Cache trusted session auth lookups by (sessionId, token)
+  const sessionAuthCache = new Map<string, { valid: boolean; source?: string }>();
+  function getTrustedSessionSource(
+    sid: string,
+    token: string
+  ): { valid: boolean; source?: string } {
+    const cacheKey = `${sid}:${token}`;
+    const cached = sessionAuthCache.get(cacheKey);
+    if (cached) {
+      return cached;
+    }
+
+    const auth = storage.getSessionAuth(sid, token);
+    const resolved = auth ? { valid: true, source: auth.source } : { valid: false };
+    sessionAuthCache.set(cacheKey, resolved);
+    return resolved;
+  }
 
   const server = mockttp.getLocal({
     https: {
@@ -111,23 +160,67 @@ export async function createProxy(options: ProxyOptions): Promise<ProxyServer> {
       const storedHeaders = { ...headers };
       delete storedHeaders["content-encoding"];
 
+      // Read and strip internal procsi attribution headers
+      const requestSessionId = storedHeaders[PROCSI_SESSION_ID_HEADER];
+      const requestSessionToken = storedHeaders[PROCSI_SESSION_TOKEN_HEADER];
+      const runtimeSourceHeader = storedHeaders[PROCSI_RUNTIME_SOURCE_HEADER];
+      const legacySessionId = storedHeaders[LEGACY_SESSION_HEADER];
+      const headersCopy = { ...storedHeaders };
+      // eslint-disable-next-line @typescript-eslint/no-dynamic-delete
+      delete headersCopy[PROCSI_SESSION_ID_HEADER];
+      // eslint-disable-next-line @typescript-eslint/no-dynamic-delete
+      delete headersCopy[PROCSI_SESSION_TOKEN_HEADER];
+      // eslint-disable-next-line @typescript-eslint/no-dynamic-delete
+      delete headersCopy[PROCSI_RUNTIME_SOURCE_HEADER];
+      // Legacy header used before token hardening. Strip it for compatibility.
+      // eslint-disable-next-line @typescript-eslint/no-dynamic-delete
+      delete headersCopy[LEGACY_SESSION_HEADER];
+      const finalStoredHeaders = headersCopy;
+
+      // Trust runtime attribution only when both session ID and token are valid.
+      let effectiveSessionId = sessionId;
+      let sessionSource = getSessionSource(sessionId);
+      let trustedAttribution = false;
+      if (typeof requestSessionId === "string" && typeof requestSessionToken === "string") {
+        const trusted = getTrustedSessionSource(requestSessionId, requestSessionToken);
+        if (trusted.valid) {
+          effectiveSessionId = requestSessionId;
+          sessionSource = trusted.source;
+          trustedAttribution = true;
+        } else {
+          logger?.warn("Ignoring untrusted procsi session attribution headers", {
+            sessionId: requestSessionId,
+          });
+        }
+      }
+      if (requestSessionId === undefined && typeof legacySessionId === "string") {
+        logger?.warn("Ignoring legacy untrusted procsi session header without token");
+      }
+
+      // Runtime hint wins when present; otherwise fall back to the session source.
+      const runtimeSource = trustedAttribution
+        ? normaliseRuntimeSource(runtimeSourceHeader)
+        : undefined;
+      const source = runtimeSource ?? sessionSource;
+
       logger?.trace("Request received", {
         method: request.method,
         url: request.url,
-        headers: storedHeaders,
+        headers: finalStoredHeaders,
         bodyTruncated: requestBodyTruncated,
       });
 
       // Save request to storage and track the ID
       const ourId = storage.saveRequest({
-        sessionId,
+        sessionId: effectiveSessionId,
         label,
+        source,
         timestamp,
         method: request.method,
         url: request.url,
         host: url.host,
         path: url.pathname + url.search,
-        requestHeaders: storedHeaders,
+        requestHeaders: finalStoredHeaders,
         requestBody: decodedBody,
         requestBodyTruncated,
       });
@@ -142,7 +235,7 @@ export async function createProxy(options: ProxyOptions): Promise<ProxyServer> {
           url: request.url,
           host: url.host,
           path: url.pathname + url.search,
-          headers: { ...storedHeaders },
+          headers: { ...finalStoredHeaders },
           body: decodedBody,
         };
 
@@ -182,6 +275,26 @@ export async function createProxy(options: ProxyOptions): Promise<ProxyServer> {
             result.interception.type
           );
         }
+      }
+
+      // Strip internal procsi attribution headers from the upstream request.
+      if (
+        requestSessionId !== undefined ||
+        requestSessionToken !== undefined ||
+        runtimeSourceHeader !== undefined ||
+        legacySessionId !== undefined
+      ) {
+        const upstreamHeaders = flattenHeaders(request.headers);
+        const cleanedHeaders = { ...upstreamHeaders };
+        // eslint-disable-next-line @typescript-eslint/no-dynamic-delete
+        delete cleanedHeaders[PROCSI_SESSION_ID_HEADER];
+        // eslint-disable-next-line @typescript-eslint/no-dynamic-delete
+        delete cleanedHeaders[PROCSI_SESSION_TOKEN_HEADER];
+        // eslint-disable-next-line @typescript-eslint/no-dynamic-delete
+        delete cleanedHeaders[PROCSI_RUNTIME_SOURCE_HEADER];
+        // eslint-disable-next-line @typescript-eslint/no-dynamic-delete
+        delete cleanedHeaders[LEGACY_SESSION_HEADER];
+        return { headers: cleanedHeaders };
       }
 
       // Return undefined to pass through without modification

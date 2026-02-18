@@ -34,12 +34,22 @@ describe("generateNodePreloadScript", () => {
     expect(script).toContain("undici");
   });
 
+  it("contains session header injection code", () => {
+    const script = generateNodePreloadScript();
+    expect(script).toContain("x-procsi-internal-session-id");
+    expect(script).toContain("x-procsi-internal-session-token");
+    expect(script).toContain("x-procsi-internal-runtime");
+    expect(script).toContain("PROCSI_SESSION_ID");
+    expect(script).toContain("PROCSI_SESSION_TOKEN");
+  });
+
   it("wraps each block in try/catch for resilience", () => {
     const script = generateNodePreloadScript();
     const tryCount = (script.match(/try\s*\{/g) ?? []).length;
     const catchCount = (script.match(/\}\s*catch/g) ?? []).length;
-    expect(tryCount).toBe(2);
-    expect(catchCount).toBe(2);
+    // global-agent, undici, and session header injection = 3 blocks
+    expect(tryCount).toBe(3);
+    expect(catchCount).toBe(3);
   });
 
   it("uses absolute paths to dependencies", () => {
@@ -54,9 +64,16 @@ describe("generateNodePreloadScript", () => {
         paths.push(captured);
       }
     }
+    // Should have 2 absolute path requires: global-agent, undici (for dependencies)
+    // http and https are required dynamically via a variable inside a forEach loop
     expect(paths).toHaveLength(2);
-    for (const p of paths) {
-      expect(path.isAbsolute(p)).toBe(true);
+    const globalAgentPath = paths[0];
+    const undiciPath = paths[1];
+    expect(globalAgentPath).toBeDefined();
+    expect(undiciPath).toBeDefined();
+    if (globalAgentPath && undiciPath) {
+      expect(path.isAbsolute(globalAgentPath)).toBe(true);
+      expect(path.isAbsolute(undiciPath)).toBe(true);
     }
   });
 

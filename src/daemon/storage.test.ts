@@ -28,6 +28,7 @@ describe("RequestRepository", () => {
 
       expect(session.id).toBeDefined();
       expect(session.label).toBe("my-label");
+      expect(session.token).toMatch(/^[a-f0-9]{32}$/);
       expect(session.pid).toBe(12345);
       expect(session.startedAt).toBeDefined();
     });
@@ -44,7 +45,13 @@ describe("RequestRepository", () => {
 
       const retrieved = repo.getSession(created.id);
 
-      expect(retrieved).toEqual(created);
+      expect(retrieved).toEqual({
+        id: created.id,
+        label: created.label,
+        source: created.source,
+        pid: created.pid,
+        startedAt: created.startedAt,
+      });
     });
 
     it("returns undefined for non-existent session", () => {
@@ -59,6 +66,37 @@ describe("RequestRepository", () => {
       const sessions = repo.listSessions();
 
       expect(sessions).toHaveLength(2);
+    });
+
+    it("registers a session with source", () => {
+      const session = repo.registerSession("my-label", 12345, "node");
+      expect(session.source).toBe("node");
+
+      const retrieved = repo.getSession(session.id);
+      expect(retrieved?.source).toBe("node");
+    });
+
+    it("registers a session without source", () => {
+      const session = repo.registerSession("my-label", 12345);
+      expect(session.source).toBeUndefined();
+    });
+
+    it("lists sessions with source", () => {
+      repo.registerSession("first", 1, "node");
+      repo.registerSession("second", 2, "python");
+
+      const sessions = repo.listSessions();
+      expect(sessions).toHaveLength(2);
+
+      // Check that both sources are present (order may vary)
+      const sources = sessions.map((s) => s.source).sort();
+      expect(sources).toEqual(["node", "python"]);
+    });
+
+    it("validates session token and returns source for trusted headers", () => {
+      const session = repo.registerSession("my-label", 12345, "node");
+      expect(repo.getSessionAuth(session.id, session.token)).toEqual({ source: "node" });
+      expect(repo.getSessionAuth(session.id, "invalid-token")).toBeUndefined();
     });
   });
 
@@ -87,6 +125,14 @@ describe("RequestRepository", () => {
       const session = repo.ensureSession("default-pid-id", "test");
 
       expect(session.pid).toBe(process.pid);
+    });
+
+    it("creates a session with source", () => {
+      const session = repo.ensureSession("src-id", "label", 123, "zsh");
+      expect(session.source).toBe("zsh");
+
+      const retrieved = repo.getSession("src-id");
+      expect(retrieved?.source).toBe("zsh");
     });
   });
 
@@ -811,6 +857,108 @@ describe("RequestRepository", () => {
     });
   });
 
+  describe("source filtering", () => {
+    it("saves and retrieves requests with source", () => {
+      const session = repo.registerSession("test", 1, "node");
+      const id = repo.saveRequest({
+        sessionId: session.id,
+        source: "node",
+        timestamp: Date.now(),
+        method: "GET",
+        url: "https://example.com",
+        host: "example.com",
+        path: "/",
+        requestHeaders: {},
+      });
+
+      const request = repo.getRequest(id);
+      expect(request?.source).toBe("node");
+    });
+
+    it("includes source in request summaries", () => {
+      const session = repo.registerSession("test", 1, "node");
+      repo.saveRequest({
+        sessionId: session.id,
+        source: "node",
+        timestamp: Date.now(),
+        method: "GET",
+        url: "https://example.com",
+        host: "example.com",
+        path: "/",
+        requestHeaders: {},
+      });
+
+      const summaries = repo.listRequestsSummary();
+      expect(summaries).toHaveLength(1);
+      expect(summaries[0].source).toBe("node");
+    });
+
+    it("filters requests by source", () => {
+      const session1 = repo.registerSession("s1", 1, "node");
+      const session2 = repo.registerSession("s2", 2, "python");
+
+      repo.saveRequest({
+        sessionId: session1.id,
+        source: "node",
+        timestamp: Date.now(),
+        method: "GET",
+        url: "https://example.com/node",
+        host: "example.com",
+        path: "/node",
+        requestHeaders: {},
+      });
+
+      repo.saveRequest({
+        sessionId: session2.id,
+        source: "python",
+        timestamp: Date.now(),
+        method: "POST",
+        url: "https://example.com/python",
+        host: "example.com",
+        path: "/python",
+        requestHeaders: {},
+      });
+
+      const nodeRequests = repo.listRequestsSummary({ filter: { source: "node" } });
+      expect(nodeRequests).toHaveLength(1);
+      expect(nodeRequests[0].source).toBe("node");
+
+      const pythonRequests = repo.listRequestsSummary({ filter: { source: "python" } });
+      expect(pythonRequests).toHaveLength(1);
+      expect(pythonRequests[0].source).toBe("python");
+
+      const allRequests = repo.listRequestsSummary();
+      expect(allRequests).toHaveLength(2);
+    });
+
+    it("source filter works with count", () => {
+      const session = repo.registerSession("test", 1, "node");
+      repo.saveRequest({
+        sessionId: session.id,
+        source: "node",
+        timestamp: Date.now(),
+        method: "GET",
+        url: "https://example.com",
+        host: "example.com",
+        path: "/",
+        requestHeaders: {},
+      });
+      repo.saveRequest({
+        sessionId: session.id,
+        source: "node",
+        timestamp: Date.now(),
+        method: "GET",
+        url: "https://example.com/2",
+        host: "example.com",
+        path: "/2",
+        requestHeaders: {},
+      });
+
+      expect(repo.countRequests({ filter: { source: "node" } })).toBe(2);
+      expect(repo.countRequests({ filter: { source: "python" } })).toBe(0);
+    });
+  });
+
   describe("listRequestsSummary", () => {
     let sessionId: string;
 
@@ -997,7 +1145,7 @@ describe("RequestRepository", () => {
       // Verify user_version was set to latest migration
       const checkDb = new Database(migrationDbPath);
       const version = checkDb.pragma("user_version", { simple: true });
-      expect(version).toBe(6);
+      expect(version).toBe(8);
       checkDb.close();
 
       migratedRepo.close();
@@ -1008,7 +1156,7 @@ describe("RequestRepository", () => {
       // The default repo from beforeEach is a fresh DB
       const checkDb = new Database(dbPath);
       const version = checkDb.pragma("user_version", { simple: true });
-      expect(version).toBe(6);
+      expect(version).toBe(8);
       checkDb.close();
     });
 

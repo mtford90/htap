@@ -132,6 +132,7 @@ Most tools accept these filters:
 | `header_name`      | Filter by header existence or value         | `"content-type"`                      |
 | `header_value`     | Exact header value (requires `header_name`) | `"application/json"`                  |
 | `header_target`    | Which headers to search                     | `"request"`, `"response"`, `"both"`   |
+| `source`           | Filter by request source                    | `"node"`, `"python"`                  |
 | `intercepted_by`   | Filter by interceptor name                  | `"mock-users"`                        |
 | `offset`           | Pagination offset (0-based)                 | `0`                                   |
 | `limit`            | Max results (default 50, max 500)           | `100`                                 |
@@ -474,8 +475,9 @@ If run directly in a TTY (without `eval`), shows usage instructions.
 
 | Flag                  | Description                                   |
 | --------------------- | --------------------------------------------- |
-| `-l, --label <label>` | Label this session (visible in TUI and MCP)   |
-| `--no-restart`        | Don't auto-restart daemon on version mismatch |
+| `-l, --label <label>`  | Label this session (visible in TUI and MCP)              |
+| `-s, --source <name>` | Label the source process (auto-detected from PID if omitted) |
+| `--no-restart`         | Don't auto-restart daemon on version mismatch            |
 
 ### `procsi off`
 
@@ -536,6 +538,7 @@ procsi requests --json                       # JSON output
 | `--before <time>`          | Before time (same formats as --since)                    |
 | `--header <spec>`          | Header name or name:value                                |
 | `--header-target <target>` | `request`, `response`, or `both` (default)               |
+| `--source <name>`          | Filter by request source (e.g. node, python)             |
 | `--intercepted-by <name>`  | Filter by interceptor name                               |
 | `--limit <n>`              | Max results (default 50)                                 |
 | `--offset <n>`             | Skip results (default 0)                                 |

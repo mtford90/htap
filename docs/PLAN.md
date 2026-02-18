@@ -48,6 +48,7 @@ TypeScript interceptor files in `.procsi/interceptors/` — mock, modify, or obs
 - Mouse wheel scroll confined to request list
 - Terminal hyperlink suppression
 - Method truncation on long URLs
+- Source attribution hardening: internal session headers now require a per-session token, with runtime source taking precedence when available
 
 </details>
 
@@ -91,9 +92,9 @@ Each feature should be considered across all three surfaces where applicable:
   - **CLI:** `procsi requests --saved` filter flag; `procsi request <id> save` / `procsi request <id> unsave` to toggle
   - **MCP:** `saved` filter param on `procsi_list_requests`, `procsi_save_request` / `procsi_unsave_request` tools
 
-- [ ] **Request sources** — automatically identify where requests come from, with optional user override
+- [x] **Request sources** — automatically identify where requests come from, with optional user override
   - **Daemon:** resolve parent PID to process name on session creation; store `source` on the session; accept `--source` override via `procsi on`
-  - **TUI:** show source on request list rows (subtle, like the interceptor badge); source field in filter bar
+  - **TUI:** ~~show source on request list rows~~ source shown in accordion detail panel (Request section); source field in filter bar
   - **CLI:** `--source` filter flag on `procsi requests` / `procsi sessions`; `procsi on --source "dev server"` to set manually
   - **MCP:** `source` filter param on `procsi_list_requests` / `procsi_list_sessions`
 
