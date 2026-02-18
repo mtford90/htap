@@ -8,6 +8,7 @@ import type {
   InterceptorEventType,
   InterceptorInfo,
   JsonQueryResult,
+  RegisteredSession,
   RequestFilter,
   Session,
 } from "./types.js";
@@ -162,8 +163,8 @@ export class ControlClient {
   /**
    * Register a new session.
    */
-  async registerSession(label?: string, pid?: number): Promise<Session> {
-    return this.request<Session>("registerSession", { label, pid });
+  async registerSession(label?: string, pid?: number, source?: string): Promise<RegisteredSession> {
+    return this.request<RegisteredSession>("registerSession", { label, pid, source });
   }
 
   /**

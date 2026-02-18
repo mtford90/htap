@@ -49,6 +49,13 @@ export function formatRequestDetail(request: CapturedRequest): string {
     lines.push(`  ${indicator}`);
   }
 
+  if (request.source) {
+    const sourceLabel = colour
+      ? `${DIM}Source: ${request.source}${RESET}`
+      : `Source: ${request.source}`;
+    lines.push(`  ${sourceLabel}`);
+  }
+
   lines.push("");
 
   // Request Headers
@@ -118,14 +125,15 @@ export function formatSessionTable(sessions: Session[]): string {
   const colour = useColour();
   const lines: string[] = [];
 
-  const header = `  ${"ID".padEnd(38)}  ${"Label".padEnd(20)}  ${"PID".padEnd(8)}  Started`;
+  const header = `  ${"ID".padEnd(38)}  ${"Label".padEnd(20)}  ${"Source".padEnd(12)}  ${"PID".padEnd(8)}  Started`;
   lines.push(colour ? `${DIM}${header}${RESET}` : header);
 
   for (const session of sessions) {
     const label = session.label ?? "-";
+    const source = session.source ?? "-";
     const startedAt = new Date(session.startedAt).toLocaleString();
     lines.push(
-      `  ${session.id.padEnd(38)}  ${label.padEnd(20)}  ${String(session.pid).padEnd(8)}  ${startedAt}`
+      `  ${session.id.padEnd(38)}  ${label.padEnd(20)}  ${source.padEnd(12)}  ${String(session.pid).padEnd(8)}  ${startedAt}`
     );
   }
 

@@ -39,11 +39,11 @@ Always call `procsi_get_status` first to confirm the daemon is running. If it is
 | Tool | Purpose | Key Parameters |
 |------|---------|----------------|
 | `procsi_get_status` | Check daemon is running, get proxy port and request count | -- |
-| `procsi_list_requests` | Browse/filter captured traffic (returns summaries) | `method`, `status_range`, `search`, `host`, `path`, `header_name`, `header_value`, `header_target`, `intercepted_by`, `since`, `before`, `limit`, `offset`, `format` |
+| `procsi_list_requests` | Browse/filter captured traffic (returns summaries) | `method`, `status_range`, `search`, `host`, `path`, `source`, `header_name`, `header_value`, `header_target`, `intercepted_by`, `since`, `before`, `limit`, `offset`, `format` |
 | `procsi_get_request` | Full request details -- headers, bodies, timing | `id` (single or comma-separated IDs), `format` |
-| `procsi_search_bodies` | Full-text search in request/response bodies | `query`, plus all filter params |
-| `procsi_query_json` | Extract JSON values with JSONPath (SQLite `json_extract`) | `json_path`, `value`, `target` (`request`/`response`/`both`), plus filters |
-| `procsi_count_requests` | Count matching requests | All filter params, `format` |
+| `procsi_search_bodies` | Full-text search in request/response bodies | `query`, `source`, plus all filter params |
+| `procsi_query_json` | Extract JSON values with JSONPath (SQLite `json_extract`) | `json_path`, `value`, `target` (`request`/`response`/`both`), `source`, plus filters |
+| `procsi_count_requests` | Count matching requests | All filter params (incl. `source`), `format` |
 | `procsi_clear_requests` | Delete all captured traffic (irreversible) | -- |
 | `procsi_list_sessions` | List active proxy sessions | -- |
 | `procsi_list_interceptors` | List loaded interceptors with status/errors | `format` |
@@ -73,6 +73,7 @@ header_name: "authorization"   # Requests with this header
 header_name: "content-type", header_value: "application/json"  # Exact header match
 header_target: "request"       # Only search request headers
 intercepted_by: "my-mock"      # Requests handled by a specific interceptor
+source: "node"                 # Filter by request source
 since: "2024-01-15T10:30:00Z"  # Time-bounded queries
 ```
 

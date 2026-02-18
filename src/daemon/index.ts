@@ -103,7 +103,7 @@ async function main() {
 
   // Ensure daemon session exists (handles restarts gracefully)
   const DAEMON_SESSION_ID = "daemon";
-  storage.ensureSession(DAEMON_SESSION_ID, "daemon", process.pid);
+  storage.ensureSession(DAEMON_SESSION_ID, "daemon", process.pid, "daemon");
 
   // Start the proxy server
   logger.info("Starting proxy", { port: proxyPort });

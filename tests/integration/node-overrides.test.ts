@@ -28,6 +28,9 @@ describe("node overrides integration", () => {
   let proxyPort: number;
   /** Proxy URL for env vars */
   let proxyUrl: string;
+  /** Session credentials injected by procsi on */
+  let procsiSessionId: string;
+  let procsiSessionToken: string;
 
   beforeEach(async () => {
     tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "procsi-node-overrides-test-"));
@@ -46,7 +49,9 @@ describe("node overrides integration", () => {
 
     // Create storage
     storage = new RequestRepository(paths.databaseFile);
-    const session = storage.registerSession("test", process.pid);
+    const session = storage.registerSession("test", process.pid, "shell");
+    procsiSessionId = session.id;
+    procsiSessionToken = session.token;
 
     // Start upstream test server
     const testServer = http.createServer((req, res) => {
@@ -100,6 +105,8 @@ describe("node overrides integration", () => {
       https_proxy: proxyUrl,
       NODE_EXTRA_CA_CERTS: paths.caCertFile,
       NODE_OPTIONS: `--require ${paths.proxyPreloadFile}`,
+      PROCSI_SESSION_ID: procsiSessionId,
+      PROCSI_SESSION_TOKEN: procsiSessionToken,
       ...getNodeEnvVars(proxyUrl),
     };
   }
@@ -254,5 +261,32 @@ describe("node overrides integration", () => {
     expect(captured?.requestHeaders?.["content-type"]).toBe("application/json");
     expect(captured?.requestHeaders?.["x-custom"]).toBe("test-value");
     expect(captured?.responseStatus).toBe(200);
+  });
+
+  it("preserves Request object headers when fetch init overrides are provided", async () => {
+    const targetUrl = `http://127.0.0.1:${upstreamPort}/request-headers-test`;
+
+    const script = `
+      const req = new Request('${targetUrl}', {
+        headers: { 'Authorization': 'Bearer abc123' }
+      });
+      fetch(req, {
+        headers: { 'X-Trace': 'trace-1' }
+      }).then(r => { process.exit(r.ok ? 0 : 1) });
+    `;
+
+    await execFileAsync(process.execPath, ["-e", script], {
+      env: buildChildEnv(),
+      timeout: 10_000,
+    });
+
+    await new Promise((resolve) => setTimeout(resolve, STORAGE_SETTLE_MS));
+
+    const requests = storage.listRequests();
+    const captured = requests.find((r) => r.path === "/request-headers-test");
+    expect(captured).toBeDefined();
+    expect(captured?.requestHeaders?.["authorization"]).toBe("Bearer abc123");
+    expect(captured?.requestHeaders?.["x-trace"]).toBe("trace-1");
+    expect(captured?.source).toBe("node");
   });
 });

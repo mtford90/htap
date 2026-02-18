@@ -100,6 +100,7 @@ export interface SerialisableRequest {
   durationMs?: number;
   interceptedBy?: string;
   interceptionType?: string;
+  source?: string;
 }
 
 /**
@@ -136,6 +137,7 @@ export function serialiseRequest(req: CapturedRequest): SerialisableRequest {
     ...(req.durationMs !== undefined ? { durationMs: req.durationMs } : {}),
     ...(req.interceptedBy !== undefined ? { interceptedBy: req.interceptedBy } : {}),
     ...(req.interceptionType !== undefined ? { interceptionType: req.interceptionType } : {}),
+    ...(req.source !== undefined ? { source: req.source } : {}),
   };
 }
 
@@ -151,6 +153,9 @@ export function formatRequest(req: CapturedRequest): string {
   lines.push(`**Timestamp:** ${new Date(req.timestamp).toISOString()}`);
   lines.push(`**Host:** ${req.host}`);
   lines.push(`**Path:** ${req.path}`);
+  if (req.source) {
+    lines.push(`**Source:** ${req.source}`);
+  }
 
   // Surface content-types for quick scanning
   const reqContentType = req.requestHeaders?.["content-type"];
@@ -249,7 +254,8 @@ export function formatSize(bytes: number): string {
 export function formatSession(session: Session): string {
   const label = session.label ? ` (${session.label})` : "";
   const started = new Date(session.startedAt).toISOString();
-  return `[${session.id}] PID ${session.pid}${label} — started ${started}`;
+  const source = session.source ? ` [${session.source}]` : "";
+  return `[${session.id}] PID ${session.pid}${label} — started ${started}${source}`;
 }
 
 /**
@@ -275,7 +281,8 @@ export function formatSummary(req: CapturedRequestSummary): string {
   const interceptionTag =
     req.interceptionType === "mocked" ? " [M]" : req.interceptionType === "modified" ? " [I]" : "";
   const savedTag = req.saved ? " [S]" : "";
-  return `[${req.id}] ${ts} ${req.method} ${req.url}${status}${duration}${bodySizes}${interceptionTag}${savedTag}`;
+  const sourceTag = req.source ? ` [${req.source}]` : "";
+  return `[${req.id}] ${ts} ${req.method} ${req.url}${status}${duration}${bodySizes}${interceptionTag}${savedTag}${sourceTag}`;
 }
 
 const MIN_HTTP_STATUS = 100;
@@ -346,6 +353,7 @@ export function buildFilter(params: {
   header_target?: "request" | "response" | "both";
   intercepted_by?: string;
   saved?: boolean;
+  source?: string;
 }): RequestFilter | undefined {
   const filter: RequestFilter = {};
 
@@ -398,6 +406,9 @@ export function buildFilter(params: {
   }
   if (params.saved !== undefined) {
     filter.saved = params.saved;
+  }
+  if (params.source) {
+    filter.source = params.source;
   }
 
   return Object.keys(filter).length > 0 ? filter : undefined;
@@ -524,6 +535,7 @@ export function createProcsiMcpServer(options: McpServerOptions) {
         .boolean()
         .optional()
         .describe("Filter by saved/bookmarked state. true = only saved, false = only unsaved."),
+      source: z.string().optional().describe("Filter by request source (e.g. 'node', 'python')."),
       limit: z
         .number()
         .optional()
@@ -703,6 +715,7 @@ export function createProcsiMcpServer(options: McpServerOptions) {
         .boolean()
         .optional()
         .describe("Filter by saved/bookmarked state. true = only saved, false = only unsaved."),
+      source: z.string().optional().describe("Filter by request source (e.g. 'node', 'python')."),
       limit: z
         .number()
         .optional()
@@ -817,6 +830,7 @@ export function createProcsiMcpServer(options: McpServerOptions) {
         .boolean()
         .optional()
         .describe("Filter by saved/bookmarked state. true = only saved, false = only unsaved."),
+      source: z.string().optional().describe("Filter by request source (e.g. 'node', 'python')."),
       format: FORMAT_SCHEMA,
     },
     async (params) => {
@@ -905,6 +919,7 @@ export function createProcsiMcpServer(options: McpServerOptions) {
         .boolean()
         .optional()
         .describe("Filter by saved/bookmarked state. true = only saved, false = only unsaved."),
+      source: z.string().optional().describe("Filter by request source (e.g. 'node', 'python')."),
       limit: z
         .number()
         .optional()
