@@ -56,17 +56,7 @@ Separate daemon, database, certificates etc. You can run procsi in multiple proj
 
 ## MCP Integration
 
-procsi has a built-in [MCP](https://modelcontextprotocol.io/) server that gives AI agents full access to your captured traffic and interceptor system. Agents can search through requests, inspect headers and bodies, and write interceptor files directly into `.procsi/interceptors/`.
-
-This means you can ask things like:
-
-- "Find all failing requests to the payments API and write mocks that return valid responses"
-- "Make every 5th request to /api/users return a 429 so I can test rate limiting"
-- "What's the average response time for requests to the auth service in the last hour?"
-- "Write an interceptor that logs all requests with missing auth headers"
-- "Send me a notification whenever an api request fails"
-
-The agent reads your traffic, writes the TypeScript, and procsi hot-reloads it.
+procsi has a built-in [MCP](https://modelcontextprotocol.io/) server that gives AI agents full access to your captured traffic and interceptor system.
 
 ### Setup
 
@@ -85,23 +75,6 @@ Add procsi to your MCP client config:
 
 The proxy must be running (`eval "$(procsi on)"`) — the MCP server connects to the same daemon as the TUI.
 
-### Agent Skill
-
-procsi also ships an agent skill that teaches AI assistants how to use the MCP tools properly. Gets you better results out of the box.
-
-**Claude Code:**
-
-```bash
-/plugin marketplace add mtford90/procsi
-/plugin install procsi
-```
-
-**npm-agentskills** (works with Cursor, Copilot, Codex, etc.):
-
-```bash
-npx agents export --target claude
-```
-
 ### Available Tools
 
 | Tool                         | Description                                          |
@@ -117,63 +90,11 @@ npx agents export --target claude
 | `procsi_list_interceptors`   | List loaded interceptors with status and errors      |
 | `procsi_reload_interceptors` | Reload interceptors from disk                        |
 
-### Filtering
-
-Most tools accept these filters:
-
-| Parameter          | Description                                 | Example                               |
-| ------------------ | ------------------------------------------- | ------------------------------------- |
-| `method`           | HTTP method(s), comma-separated             | `"GET,POST"`                          |
-| `status_range`     | Status code, Nxx pattern, or range          | `"4xx"`, `"401"`, `"500-503"`         |
-| `search`           | Substring match on URL/path                 | `"api/users"`                         |
-| `host`             | Exact or suffix match (prefix with `.`)     | `"api.example.com"`, `".example.com"` |
-| `path`             | Path prefix match                           | `"/api/v2"`                           |
-| `since` / `before` | Time window (ISO 8601)                      | `"2024-01-15T10:30:00Z"`              |
-| `header_name`      | Filter by header existence or value         | `"content-type"`                      |
-| `header_value`     | Exact header value (requires `header_name`) | `"application/json"`                  |
-| `header_target`    | Which headers to search                     | `"request"`, `"response"`, `"both"`   |
-| `source`           | Filter by request source                    | `"node"`, `"python"`                  |
-| `intercepted_by`   | Filter by interceptor name                  | `"mock-users"`                        |
-| `offset`           | Pagination offset (0-based)                 | `0`                                   |
-| `limit`            | Max results (default 50, max 500)           | `100`                                 |
-
-`procsi_get_request` accepts comma-separated IDs for batch fetching (e.g. `"id1,id2,id3"`).
-
-`procsi_query_json` also takes:
-
-| Parameter | Description                                                           | Example      |
-| --------- | --------------------------------------------------------------------- | ------------ |
-| `target`  | Which body to query: `"request"`, `"response"`, or `"both"` (default) | `"response"` |
-| `value`   | Exact value match after JSONPath extraction                           | `"active"`   |
-
-### Output Formats
-
-All query tools accept a `format` parameter:
-
-- `text` (default) — markdown summaries, readable by humans and AI
-- `json` — structured JSON for programmatic use
-
-### Examples
-
-```
-procsi_list_requests({ status_range: "5xx", path: "/api" })
-procsi_search_bodies({ query: "error_code", method: "POST" })
-procsi_query_json({ json_path: "$.user.id", target: "response" })
-procsi_list_requests({ header_name: "authorization", header_target: "request" })
-```
+See [full MCP documentation](docs/mcp.md) for filtering, output formats, and examples.
 
 ## Interceptors
 
 TypeScript files in `.procsi/interceptors/` that intercept HTTP traffic as it passes through the proxy. They can return mock responses, modify upstream responses, or just observe.
-
-```bash
-procsi interceptors init    # scaffold an example
-procsi interceptors reload  # reload after editing
-```
-
-### Mock
-
-Return a response without hitting upstream:
 
 ```typescript
 import type { Interceptor } from "procsi/interceptors";
@@ -189,102 +110,7 @@ export default {
 } satisfies Interceptor;
 ```
 
-### Modify
-
-Forward to upstream, then alter the response:
-
-```typescript
-import type { Interceptor } from "procsi/interceptors";
-
-export default {
-  name: "inject-header",
-  match: (req) => req.host.includes("example.com"),
-  handler: async (ctx) => {
-    const response = await ctx.forward();
-    return { ...response, headers: { ...response.headers, "x-debug": "procsi" } };
-  },
-} satisfies Interceptor;
-```
-
-### Observe
-
-Log traffic without altering it:
-
-```typescript
-import type { Interceptor } from "procsi/interceptors";
-
-export default {
-  name: "log-api",
-  match: (req) => req.path.startsWith("/api/"),
-  handler: async (ctx) => {
-    ctx.log(`${ctx.request.method} ${ctx.request.url}`);
-    const response = await ctx.forward();
-    ctx.log(`  -> ${response.status}`);
-    return response;
-  },
-} satisfies Interceptor;
-```
-
-### Query Past Traffic
-
-Interceptors can query the traffic database via `ctx.procsi`. This lets you build mocks that react to what's already happened — rate limiting, conditional failures, responses based on prior requests:
-
-```typescript
-import type { Interceptor } from "procsi/interceptors";
-
-export default {
-  name: "rate-limit",
-  match: (req) => req.path.startsWith("/api/"),
-  handler: async (ctx) => {
-    // Count how many requests this endpoint has seen in the last minute
-    const since = new Date(Date.now() - 60_000).toISOString();
-    const count = await ctx.procsi.countRequests({
-      path: ctx.request.path,
-      since,
-    });
-
-    if (count >= 10) {
-      return {
-        status: 429,
-        headers: { "retry-after": "60" },
-        body: JSON.stringify({ error: "rate_limited" }),
-      };
-    }
-
-    return ctx.forward();
-  },
-} satisfies Interceptor;
-```
-
-### Handler Context
-
-| Property        | Description                               |
-| --------------- | ----------------------------------------- |
-| `ctx.request`   | The incoming request (frozen, read-only)  |
-| `ctx.forward()` | Forward to upstream, returns the response |
-| `ctx.procsi`    | Query captured traffic (see below)        |
-| `ctx.log(msg)`  | Write to `.procsi/procsi.log`             |
-
-#### `ctx.procsi`
-
-| Method                                       | Description                                  |
-| -------------------------------------------- | -------------------------------------------- |
-| `countRequests(filter?)`                     | Count matching requests                      |
-| `listRequests({ filter?, limit?, offset? })` | List request summaries                       |
-| `getRequest(id)`                             | Full request details by ID                   |
-| `searchBodies({ query, ...filter? })`        | Full-text search through bodies              |
-| `queryJsonBodies({ json_path, ...filter? })` | Extract values from JSON bodies via JSONPath |
-
-### How Interceptors Work
-
-- Any `.ts` file in `.procsi/interceptors/` is loaded automatically
-- Files load alphabetically; first match wins
-- `match` is optional — omit it to match everything
-- Hot-reloads on file changes, or run `procsi interceptors reload`
-- 30s handler timeout, 5s match timeout
-- Errors fall through gracefully (never crashes the proxy)
-- `ctx.log()` writes to `.procsi/procsi.log` since `console.log` goes nowhere in the daemon
-- Use `satisfies Interceptor` for full intellisense
+See [full interceptors documentation](docs/interceptors.md) for modify, observe, querying past traffic, handler context, and how they work.
 
 ## How It Works
 
@@ -339,7 +165,7 @@ export default {
 
 ## Configuration
 
-Create `.procsi/config.json` to override defaults. All fields are optional:
+Create `.procsi/config.json` to override defaults:
 
 ```json
 {
@@ -350,14 +176,7 @@ Create `.procsi/config.json` to override defaults. All fields are optional:
 }
 ```
 
-| Setting             | Default            | Description                                                           |
-| ------------------- | ------------------ | --------------------------------------------------------------------- |
-| `maxStoredRequests` | `5000`             | Max requests in the database. Oldest evicted automatically.           |
-| `maxBodySize`       | `10485760` (10 MB) | Max body size to capture. Larger bodies are proxied but not stored.   |
-| `maxLogSize`        | `10485760` (10 MB) | Max log file size before rotation.                                    |
-| `pollInterval`      | `2000`             | TUI polling interval in ms. Lower = faster updates, more IPC traffic. |
-
-Missing or invalid values fall back to defaults.
+See [full configuration documentation](docs/configuration.md) for details on each setting.
 
 ## Supported HTTP Clients
 
@@ -372,292 +191,19 @@ Anything that respects `HTTP_PROXY` works:
 | Go                           | Automatic                  |
 | Rust (reqwest)               | Automatic                  |
 
-## Export
+## TUI
 
-Press `c` to copy a request as curl:
+`j`/`k` to navigate, `Tab` to switch panels, `/` to filter, `c` to copy as curl, `Enter` to inspect bodies, `q` to quit. Mouse support included.
 
-```bash
-curl -X POST 'https://api.example.com/users' \
-  -H 'Content-Type: application/json' \
-  -H 'Authorization: Bearer token123' \
-  -d '{"name": "test"}'
-```
+See [full TUI documentation](docs/tui.md) for all keybindings and export features.
 
-Press `H` to export all requests as a HAR file. Compatible with browser dev tools.
+## Documentation
 
-Press `s` on a body to open the export modal — clipboard, `.procsi/exports/`, `~/Downloads/`, custom path, or open in default application.
-
-## TUI Keybindings
-
-`j`/`k` to navigate, `Tab` to switch panels, `/` to filter, `c` to copy as curl, `Enter` to inspect bodies, `q` to quit.
-
-Mouse support: click to select, scroll to navigate, click panels to focus.
-
-<details>
-<summary>Full keybinding reference</summary>
-
-### Main View
-
-| Key                 | Action                                                                     |
-| ------------------- | -------------------------------------------------------------------------- |
-| `j`/`k` or `↑`/`↓`  | Navigate up/down                                                           |
-| `g` / `G`           | Jump to first / last item                                                  |
-| `Ctrl+u` / `Ctrl+d` | Half-page up / down                                                        |
-| `Ctrl+f` / `Ctrl+b` | Full-page down / up                                                        |
-| `Tab` / `Shift+Tab` | Next / previous panel                                                      |
-| `1`-`5`             | Jump to section (list / request / request body / response / response body) |
-| `Enter`             | Open body in full-screen viewer                                            |
-| `/`                 | Open filter bar                                                            |
-| `u`                 | Toggle full URL display                                                    |
-| `c`                 | Copy request as curl                                                       |
-| `y`                 | Copy body to clipboard                                                     |
-| `s`                 | Export body (opens export modal)                                           |
-| `H`                 | Export all as HAR                                                          |
-| `r`                 | Refresh                                                                    |
-| `?`                 | Help                                                                       |
-| `i`                 | Proxy connection info                                                      |
-| `q`                 | Quit                                                                       |
-
-### Filter Bar (`/`)
-
-| Key                 | Action                                                               |
-| ------------------- | -------------------------------------------------------------------- |
-| `Tab` / `Shift+Tab` | Cycle between search, method, status fields                          |
-| `←` / `→`           | Cycle method (ALL/GET/POST/PUT/PATCH/DELETE) or status (ALL/2xx-5xx) |
-| `Return`            | Apply filter                                                         |
-| `Esc`               | Cancel and revert                                                    |
-
-### JSON Explorer (Enter on a JSON body)
-
-| Key         | Action                |
-| ----------- | --------------------- |
-| `j`/`k`     | Navigate nodes        |
-| `Enter`/`l` | Expand/collapse node  |
-| `h`         | Collapse node         |
-| `e` / `c`   | Expand / collapse all |
-| `/`         | Filter by path        |
-| `n` / `N`   | Next / previous match |
-| `y`         | Copy value            |
-| `q` / `Esc` | Close                 |
-
-### Text Viewer (Enter on a non-JSON body)
-
-| Key         | Action                |
-| ----------- | --------------------- |
-| `j`/`k`     | Scroll line by line   |
-| `Space`     | Page down             |
-| `g` / `G`   | Top / bottom          |
-| `/`         | Search text           |
-| `n` / `N`   | Next / previous match |
-| `y`         | Copy to clipboard     |
-| `q` / `Esc` | Close                 |
-
-</details>
-
-## CLI Reference
-
-### Global Options
-
-| Flag               | Description                                       |
-| ------------------ | ------------------------------------------------- |
-| `-v, --verbose`    | Increase log verbosity (stackable: `-vv`, `-vvv`) |
-| `-d, --dir <path>` | Override project root directory                   |
-
-### `procsi on`
-
-Output shell `export` statements to start intercepting HTTP traffic. Use with `eval`:
-
-```bash
-eval "$(procsi on)"
-```
-
-If run directly in a TTY (without `eval`), shows usage instructions.
-
-| Flag                  | Description                                   |
-| --------------------- | --------------------------------------------- |
-| `-l, --label <label>`  | Label this session (visible in TUI and MCP)              |
-| `-s, --source <name>` | Label the source process (auto-detected from PID if omitted) |
-| `--no-restart`         | Don't auto-restart daemon on version mismatch            |
-
-### `procsi off`
-
-Output shell `unset` statements to stop intercepting HTTP traffic. Use with `eval`:
-
-```bash
-eval "$(procsi off)"
-```
-
-### `procsi tui`
-
-Open the interactive TUI.
-
-| Flag   | Description                                 |
-| ------ | ------------------------------------------- |
-| `--ci` | CI mode: render once and exit (for testing) |
-
-### `procsi status`
-
-Show comprehensive status: daemon state, interception state, sessions, request count, loaded interceptors.
-
-### `procsi daemon stop`
-
-Stop the daemon.
-
-### `procsi daemon restart`
-
-Restart the daemon (or start it if not running).
-
-### `procsi requests`
-
-List and filter captured requests. Output is a colour-coded table with short IDs — pipe to other tools or use `--json` for structured output.
-
-```bash
-procsi requests                              # list recent (default limit 50)
-procsi requests --method GET,POST            # filter by method
-procsi requests --status 4xx                 # filter by status range
-procsi requests --host api.example.com       # filter by host
-procsi requests --path /api/v2               # filter by path prefix
-procsi requests --search "keyword"           # substring match on URL
-procsi requests --since 5m                   # last 5 minutes
-procsi requests --since yesterday            # since midnight yesterday
-procsi requests --since 10am --before 11am   # time window
-procsi requests --header "content-type:application/json"  # header filter
-procsi requests --intercepted-by mock-users  # interceptor filter
-procsi requests --limit 100 --offset 50      # pagination
-procsi requests --json                       # JSON output
-```
-
-| Flag                       | Description                                              |
-| -------------------------- | -------------------------------------------------------- |
-| `--method <methods>`       | Filter by HTTP method (comma-separated)                  |
-| `--status <range>`         | Status range: `2xx`, `4xx`, exact `401`, etc.            |
-| `--host <host>`            | Filter by hostname                                       |
-| `--path <prefix>`          | Filter by path prefix                                    |
-| `--search <text>`          | Substring match on URL                                   |
-| `--since <time>`           | Since time (5m, 2h, 10am, yesterday, monday, 2024-01-01) |
-| `--before <time>`          | Before time (same formats as --since)                    |
-| `--header <spec>`          | Header name or name:value                                |
-| `--header-target <target>` | `request`, `response`, or `both` (default)               |
-| `--source <name>`          | Filter by request source (e.g. node, python)             |
-| `--intercepted-by <name>`  | Filter by interceptor name                               |
-| `--limit <n>`              | Max results (default 50)                                 |
-| `--offset <n>`             | Skip results (default 0)                                 |
-| `--json`                   | JSON output                                              |
-
-#### `procsi requests search <query>`
-
-Full-text search through request and response bodies.
-
-#### `procsi requests query <jsonpath>`
-
-Query JSON bodies using JSONPath expressions (e.g. `$.data.id`). Supports `--value`, `--target` (request/response/both).
-
-#### `procsi requests count`
-
-Count requests matching the current filters.
-
-#### `procsi requests clear`
-
-Clear all captured requests. Prompts for confirmation unless `--yes` is passed.
-
-### `procsi request <id>`
-
-View a single request in detail. Accepts full UUIDs or abbreviated prefixes (first 7+ characters).
-
-```bash
-procsi request a1b2c3d              # full detail view
-procsi request a1b2c3d --json       # JSON output
-```
-
-#### `procsi request <id> body`
-
-Dump the response body to stdout (raw, pipeable). Use `--request` for the request body instead.
-
-```bash
-procsi request a1b2c3d body                # response body
-procsi request a1b2c3d body --request      # request body
-procsi request a1b2c3d body | jq .         # pipe to jq
-```
-
-#### `procsi request <id> export <format>`
-
-Export a request as `curl` or `har`.
-
-```bash
-procsi request a1b2c3d export curl
-procsi request a1b2c3d export har
-```
-
-### `procsi sessions`
-
-List active proxy sessions.
-
-| Flag     | Description |
-| -------- | ----------- |
-| `--json` | JSON output |
-
-### `procsi clear`
-
-Clear all captured requests.
-
-### `procsi debug-dump`
-
-Collect diagnostics (system info, daemon status, recent logs) into `.procsi/debug-dump-<timestamp>.json`.
-
-### `procsi mcp`
-
-Start the MCP server (stdio transport). See [MCP Integration](#mcp-integration).
-
-### `procsi project init`
-
-Manually initialise a `.procsi` directory in the current location.
-
-### `procsi interceptors`
-
-List loaded interceptors, or manage them with subcommands.
-
-### `procsi interceptors init`
-
-Scaffold an example interceptor in `.procsi/interceptors/`.
-
-### `procsi interceptors reload`
-
-Reload interceptors from disk without restarting the daemon.
-
-### `procsi interceptors logs`
-
-View the interceptor event log. Events include match results, mock responses, errors, timeouts, and `ctx.log()` output.
-
-```bash
-procsi interceptors logs                         # recent events
-procsi interceptors logs --name mock-users       # filter by interceptor
-procsi interceptors logs --level error           # filter by level
-procsi interceptors logs --limit 100             # more results
-procsi interceptors logs --follow                # live tail (Ctrl+C to stop)
-procsi interceptors logs --follow --json         # live tail as NDJSON
-```
-
-| Flag                   | Description                         |
-| ---------------------- | ----------------------------------- |
-| `--name <interceptor>` | Filter by interceptor name          |
-| `--level <level>`      | Filter by level (info, warn, error) |
-| `--limit <n>`          | Max events (default 50)             |
-| `--follow`             | Live tail — poll for new events     |
-| `--json`               | JSON output                         |
-
-#### `procsi interceptors logs clear`
-
-Clear the interceptor event log.
-
-### `procsi completions <shell>`
-
-Generate shell completion scripts. Supports `zsh`, `bash`, and `fish`.
-
-```bash
-eval "$(procsi completions zsh)"    # add to .zshrc
-eval "$(procsi completions bash)"   # add to .bashrc
-procsi completions fish | source    # add to fish config
-```
+- [CLI Reference](docs/cli-reference.md) — all commands, flags, and examples
+- [Interceptors](docs/interceptors.md) — mock, modify, observe, query traffic, handler context
+- [MCP Integration](docs/mcp.md) — tools, filtering, output formats, examples
+- [TUI](docs/tui.md) — keybindings, export features
+- [Configuration](docs/configuration.md) — `.procsi/config.json` options
 
 ## Development
 
