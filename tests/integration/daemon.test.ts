@@ -8,6 +8,7 @@ import { generateCACertificate } from "mockttp";
 import { RequestRepository } from "../../src/daemon/storage.js";
 import { createProxy } from "../../src/daemon/proxy.js";
 import { createControlServer } from "../../src/daemon/control.js";
+import { createReplayTracker } from "../../src/daemon/replay-tracker.js";
 import { ControlClient } from "../../src/shared/control-client.js";
 import { ensureProcsiDir, getProcsiPaths } from "../../src/shared/project.js";
 import { getProcsiVersion } from "../../src/shared/version.js";
@@ -837,6 +838,148 @@ describe("daemon integration", () => {
 
       const count = await client.countRequests();
       expect(count).toBe(0);
+      client.close();
+    });
+
+    it("replayRequest validates unsupported replay mode when tracker is not configured", async () => {
+      const session = storage.registerSession("test", process.pid);
+      const requestId = storage.saveRequest({
+        sessionId: session.id,
+        timestamp: Date.now(),
+        method: "GET",
+        url: "https://example.com/health",
+        host: "example.com",
+        path: "/health",
+        requestHeaders: {},
+      });
+
+      const controlServer = createControlServer({
+        socketPath: paths.controlSocketFile,
+        storage,
+        proxyPort: 9999,
+        version: "1.0.0",
+      });
+      cleanup.push(controlServer.close);
+
+      const client = new ControlClient(paths.controlSocketFile);
+      await expect(client.replayRequest({ id: requestId })).rejects.toThrow(
+        "Replay is not available: replay tracker not initialised"
+      );
+      client.close();
+    });
+
+    it("replayRequest validates malformed replay parameters", async () => {
+      const session = storage.registerSession("test", process.pid);
+      const requestId = storage.saveRequest({
+        sessionId: session.id,
+        timestamp: Date.now(),
+        method: "POST",
+        url: "https://example.com/replay",
+        host: "example.com",
+        path: "/replay",
+        requestHeaders: { "content-type": "application/json" },
+        requestBody: Buffer.from('{"ok":true}', "utf-8"),
+      });
+
+      const replayTracker = createReplayTracker();
+      cleanup.push(async () => {
+        replayTracker.close();
+      });
+
+      const controlServer = createControlServer({
+        socketPath: paths.controlSocketFile,
+        storage,
+        proxyPort: 9999,
+        version: "1.0.0",
+        replayTracker,
+      });
+      cleanup.push(controlServer.close);
+
+      const client = new ControlClient(paths.controlSocketFile);
+
+      await expect(
+        client.replayRequest({
+          id: requestId,
+          body: "plain-text",
+          bodyBase64: "cGxhaW4tdGV4dA==",
+        })
+      ).rejects.toThrow('Provide either "body" or "bodyBase64", not both.');
+
+      await expect(
+        client.replayRequest({
+          id: requestId,
+          bodyBase64: "$$$not-valid-base64$$$",
+        })
+      ).rejects.toThrow("Invalid bodyBase64 parameter: expected valid base64 content");
+
+      await expect(
+        client.replayRequest({
+          id: requestId,
+          url: "not-a-valid-url",
+        })
+      ).rejects.toThrow("Invalid URL for replay: not-a-valid-url");
+
+      client.close();
+    });
+
+    it("replayRequest captures a new request and stores replay lineage metadata", async () => {
+      const replayTracker = createReplayTracker();
+      cleanup.push(async () => {
+        replayTracker.close();
+      });
+
+      const session = storage.registerSession("test", process.pid);
+
+      const testServer = http.createServer((_req, res) => {
+        res.writeHead(200, { "Content-Type": "application/json" });
+        res.end(JSON.stringify({ ok: true }));
+      });
+      await new Promise<void>((resolve) => testServer.listen(0, "127.0.0.1", resolve));
+      const testServerAddress = testServer.address() as { port: number };
+      cleanup.push(() => {
+        testServer.closeAllConnections();
+        return new Promise((resolve) => testServer.close(() => resolve()));
+      });
+
+      const proxy = await createProxy({
+        caKeyPath: paths.caKeyFile,
+        caCertPath: paths.caCertFile,
+        storage,
+        sessionId: session.id,
+        replayTracker,
+      });
+      cleanup.push(proxy.stop);
+
+      const controlServer = createControlServer({
+        socketPath: paths.controlSocketFile,
+        storage,
+        proxyPort: proxy.port,
+        version: "1.0.0",
+        replayTracker,
+      });
+      cleanup.push(controlServer.close);
+
+      await makeProxiedRequest(proxy.port, `http://127.0.0.1:${testServerAddress.port}/replay-me`);
+      await new Promise((resolve) => setTimeout(resolve, 120));
+
+      const original = storage
+        .listRequestsSummary()
+        .find((request) => request.path === "/replay-me");
+      expect(original).toBeDefined();
+
+      const client = new ControlClient(paths.controlSocketFile);
+      const replayed = await client.replayRequest({
+        id: original?.id ?? "",
+        initiator: "tui",
+      });
+      await new Promise((resolve) => setTimeout(resolve, 120));
+
+      const replayedRequest = await client.getRequest(replayed.requestId);
+      expect(replayedRequest).not.toBeNull();
+      expect(replayedRequest?.path).toBe("/replay-me");
+      expect(replayedRequest?.replayedFromId).toBe(original?.id);
+      expect(replayedRequest?.replayInitiator).toBe("tui");
+
       client.close();
     });
   });

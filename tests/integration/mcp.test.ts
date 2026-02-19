@@ -9,6 +9,7 @@ import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js";
 import { RequestRepository } from "../../src/daemon/storage.js";
 import { createProxy } from "../../src/daemon/proxy.js";
 import { createControlServer } from "../../src/daemon/control.js";
+import { createReplayTracker } from "../../src/daemon/replay-tracker.js";
 import { ensureProcsiDir, getProcsiPaths } from "../../src/shared/project.js";
 import { createProcsiMcpServer } from "../../src/mcp/server.js";
 import { createInterceptorLoader } from "../../src/daemon/interceptor-loader.js";
@@ -71,6 +72,11 @@ describe("MCP integration", () => {
    * to the procsi MCP server via in-memory transport.
    */
   async function setupMcpStack() {
+    const replayTracker = createReplayTracker();
+    cleanup.push(async () => {
+      replayTracker.close();
+    });
+
     const session = storage.registerSession("test", process.pid);
 
     const proxy = await createProxy({
@@ -78,6 +84,7 @@ describe("MCP integration", () => {
       caCertPath: paths.caCertFile,
       storage,
       sessionId: session.id,
+      replayTracker,
     });
     cleanup.push(proxy.stop);
 
@@ -86,6 +93,8 @@ describe("MCP integration", () => {
       storage,
       proxyPort: proxy.port,
       version: "1.0.0-test",
+      replayTracker,
+      caCertPem: fs.readFileSync(paths.caCertFile, "utf-8"),
     });
     cleanup.push(controlServer.close);
 
@@ -1427,6 +1436,88 @@ describe("MCP integration", () => {
     expect(text).toContain("[^");
     expect(text).toContain("v");
   });
+
+  it("procsi_replay_request replays a request and returns replay lineage metadata", async () => {
+    const { proxy, mcpClient } = await setupMcpStack();
+
+    const testServer = http.createServer((_req, res) => {
+      res.writeHead(200, { "Content-Type": "application/json" });
+      res.end(JSON.stringify({ ok: true }));
+    });
+    await new Promise<void>((resolve) => testServer.listen(0, "127.0.0.1", resolve));
+    const testAddr = testServer.address() as { port: number };
+    cleanup.push(() => {
+      testServer.closeAllConnections();
+      return new Promise((resolve) => testServer.close(() => resolve()));
+    });
+
+    await makeProxiedRequest(proxy.port, `http://127.0.0.1:${testAddr.port}/api/replay-target`);
+    await new Promise((resolve) => setTimeout(resolve, 150));
+
+    const listBefore = await mcpClient.callTool({
+      name: "procsi_list_requests",
+      arguments: { format: "json" },
+    });
+    const parsedBefore = JSON.parse(getTextContent(listBefore)) as {
+      requests: { id: string; path: string }[];
+    };
+    const original = parsedBefore.requests.find((request) => request.path === "/api/replay-target");
+    expect(original).toBeDefined();
+
+    const replayResult = await mcpClient.callTool({
+      name: "procsi_replay_request",
+      arguments: { id: original?.id ?? "", format: "json" },
+    });
+    expect(replayResult.isError).toBeFalsy();
+    const parsedReplay = JSON.parse(getTextContent(replayResult)) as { requestId: string };
+    expect(parsedReplay.requestId).toBeTruthy();
+
+    await new Promise((resolve) => setTimeout(resolve, 200));
+
+    const replayedDetail = await mcpClient.callTool({
+      name: "procsi_get_request",
+      arguments: { id: parsedReplay.requestId, format: "json" },
+    });
+    const parsedDetail = JSON.parse(getTextContent(replayedDetail)) as {
+      requests: { replayedFromId?: string; replayInitiator?: string }[];
+      notFound: string[];
+    };
+
+    expect(parsedDetail.notFound).toHaveLength(0);
+    expect(parsedDetail.requests).toHaveLength(1);
+    expect(parsedDetail.requests[0]?.replayedFromId).toBe(original?.id);
+    expect(parsedDetail.requests[0]?.replayInitiator).toBe("mcp");
+  });
+
+  it("procsi_replay_request returns an error for an unknown request id", async () => {
+    const { mcpClient } = await setupMcpStack();
+
+    const result = await mcpClient.callTool({
+      name: "procsi_replay_request",
+      arguments: { id: "non-existent-id" },
+    });
+
+    expect(result.isError).toBe(true);
+    expect(getTextContent(result)).toContain(
+      "Failed to replay request: Request not found: non-existent-id"
+    );
+  });
+
+  it("procsi_replay_request schema rejects missing id", async () => {
+    const { mcpClient } = await setupMcpStack();
+
+    try {
+      const result = await mcpClient.callTool({
+        name: "procsi_replay_request",
+        arguments: {},
+      });
+      expect(result.isError).toBe(true);
+      expect(getTextContent(result).toLowerCase()).toContain("id");
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : String(err);
+      expect(message.toLowerCase()).toContain("id");
+    }
+  });
 });
 
 describe("MCP interceptor events", { timeout: 30_000 }, () => {
@@ -1669,5 +1760,104 @@ describe("MCP interceptor events", { timeout: 30_000 }, () => {
     const userLogEvent = parsed.events.find((e: { type: string }) => e.type === "user_log");
     expect(userLogEvent).toBeDefined();
     expect(userLogEvent.message).toBe("json format test");
+  });
+
+  it("procsi_write_interceptor and procsi_delete_interceptor manage interceptor files", async () => {
+    const { mcpClient } = await setupMcpInterceptorStack();
+
+    const writeResult = await mcpClient.callTool({
+      name: "procsi_write_interceptor",
+      arguments: {
+        path: "mcp-generated.ts",
+        content: `export default {
+  name: "mcp-generated",
+  handler: async () => ({ status: 201, body: "created" }),
+};`,
+      },
+    });
+
+    expect(writeResult.isError).toBeFalsy();
+    expect(getTextContent(writeResult)).toContain("Wrote .procsi/interceptors/mcp-generated.ts");
+    expect(fs.existsSync(path.join(paths.interceptorsDir, "mcp-generated.ts"))).toBe(true);
+
+    const listed = await mcpClient.callTool({
+      name: "procsi_list_interceptors",
+      arguments: {},
+    });
+    expect(getTextContent(listed)).toContain("mcp-generated");
+
+    const deleteResult = await mcpClient.callTool({
+      name: "procsi_delete_interceptor",
+      arguments: { path: "mcp-generated.ts" },
+    });
+
+    expect(deleteResult.isError).toBeFalsy();
+    expect(getTextContent(deleteResult)).toContain("Deleted .procsi/interceptors/mcp-generated.ts");
+    expect(fs.existsSync(path.join(paths.interceptorsDir, "mcp-generated.ts"))).toBe(false);
+  });
+
+  it("procsi_write_interceptor returns an error when overwrite=false and file exists", async () => {
+    const { mcpClient } = await setupMcpInterceptorStack();
+
+    await mcpClient.callTool({
+      name: "procsi_write_interceptor",
+      arguments: {
+        path: "existing.ts",
+        content: "export default { name: 'existing', handler: async () => ({ status: 200 }) };",
+      },
+    });
+
+    const secondWrite = await mcpClient.callTool({
+      name: "procsi_write_interceptor",
+      arguments: {
+        path: "existing.ts",
+        content: "export default { name: 'existing', handler: async () => ({ status: 201 }) };",
+      },
+    });
+
+    expect(secondWrite.isError).toBe(true);
+    expect(getTextContent(secondWrite)).toContain("already exists");
+  });
+
+  it("procsi_write_interceptor rejects traversal and wrong-extension paths", async () => {
+    const { mcpClient } = await setupMcpInterceptorStack();
+
+    const traversal = await mcpClient.callTool({
+      name: "procsi_write_interceptor",
+      arguments: {
+        path: "../outside.ts",
+        content: "export default {}",
+      },
+    });
+    expect(traversal.isError).toBe(true);
+    expect(getTextContent(traversal)).toContain("must stay inside .procsi/interceptors");
+
+    const wrongExt = await mcpClient.callTool({
+      name: "procsi_write_interceptor",
+      arguments: {
+        path: "bad.js",
+        content: "export default {}",
+      },
+    });
+    expect(wrongExt.isError).toBe(true);
+    expect(getTextContent(wrongExt)).toContain("must end with .ts");
+  });
+
+  it("procsi_delete_interceptor rejects invalid and traversal paths", async () => {
+    const { mcpClient } = await setupMcpInterceptorStack();
+
+    const emptyPath = await mcpClient.callTool({
+      name: "procsi_delete_interceptor",
+      arguments: { path: "   " },
+    });
+    expect(emptyPath.isError).toBe(true);
+    expect(getTextContent(emptyPath)).toContain("Path is required");
+
+    const traversal = await mcpClient.callTool({
+      name: "procsi_delete_interceptor",
+      arguments: { path: "../../escape.ts" },
+    });
+    expect(traversal.isError).toBe(true);
+    expect(getTextContent(traversal)).toContain("must stay inside .procsi/interceptors");
   });
 });
