@@ -418,6 +418,39 @@ export default {
       expect(captured?.interceptedBy).toBe("test-modify");
     });
 
+    it("records interceptor name but not modified marker for observe-only forward", async () => {
+      const observeInterceptorCode = `
+export default {
+  name: "test-observe",
+  match: (req) => req.path === "/api/test",
+  handler: async (ctx) => {
+    await ctx.forward();
+    return undefined;
+  },
+};
+`;
+
+      const { proxy, testPort } = await setupWithInterceptor(observeInterceptorCode);
+
+      const response = await makeProxiedRequest(
+        proxy.port,
+        `http://127.0.0.1:${testPort}/api/test`
+      );
+
+      expect(response.statusCode).toBe(200);
+      const parsed = JSON.parse(response.body);
+      expect(parsed).toEqual({ message: "hello from upstream" });
+
+      await new Promise((resolve) => setTimeout(resolve, 100));
+
+      const requests = storage.listRequests();
+      expect(requests).toHaveLength(1);
+
+      const captured = requests[0];
+      expect(captured?.interceptedBy).toBe("test-observe");
+      expect(captured?.interceptionType).toBeUndefined();
+    });
+
     it("passes through to upstream when the interceptor match function does not match", async () => {
       const noMatchInterceptorCode = `
 export default {

@@ -2195,6 +2195,24 @@ describe("RequestRepository", () => {
       expect(request?.interceptionType).toBe("mocked");
     });
 
+    it("updateRequestInterception can record interceptor name without a modified/mock marker", () => {
+      const id = repo.saveRequest({
+        sessionId,
+        timestamp: Date.now(),
+        method: "GET",
+        url: "https://api.example.com/observe",
+        host: "api.example.com",
+        path: "/observe",
+        requestHeaders: {},
+      });
+
+      repo.updateRequestInterception(id, "observer-only");
+
+      const request = repo.getRequest(id);
+      expect(request?.interceptedBy).toBe("observer-only");
+      expect(request?.interceptionType).toBeUndefined();
+    });
+
     it("listRequestsSummary returns interceptedBy and interceptionType", () => {
       const id = repo.saveRequest({
         sessionId,

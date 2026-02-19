@@ -49,6 +49,7 @@ TypeScript interceptor files in `.procsi/interceptors/` — mock, modify, or obs
 - Terminal hyperlink suppression
 - Method truncation on long URLs
 - Source attribution hardening: internal session headers now require a per-session token, with runtime source taking precedence when available
+- Interception marker semantics: `I` now indicates actual response mutation only; observe-only `forward()` interceptors keep attribution without the modified marker
 
 </details>
 
