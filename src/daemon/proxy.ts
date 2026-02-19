@@ -283,12 +283,9 @@ export async function createProxy(options: ProxyOptions): Promise<ProxyServer> {
         }
 
         if (result?.interception) {
-          // forward() was called — record interception metadata, let proxy continue
-          storage.updateRequestInterception(
-            ourId,
-            result.interception.name,
-            result.interception.type
-          );
+          // forward() was called — record interceptor name, but delay "modified" marking
+          // until we know the response was actually changed.
+          storage.updateRequestInterception(ourId, result.interception.name);
         }
       }
 
@@ -393,12 +390,8 @@ export async function createProxy(options: ProxyOptions): Promise<ProxyServer> {
         }
 
         if (interceptResult?.interception) {
-          // Observe mode — record interception metadata but don't modify response
-          storage.updateRequestInterception(
-            info.ourId,
-            interceptResult.interception.name,
-            interceptResult.interception.type
-          );
+          // Observe mode — keep interceptor attribution without marking as modified.
+          storage.updateRequestInterception(info.ourId, interceptResult.interception.name);
         }
       }
 

@@ -633,14 +633,14 @@ export class RequestRepository {
   updateRequestInterception(
     id: string,
     interceptedBy: string,
-    interceptionType: InterceptionType
+    interceptionType?: InterceptionType
   ): void {
     const stmt = this.db.prepare(`
       UPDATE requests
       SET intercepted_by = ?, interception_type = ?
       WHERE id = ?
     `);
-    stmt.run(interceptedBy, interceptionType, id);
+    stmt.run(interceptedBy, interceptionType ?? null, id);
   }
 
   /**
