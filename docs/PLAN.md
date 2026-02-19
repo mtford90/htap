@@ -58,6 +58,7 @@ TypeScript interceptor files in `.procsi/interceptors/` — mock, modify, or obs
 Scriptable CLI commands exposing the same search/filter/export capabilities as the TUI and MCP. Follows a "gradual discovery" pattern where each command's output hints at related commands.
 
 - `procsi requests` — list/filter with `--method`, `--status`, `--host`, `--path`, `--since`/`--before`, `--header`, `--intercepted-by`, `--json`
+- Space-separated URL search terms now compose with AND semantics (applies across TUI/CLI/MCP list filtering)
 - `procsi requests search <query>` — full-text body search
 - `procsi requests query <jsonpath>` — JSONPath query on bodies
 - `procsi requests count` — count matching requests
@@ -71,6 +72,17 @@ Scriptable CLI commands exposing the same search/filter/export capabilities as t
 - `procsi completions zsh|bash|fish` — shell completion script generation
 - Human-friendly time parser for `--since`/`--before` (5m, 2h, 10am, yesterday, monday, ISO dates)
 - Colour-coded output with NO_COLOR/pipe detection; `--json` for machine output
+
+</details>
+
+<details>
+<summary>Fake domains / virtual hosts</summary>
+
+Validated support for mocking fully fictional hosts/paths through interceptors, without upstream DNS/TCP success.
+
+- Integration coverage for mocked `http://my-fake-api.local/...` and `https://my-fake-api.local/...`
+- Clean failure coverage for unmatched fake-host requests (proxy remains usable)
+- Interceptor docs now include a virtual-host mocking example and HTTPS CA trust note
 
 </details>
 
@@ -103,11 +115,6 @@ Each feature should be considered across all three surfaces where applicable:
   - **CLI:** `--search` accepts `/pattern/` for regex, or a `--regex` flag
   - **MCP:** `regex` param on `procsi_list_requests` / `procsi_search_bodies`
 
-- [ ] **Multiple filters** — compose filters (e.g. filter by `bigcommerce` AND `variants`)
-  - **TUI:** support space-separated terms in the search field as AND conditions; method + status already compose
-  - **CLI:** already supports combining `--method`, `--status`, `--host`, `--path`, `--search` etc. — extend `--search` to support multiple terms (AND logic)
-  - **MCP:** already supports multiple filter params — extend `search` param to support AND logic
-
 - [ ] **Body search in TUI** — search through request/response bodies from within the TUI
   - **CLI:** already has `procsi requests search <query>` — done
   - **MCP:** already has `procsi_search_bodies` — done
@@ -118,12 +125,6 @@ Each feature should be considered across all three surfaces where applicable:
 - [x] **Simplify README** — current README is ~700 lines; trim to quick-start + feature highlights + architecture diagram and move detailed reference (MCP tools/filters, full keybindings, CLI reference, interceptor cookbook) to a GitHub wiki. Inspiration: [sql-tap](https://github.com/mickamy/sql-tap) keeps its README short and scannable
 
 - [x] **CLI query interface** — see Completed section above
-
-- [ ] **Fake domains / virtual hosts** — interceptors should work with non-existent domains/paths so you can mock entirely fictional APIs (e.g. `curl http://my-fake-api.local/users`). Currently a request to a non-routable host would fail before the interceptor can respond. Needs some kind of pre-request hook so interceptors can catch and reply without ever hitting upstream — essentially turning procsi into a lightweight mock server for any domain you like
-  - **Daemon:** pre-request interception hook; respond before upstream resolution
-  - **TUI:** no special changes needed (intercepted requests already display)
-  - **CLI:** no special changes needed
-  - **MCP:** `procsi_write_interceptor` (Phase 3) covers creating these
 
 ---
 
