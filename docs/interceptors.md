@@ -27,6 +27,33 @@ export default {
 } satisfies Interceptor;
 ```
 
+## Mock Fictional Domains (Virtual Hosts)
+
+Interceptors can mock completely non-existent domains too — no upstream DNS/host is required, as long as your request goes through the procsi proxy.
+
+```typescript
+import type { Interceptor } from "procsi/interceptors";
+
+export default {
+  name: "fake-api",
+  match: (req) => req.host === "my-fake-api.local" && req.path === "/users",
+  handler: async () => ({
+    status: 200,
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify([{ id: 1, name: "Mock User" }]),
+  }),
+} satisfies Interceptor;
+```
+
+Try it:
+
+```bash
+curl -x "$HTTP_PROXY" http://my-fake-api.local/users
+curl -x "$HTTPS_PROXY" --cacert .procsi/ca.pem https://my-fake-api.local/users
+```
+
+For HTTPS clients, trust the procsi CA (`.procsi/ca.pem`) so TLS validation succeeds.
+
 ## Modify
 
 Forward to upstream, then alter the response:
