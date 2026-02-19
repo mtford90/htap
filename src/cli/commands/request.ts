@@ -166,6 +166,101 @@ const saveSubcommand = new Command("save")
     }
   });
 
+const replaySubcommand = new Command("replay")
+  .description("Replay the captured request through the proxy")
+  .option("--method <method>", "override HTTP method")
+  .option("--url <url>", "override target URL")
+  .option("--set-header <header...>", "set/override headers (name:value)")
+  .option("--remove-header <header...>", "remove headers by name")
+  .option("--body <text>", "override request body (UTF-8 text)")
+  .option("--body-base64 <data>", "override request body (base64-encoded)")
+  .option("--timeout <ms>", "replay timeout in milliseconds")
+  .option("--json", "JSON output")
+  .action(
+    async (
+      opts: {
+        method?: string;
+        url?: string;
+        setHeader?: string[];
+        removeHeader?: string[];
+        body?: string;
+        bodyBase64?: string;
+        timeout?: string;
+        json?: boolean;
+      },
+      command: Command
+    ) => {
+      const parentOpts = command.parent?.args ?? [];
+      const idPrefix = parentOpts[0];
+      if (!idPrefix || typeof idPrefix !== "string") {
+        console.error("Usage: procsi request <id> replay");
+        process.exit(1);
+      }
+
+      const { client } = await connectToDaemon(command);
+      try {
+        const request = await resolveRequest(client, idPrefix);
+
+        // Parse --set-header values into a record (split on first ":")
+        let setHeaders: Record<string, string> | undefined;
+        if (opts.setHeader && opts.setHeader.length > 0) {
+          setHeaders = {};
+          for (const header of opts.setHeader) {
+            const colonIndex = header.indexOf(":");
+            if (colonIndex === -1) {
+              console.error(`Invalid header format: "${header}" (expected name:value)`);
+              process.exit(1);
+            }
+            const name = header.slice(0, colonIndex).trim();
+            const value = header.slice(colonIndex + 1).trim();
+            setHeaders[name] = value;
+          }
+        }
+
+        // Parse --timeout with validation
+        let timeoutMs: number | undefined;
+        if (opts.timeout !== undefined) {
+          timeoutMs = Number(opts.timeout);
+          if (!Number.isFinite(timeoutMs) || timeoutMs <= 0) {
+            console.error(`Invalid timeout: "${opts.timeout}" (expected positive number in ms)`);
+            process.exit(1);
+          }
+        }
+
+        const result = await client.replayRequest({
+          id: request.id,
+          method: opts.method,
+          url: opts.url,
+          setHeaders,
+          removeHeaders: opts.removeHeader,
+          body: opts.body,
+          bodyBase64: opts.bodyBase64,
+          timeoutMs,
+          initiator: "cli",
+        });
+
+        if (opts.json) {
+          console.log(JSON.stringify(result, null, 2));
+        } else {
+          const shortId = result.requestId.slice(0, SHORT_ID_LENGTH);
+          console.log(`  Replayed ${request.method} ${request.url}`);
+          console.log(`  New request ID: ${shortId}`);
+
+          const hint = formatHint([`request ${shortId} to inspect the replayed request`]);
+          if (hint) {
+            console.log("");
+            console.log(hint);
+          }
+        }
+      } catch (err) {
+        console.error(`Error: ${getErrorMessage(err)}`);
+        process.exit(1);
+      } finally {
+        client.close();
+      }
+    }
+  );
+
 const unsaveSubcommand = new Command("unsave")
   .description("Remove the saved/bookmark flag from a request")
   .action(async (_opts: Record<string, unknown>, command: Command) => {
@@ -204,6 +299,7 @@ export const requestCommand = new Command("request")
   .addCommand(exportSubcommand)
   .addCommand(saveSubcommand)
   .addCommand(unsaveSubcommand)
+  .addCommand(replaySubcommand)
   .action(async (id: string, opts: { json?: boolean }, command: Command) => {
     const { client } = await connectToDaemon(command);
     try {
@@ -216,7 +312,12 @@ export const requestCommand = new Command("request")
 
       console.log(formatRequestDetail(request));
 
-      const hint = formatHint(["body for full body", "export curl|har", "save|unsave to bookmark"]);
+      const hint = formatHint([
+        "body for full body",
+        "export curl|har",
+        "save|unsave to bookmark",
+        "replay to re-send",
+      ]);
       if (hint) {
         console.log("");
         console.log(hint);
