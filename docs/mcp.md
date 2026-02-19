@@ -59,7 +59,10 @@ npx agents export --target claude
 | `procsi_query_json`          | Extract values from JSON bodies via JSONPath         |
 | `procsi_count_requests`      | Count matching requests                              |
 | `procsi_clear_requests`      | Delete all captured requests                         |
+| `procsi_replay_request`      | Replay a captured request with optional overrides    |
 | `procsi_list_sessions`       | List active proxy sessions                           |
+| `procsi_write_interceptor`   | Write/update interceptor files and reload            |
+| `procsi_delete_interceptor`  | Delete interceptor files and reload                  |
 | `procsi_list_interceptors`   | List loaded interceptors with status and errors      |
 | `procsi_reload_interceptors` | Reload interceptors from disk                        |
 
@@ -115,4 +118,7 @@ procsi_search_bodies({ query: "error_code", method: "POST", target: "response" }
 procsi_list_requests({ regex: "users/\\d+$" })
 procsi_query_json({ json_path: "$.user.id", target: "response" })
 procsi_list_requests({ header_name: "authorization", header_target: "request" })
+procsi_replay_request({ id: "abc123", method: "POST", url: "https://api.example.com/test" })
+procsi_write_interceptor({ path: "mock-users.ts", content: "export default { ... }" })
+procsi_delete_interceptor({ path: "mock-users.ts" })
 ```
