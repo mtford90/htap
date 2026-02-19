@@ -186,15 +186,58 @@ Each feature should be considered across all three surfaces where applicable:
 
 ## Phase 3: MCP Write — Request Replay + AI-driven Interceptors
 
-**New MCP tools:**
+**Goals:** add safe MCP write operations and a deliberate replay UX in the TUI.
 
-- [ ] `procsi_replay_request` — replay a captured request with optional modifications (URL, headers, body, method)
-- [ ] `procsi_write_interceptor` — AI writes/updates interceptor `.ts` files, triggers reload
-- [ ] `procsi_delete_interceptor` — remove an interceptor file
+### 3.1 Replay request (`procsi_replay_request`)
 
-**TUI replay:**
+- [x] Add `procsi_replay_request` MCP tool to replay a captured request by ID
+  - Required: `id`
+  - Optional overrides: `method`, `url`, header upserts/removals, `body` (text), `body_base64` (binary), `timeout_ms`
+  - Return: new request ID + replay summary
+- [x] Replays must flow through normal proxy capture/interceptor path so replayed traffic appears in captured requests like any other request
+- [x] Persist replay metadata on replayed requests (for visibility across surfaces)
+  - `replayed_from_id`
+  - `replay_initiator` (`mcp` | `tui`)
 
-- Simple one-key resend of the selected request (no editing — cURL export covers modification use cases)
+### 3.2 Interceptor file write/delete tools
+
+- [x] Add `procsi_write_interceptor` MCP tool
+  - Writes/updates `.procsi/interceptors/*.ts`
+  - Path safety: must remain under interceptors dir, no traversal, `.ts` only
+  - Supports explicit overwrite mode
+  - Triggers interceptor reload and returns reload status/errors
+- [x] Add `procsi_delete_interceptor` MCP tool
+  - Deletes `.procsi/interceptors/*.ts`
+  - Same path safety constraints
+  - Triggers interceptor reload and returns reload status/errors
+
+### 3.3 TUI replay (explicit confirmation required)
+
+- [x] Add one-key replay action for selected request (`R`)
+- [x] **Hard confirmation required** before replay executes
+  - Prompt: `Replay selected request? (y to confirm, any key to cancel)`
+  - `y` confirms; any other key cancels
+- [x] Show replay progress/result status messages (`Replaying...`, success/failure)
+- [x] Replayed request must appear in the request list after completion
+
+### 3.4 Replay visualisation
+
+- [x] Mark replayed requests with a dedicated list indicator (e.g. `R`/`[R]`)
+- [x] Show replay lineage in request detail pane (`Replayed from: <id>`, initiator)
+- [x] Keep existing interception (`M`/`I`) and saved (`*`/`[S]`) indicators readable alongside replay marker
+
+### 3.5 Tests
+
+- [ ] Storage/control tests for replay metadata persistence + replay API validation
+- [ ] MCP server tests for new tool schemas, happy paths, and error paths
+- [ ] Path-safety tests for interceptor write/delete tools (invalid path, traversal, wrong extension)
+- [ ] TUI component tests for replay confirmation flow (`R` → `y` confirm / cancel on other key)
+- [ ] Integration test verifying replayed request is captured and marked as replayed
+
+### 3.6 Docs
+
+- [x] Update `docs/mcp.md` with new write tools + examples
+- [x] Update TUI docs/help text for replay key + confirmation behaviour + replay marker legend
 
 ---
 
