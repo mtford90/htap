@@ -232,7 +232,7 @@ Each feature should be considered across all three surfaces where applicable:
 - [ ] Storage/control tests for replay metadata persistence + replay API validation
 - [ ] MCP server tests for new tool schemas, happy paths, and error paths
 - [ ] Path-safety tests for interceptor write/delete tools (invalid path, traversal, wrong extension)
-- [ ] TUI component tests for replay confirmation flow (`R` → `y` confirm / cancel on other key)
+- [x] TUI component tests for replay confirmation flow (`R` → `y` confirm / cancel on other key)
 - [ ] Integration test verifying replayed request is captured and marked as replayed
 
 ### 3.6 Docs
