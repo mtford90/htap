@@ -2384,6 +2384,52 @@ describe("RequestRepository", () => {
     });
   });
 
+  describe("replay metadata", () => {
+    let sessionId: string;
+
+    beforeEach(() => {
+      const session = repo.registerSession("test", 1);
+      sessionId = session.id;
+    });
+
+    it("persists replay metadata on full request records", () => {
+      const id = repo.saveRequest({
+        sessionId,
+        timestamp: Date.now(),
+        method: "GET",
+        url: "https://api.example.com/replayed",
+        host: "api.example.com",
+        path: "/replayed",
+        requestHeaders: {},
+      });
+
+      repo.updateRequestReplay(id, "original-req-id", "mcp");
+
+      const request = repo.getRequest(id);
+      expect(request?.replayedFromId).toBe("original-req-id");
+      expect(request?.replayInitiator).toBe("mcp");
+    });
+
+    it("includes replay metadata in summary rows", () => {
+      const id = repo.saveRequest({
+        sessionId,
+        timestamp: Date.now(),
+        method: "POST",
+        url: "https://api.example.com/replayed-summary",
+        host: "api.example.com",
+        path: "/replayed-summary",
+        requestHeaders: {},
+      });
+
+      repo.updateRequestReplay(id, "origin-123", "tui");
+
+      const summaries = repo.listRequestsSummary();
+      expect(summaries).toHaveLength(1);
+      expect(summaries[0]?.replayedFromId).toBe("origin-123");
+      expect(summaries[0]?.replayInitiator).toBe("tui");
+    });
+  });
+
   describe("bookmarks (saved requests)", () => {
     let sessionId: string;
 
