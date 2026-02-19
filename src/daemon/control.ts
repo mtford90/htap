@@ -146,10 +146,10 @@ function optionalReplayInitiator(
 ): ReplayInitiator | undefined {
   const value = params[key];
   if (value === undefined) return undefined;
-  if (value === "mcp" || value === "tui") {
+  if (value === "mcp" || value === "tui" || value === "cli") {
     return value;
   }
-  throw new Error(`Invalid ${key} parameter: expected "mcp" or "tui"`);
+  throw new Error(`Invalid ${key} parameter: expected "mcp", "tui", or "cli"`);
 }
 
 function optionalBodySearchTarget(

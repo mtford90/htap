@@ -4,7 +4,7 @@
 
 export type InterceptionType = "modified" | "mocked";
 export type BodySearchTarget = "request" | "response" | "both";
-export type ReplayInitiator = "mcp" | "tui";
+export type ReplayInitiator = "mcp" | "tui" | "cli";
 
 export interface BodySearchOptions {
   query: string;
