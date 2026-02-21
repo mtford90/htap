@@ -29,6 +29,31 @@ curl https://api.example.com/users
 procsi tui
 ```
 
+## Browser Interception
+
+Launch any browser pre-configured to route through procsi — no manual proxy setup, no certificate warnings:
+
+```bash
+# Auto-detect and launch your default browser
+procsi browser
+
+# Open a specific URL
+procsi browser https://example.com
+
+# Choose a specific browser
+procsi browser --browser firefox
+procsi browser --browser brave
+```
+
+Each browser session gets its own isolated profile and is automatically attributed in the TUI (e.g. `source: chrome`). Close the browser or press `Ctrl+C` to stop — the temp profile is cleaned up automatically.
+
+**Supported browsers:**
+
+| Engine   | Browsers                                          |
+| -------- | ------------------------------------------------- |
+| Chromium | Chrome, Brave, Edge, Vivaldi, Arc, Chromium       |
+| Firefox  | Firefox, Zen Browser, LibreWolf                   |
+
 ## Project Isolation
 
 procsi doesn't use a global system proxy. Each project gets its own `.procsi/` directory in the project root (detected by `.git` or an existing `.procsi/`):
