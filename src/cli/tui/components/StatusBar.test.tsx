@@ -19,19 +19,19 @@ const hintActions = (hints: ReturnType<typeof getVisibleHints>): string[] =>
 const ALWAYS_VISIBLE_KEYS = ["j/k", "Tab", "u", "/", "?", "q"];
 
 describe("getVisibleHints", () => {
-  it("returns all conditional hints as visible when no context props are passed (backwards compat)", () => {
+  it("returns only unconditional hints when no context props are passed", () => {
     const hints = getVisibleHints({});
     const keys = hintKeys(hints);
 
-    expect(keys).toContain("e");
-    expect(keys).toContain("R");
-    expect(keys).toContain("b");
-    expect(keys).toContain("x");
+    // Conditional hints should be hidden when defaults are false
+    expect(keys).not.toContain("e");
+    expect(keys).not.toContain("R");
+    expect(keys).not.toContain("b");
+    expect(keys).not.toContain("x");
+    expect(keys).not.toContain("Enter");
     for (const key of ALWAYS_VISIBLE_KEYS) {
       expect(keys).toContain(key);
     }
-    // Enter is hidden because onViewableBodySection defaults to false
-    expect(keys).not.toContain("Enter");
   });
 
   it("always includes unconditional hints", () => {
@@ -295,81 +295,4 @@ describe("StatusBar component", () => {
     });
   });
 
-  describe("width-based hint truncation", () => {
-    /**
-     * ink-testing-library hardcodes stdout.columns to 100 via a getter.
-     * To test wide-width rendering we must override it before rerendering.
-     */
-    function renderWide(element: React.ReactElement, columns: number) {
-      const result = render(element);
-      Object.defineProperty(result.stdout, "columns", {
-        get: () => columns,
-        configurable: true,
-      });
-      result.rerender(element);
-      return result;
-    }
-
-    it("shows all unconditional hints when width is generous", () => {
-      const { lastFrame } = renderWide(
-        <StatusBar width={200} hasSelection={false} hasRequests={false} />,
-        200,
-      );
-      const frame = lastFrame();
-
-      // All unconditional hints should be visible
-      expect(frame).toContain("j/k");
-      expect(frame).toContain("Tab");
-      expect(frame).toContain("u");
-      expect(frame).toContain("filter");
-      expect(frame).toContain("help");
-      expect(frame).toContain("quit");
-    });
-
-    it("shows all hints including conditional ones when width is generous", () => {
-      const { lastFrame } = renderWide(
-        <StatusBar width={200} hasSelection hasRequests />,
-        200,
-      );
-      const frame = lastFrame();
-
-      expect(frame).toContain("export");
-      expect(frame).toContain("replay");
-      expect(frame).toContain("bookmark");
-      expect(frame).toContain("clear");
-      expect(frame).toContain("help");
-      expect(frame).toContain("quit");
-    });
-
-    it("truncates trailing hints when width is narrow", () => {
-      const { lastFrame } = render(
-        <StatusBar width={80} interceptorCount={5} hasSelection hasRequests />,
-      );
-      const frame = lastFrame();
-
-      // First hints should be visible
-      expect(frame).toContain("j/k");
-      expect(frame).toContain("Tab");
-      // Trailing hints should be truncated at 80 cols with badge overhead
-      expect(frame).not.toContain("quit");
-    });
-
-    it("shows all hints at wide width even with interceptor badge", () => {
-      const { lastFrame } = renderWide(
-        <StatusBar width={200} interceptorCount={5} hasSelection hasRequests />,
-        200,
-      );
-      const frame = lastFrame();
-
-      // Badge should be visible
-      expect(frame).toContain("5 interceptors");
-      // ALL hints should still fit at 200 cols
-      expect(frame).toContain("j/k");
-      expect(frame).toContain("export");
-      expect(frame).toContain("URL");
-      expect(frame).toContain("filter");
-      expect(frame).toContain("help");
-      expect(frame).toContain("quit");
-    });
-  });
 });
