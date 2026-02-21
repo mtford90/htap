@@ -869,7 +869,6 @@ function AppContent({ __testEnableInput, projectRoot }: AppProps): React.ReactEl
         onViewableBodySection={currentBodyIsExportable && !currentBodyIsBinary}
         interceptorCount={interceptorEvents.interceptorCount}
         interceptorErrorCount={interceptorEvents.counts.error}
-        width={columns}
       />
     </Box>
   );

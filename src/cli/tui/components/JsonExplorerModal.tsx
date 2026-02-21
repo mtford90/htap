@@ -393,7 +393,7 @@ export function JsonExplorerModal({
         {statusMessage ? (
           <Text color="green">{statusMessage}</Text>
         ) : (
-          <HintContent hints={JSON_EXPLORER_HINTS} availableWidth={width - 4} />
+          <HintContent hints={JSON_EXPLORER_HINTS} />
         )}
       </Box>
       <Text color="cyan">{footerBorder}</Text>

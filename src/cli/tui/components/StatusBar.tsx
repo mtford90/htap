@@ -5,7 +5,8 @@
 
 import React, { useMemo } from "react";
 import { Box, Text } from "ink";
-import { HintContent, type HintItem } from "./HintContent.js";
+import { HintContent } from "./HintContent.js";
+import type { HintItem } from "./HintContent.js";
 
 interface StatusBarContext {
   hasSelection: boolean;
@@ -43,25 +44,20 @@ export interface StatusBarProps {
   interceptorCount?: number;
   /** Number of interceptor error events; shown as a red badge when > 0. */
   interceptorErrorCount?: number;
-  /** Terminal width in columns — used to constrain the hint bar. */
-  width?: number;
 }
 
 /**
- * Returns hints visible for the given context. All new props default to true
- * so the component remains backwards-compatible when no context is passed.
+ * Returns hints visible for the given context. Props default to false
+ * so bare `<StatusBar />` only shows unconditional hints.
  */
 export function getVisibleHints({
-  hasSelection = true,
-  hasRequests = true,
+  hasSelection = false,
+  hasRequests = false,
   onViewableBodySection = false,
 }: Pick<StatusBarProps, "hasSelection" | "hasRequests" | "onViewableBodySection">): KeyHint[] {
   const ctx: StatusBarContext = { hasSelection, hasRequests, onViewableBodySection };
   return KEY_HINTS.filter((hint) => !hint.visible || hint.visible(ctx));
 }
-
-const SEPARATOR_WIDTH = 3; // " │ "
-const PADDING_WIDTH = 2; // paddingX={1} each side
 
 export function StatusBar({
   message,
@@ -72,32 +68,11 @@ export function StatusBar({
   onViewableBodySection,
   interceptorCount,
   interceptorErrorCount,
-  width,
 }: StatusBarProps): React.ReactElement {
   const visibleHints = useMemo(
     () => getVisibleHints({ hasSelection, hasRequests, onViewableBodySection }),
     [hasSelection, hasRequests, onViewableBodySection],
   );
-
-  // Calculate available width for hints, accounting for prefix badges
-  const hintsAvailableWidth = useMemo(() => {
-    if (!width) return undefined;
-
-    let prefixWidth = 0;
-    if (interceptorErrorCount !== undefined && interceptorErrorCount > 0) {
-      const errorBadge = `[${interceptorErrorCount} error${interceptorErrorCount === 1 ? "" : "s"}]`;
-      prefixWidth += errorBadge.length + SEPARATOR_WIDTH;
-    }
-    if (interceptorCount !== undefined && interceptorCount > 0) {
-      const badge = `[${interceptorCount} interceptor${interceptorCount === 1 ? "" : "s"}]`;
-      prefixWidth += badge.length + SEPARATOR_WIDTH;
-    }
-    if (filterActive) {
-      prefixWidth += "[FILTERED]".length + SEPARATOR_WIDTH;
-    }
-
-    return width - PADDING_WIDTH - prefixWidth;
-  }, [width, interceptorCount, interceptorErrorCount, filterActive]);
 
   return (
     <Box
@@ -136,7 +111,9 @@ export function StatusBar({
               <Text dimColor> │ </Text>
             </>
           )}
-          <HintContent hints={visibleHints} availableWidth={hintsAvailableWidth} />
+          {/* key forces yoga to re-measure when hint count changes, working around
+             a stale text measurement cache during rapid loading→connected transitions */}
+          <HintContent key={visibleHints.length} hints={visibleHints} />
         </Text>
       )}
     </Box>

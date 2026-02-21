@@ -266,7 +266,7 @@ export function InterceptorLogModal({
         </Box>
         <Text color="cyan">{divider}</Text>
         <Box paddingX={1} height={1}>
-          <HintContent hints={LOG_MODAL_HINTS} availableWidth={width - 4} />
+          <HintContent hints={LOG_MODAL_HINTS} />
         </Box>
         <Text color="cyan">{footerBorder}</Text>
       </Box>
@@ -319,7 +319,7 @@ export function InterceptorLogModal({
       {/* Hint bar */}
       <Text color="cyan">{divider}</Text>
       <Box paddingX={1} height={1}>
-        <HintContent hints={LOG_MODAL_HINTS} availableWidth={width - 4} />
+        <HintContent hints={LOG_MODAL_HINTS} />
       </Box>
       <Text color="cyan">{footerBorder}</Text>
     </Box>

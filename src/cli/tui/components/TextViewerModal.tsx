@@ -309,7 +309,7 @@ export function TextViewerModal({
         {statusMessage ? (
           <Text color="green">{statusMessage}</Text>
         ) : (
-          <HintContent hints={TEXT_VIEWER_HINTS} availableWidth={width - 4} />
+          <HintContent hints={TEXT_VIEWER_HINTS} />
         )}
       </Box>
       <Text color="cyan">{footerBorder}</Text>
