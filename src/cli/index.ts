@@ -14,6 +14,7 @@ import { statusCommand } from "./commands/status.js";
 import { requestsCommand } from "./commands/requests.js";
 import { requestCommand } from "./commands/request.js";
 import { sessionsCommand } from "./commands/sessions.js";
+import { browserCommand } from "./commands/browser.js";
 import { completionsCommand } from "./commands/completions.js";
 import { getProcsiVersion } from "../shared/version.js";
 
@@ -29,6 +30,7 @@ program
   )
   .option("-d, --dir <path>", "override project root directory");
 
+program.addCommand(browserCommand);
 program.addCommand(clearCommand);
 program.addCommand(debugDumpCommand);
 program.addCommand(onCommand);
@@ -48,8 +50,9 @@ program.addHelpText(
   "after",
   `
 Quick start:
-  procsi on    Start intercepting HTTP traffic
-  procsi tui   Browse captured requests
+  procsi on         Start intercepting HTTP traffic
+  procsi tui        Browse captured requests
+  procsi browser    Launch a proxied browser session
 
 Docs: https://github.com/mtford90/procsi`
 );

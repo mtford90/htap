@@ -33,6 +33,33 @@ Output shell `unset` statements to stop intercepting HTTP traffic. Use with `eva
 eval "$(procsi off)"
 ```
 
+## `procsi browser`
+
+Launch a browser pre-configured to use the procsi proxy. The browser runs in an isolated temporary profile with session attribution via a browser extension — all traffic appears in the TUI with the correct source.
+
+```bash
+procsi browser                              # auto-detect and launch
+procsi browser https://example.com          # open a specific URL
+procsi browser --browser firefox            # choose browser by name/type
+procsi browser --browser brave              # works with any supported browser
+procsi browser --label "manual testing"     # custom session label
+```
+
+| Flag                    | Description                                                     |
+| ----------------------- | --------------------------------------------------------------- |
+| `[url]`                 | URL to open in the browser (optional)                           |
+| `-b, --browser <name>`  | Browser to use — matches type (`chrome`, `firefox`) or name (`Brave`, `Zen Browser`). Auto-detected if omitted. |
+| `-l, --label <label>`   | Session label (defaults to browser name)                        |
+
+**Supported browsers:**
+
+| Engine   | Browsers                                          |
+| -------- | ------------------------------------------------- |
+| Chromium | Chrome, Brave, Edge, Vivaldi, Arc, Chromium       |
+| Firefox  | Firefox, Zen Browser, LibreWolf                   |
+
+The browser process is tied to the CLI — close the browser window or press `Ctrl+C` to stop. The temporary profile is cleaned up automatically on exit.
+
 ## `procsi tui`
 
 Open the interactive TUI. See [TUI documentation](tui.md) for keybindings and features.
