@@ -13,6 +13,20 @@ vi.mock("./hooks/useRequests.js", () => ({
   useRequests: vi.fn(),
 }));
 
+// Prevent real socket connections from leaking across tests
+vi.mock("./hooks/useInterceptorEvents.js", () => ({
+  useInterceptorEvents: () => ({
+    events: [],
+    counts: { info: 0, warn: 0, error: 0 },
+    totalEventCount: 0,
+    interceptorCount: 0,
+    refresh: vi.fn(),
+  }),
+}));
+
+vi.mock("../../shared/config.js", () => ({
+  loadConfig: () => undefined,
+}));
 
 const mockExportFormat = vi.fn().mockResolvedValue({ success: true, message: "cURL copied to clipboard" });
 const mockExportHar = vi.fn().mockReturnValue({ success: true, message: "HAR exported" });
@@ -88,13 +102,15 @@ const createMockFullRequest = (overrides: Partial<CapturedRequest> = {}): Captur
 });
 
 // Helper to wait for React state updates
-const tick = (ms = 50) => new Promise((resolve) => setTimeout(resolve, ms));
+const tick = (ms = 100) => new Promise((resolve) => setTimeout(resolve, ms));
 
 describe("App keyboard interactions", () => {
   const mockRefresh = vi.fn();
   const mockGetFullRequest = vi.fn();
   const mockGetAllFullRequests = vi.fn();
   const mockReplayRequest = vi.fn();
+  const mockToggleSaved = vi.fn();
+  const mockClearRequests = vi.fn();
 
   beforeEach(() => {
     vi.clearAllMocks();
@@ -102,6 +118,8 @@ describe("App keyboard interactions", () => {
     mockGetFullRequest.mockReset();
     mockGetAllFullRequests.mockReset();
     mockReplayRequest.mockReset().mockResolvedValue("replayed-1");
+    mockToggleSaved.mockReset().mockResolvedValue(true);
+    mockClearRequests.mockReset().mockResolvedValue(true);
     mockExportFormat.mockReset().mockResolvedValue({ success: true, message: "cURL copied to clipboard" });
     mockExportHar.mockReset().mockReturnValue({ success: true, message: "HAR exported" });
     mockCopyToClipboard.mockReset().mockResolvedValue(undefined);
@@ -131,6 +149,8 @@ describe("App keyboard interactions", () => {
       getFullRequest: mockGetFullRequest,
       getAllFullRequests: mockGetAllFullRequests,
       replayRequest: mockReplayRequest,
+      toggleSaved: mockToggleSaved,
+      clearRequests: mockClearRequests,
     });
 
     return { summaries, fullRequests };
@@ -147,6 +167,8 @@ describe("App keyboard interactions", () => {
         refresh: vi.fn(),
         getFullRequest: vi.fn().mockResolvedValue(mockFullRequest),
         getAllFullRequests: vi.fn().mockResolvedValue([mockFullRequest]),
+        toggleSaved: mockToggleSaved,
+        clearRequests: mockClearRequests,
       });
 
       const { lastFrame } = render(<App __testEnableInput />);
@@ -166,6 +188,8 @@ describe("App keyboard interactions", () => {
         refresh: vi.fn(),
         getFullRequest: vi.fn().mockResolvedValue(mockFullRequest),
         getAllFullRequests: vi.fn().mockResolvedValue([mockFullRequest]),
+        toggleSaved: mockToggleSaved,
+        clearRequests: mockClearRequests,
       });
 
       const { lastFrame, stdin } = render(<App __testEnableInput />);
@@ -188,6 +212,8 @@ describe("App keyboard interactions", () => {
         refresh: vi.fn(),
         getFullRequest: vi.fn().mockResolvedValue(mockFullRequest),
         getAllFullRequests: vi.fn().mockResolvedValue([mockFullRequest]),
+        toggleSaved: mockToggleSaved,
+        clearRequests: mockClearRequests,
       });
 
       const { lastFrame, stdin } = render(<App __testEnableInput />);
@@ -209,6 +235,8 @@ describe("App keyboard interactions", () => {
         refresh: vi.fn(),
         getFullRequest: vi.fn().mockResolvedValue(null),
         getAllFullRequests: vi.fn().mockResolvedValue([]),
+        toggleSaved: mockToggleSaved,
+        clearRequests: mockClearRequests,
       });
 
       const { lastFrame } = render(<App __testEnableInput />);
@@ -553,6 +581,8 @@ describe("App keyboard interactions", () => {
         refresh: mockRefresh,
         getFullRequest: vi.fn().mockResolvedValue(fullRequest),
         getAllFullRequests: vi.fn().mockResolvedValue([fullRequest]),
+        toggleSaved: mockToggleSaved,
+        clearRequests: mockClearRequests,
       });
 
       const { lastFrame, stdin } = render(<App __testEnableInput />);
@@ -605,6 +635,8 @@ describe("App keyboard interactions", () => {
         refresh: mockRefresh,
         getFullRequest: vi.fn().mockResolvedValue(fullRequest),
         getAllFullRequests: vi.fn().mockResolvedValue([fullRequest]),
+        toggleSaved: mockToggleSaved,
+        clearRequests: mockClearRequests,
       });
 
       const { lastFrame, stdin } = render(<App __testEnableInput />);
@@ -637,6 +669,8 @@ describe("App keyboard interactions", () => {
         refresh: mockRefresh,
         getFullRequest: vi.fn().mockResolvedValue(fullRequest),
         getAllFullRequests: vi.fn().mockResolvedValue([fullRequest]),
+        toggleSaved: mockToggleSaved,
+        clearRequests: mockClearRequests,
       });
 
       const { lastFrame, stdin } = render(<App __testEnableInput />);
@@ -668,6 +702,8 @@ describe("App keyboard interactions", () => {
         refresh: mockRefresh,
         getFullRequest: vi.fn().mockResolvedValue(fullRequest),
         getAllFullRequests: vi.fn().mockResolvedValue([fullRequest]),
+        toggleSaved: mockToggleSaved,
+        clearRequests: mockClearRequests,
       });
 
       const { lastFrame, stdin } = render(<App __testEnableInput />);
@@ -699,6 +735,8 @@ describe("App keyboard interactions", () => {
         refresh: mockRefresh,
         getFullRequest: vi.fn().mockResolvedValue(fullRequest),
         getAllFullRequests: vi.fn().mockResolvedValue([fullRequest]),
+        toggleSaved: mockToggleSaved,
+        clearRequests: mockClearRequests,
       });
 
       const { lastFrame, stdin } = render(<App __testEnableInput />);
@@ -770,6 +808,8 @@ describe("App keyboard interactions", () => {
         refresh: mockRefresh,
         getFullRequest: vi.fn().mockResolvedValue(fullRequest),
         getAllFullRequests: mockGetAllFullRequests,
+        toggleSaved: mockToggleSaved,
+        clearRequests: mockClearRequests,
       });
 
       const { lastFrame, stdin } = render(<App __testEnableInput />);
@@ -795,6 +835,8 @@ describe("App keyboard interactions", () => {
         refresh: mockRefresh,
         getFullRequest: vi.fn().mockResolvedValue(fullRequest),
         getAllFullRequests: mockGetAllFullRequests,
+        toggleSaved: mockToggleSaved,
+        clearRequests: mockClearRequests,
       });
 
       const { lastFrame, stdin } = render(<App __testEnableInput />);
@@ -819,6 +861,8 @@ describe("App keyboard interactions", () => {
         refresh: mockRefresh,
         getFullRequest: vi.fn().mockResolvedValue(fullRequest),
         getAllFullRequests: mockGetAllFullRequests,
+        toggleSaved: mockToggleSaved,
+        clearRequests: mockClearRequests,
       });
 
       const { stdin } = render(<App __testEnableInput />);
@@ -842,6 +886,8 @@ describe("App keyboard interactions", () => {
         refresh: mockRefresh,
         getFullRequest: vi.fn().mockResolvedValue(fullRequest),
         getAllFullRequests: mockGetAllFullRequests,
+        toggleSaved: mockToggleSaved,
+        clearRequests: mockClearRequests,
       });
 
       const { stdin } = render(<App __testEnableInput />);
@@ -865,6 +911,8 @@ describe("App keyboard interactions", () => {
         refresh: mockRefresh,
         getFullRequest: vi.fn().mockResolvedValue(fullRequest),
         getAllFullRequests: mockGetAllFullRequests,
+        toggleSaved: mockToggleSaved,
+        clearRequests: mockClearRequests,
       });
 
       const { stdin } = render(<App __testEnableInput />);
@@ -887,6 +935,8 @@ describe("App keyboard interactions", () => {
         refresh: mockRefresh,
         getFullRequest: vi.fn().mockResolvedValue(fullRequest),
         getAllFullRequests: mockGetAllFullRequests,
+        toggleSaved: mockToggleSaved,
+        clearRequests: mockClearRequests,
       });
 
       const { lastFrame, stdin } = render(<App __testEnableInput />);
@@ -911,6 +961,8 @@ describe("App keyboard interactions", () => {
         refresh: mockRefresh,
         getFullRequest: vi.fn().mockResolvedValue(null),
         getAllFullRequests: vi.fn().mockResolvedValue([]),
+        toggleSaved: mockToggleSaved,
+        clearRequests: mockClearRequests,
       });
 
       const { lastFrame, stdin } = render(<App __testEnableInput />);
@@ -933,6 +985,8 @@ describe("App keyboard interactions", () => {
         refresh: mockRefresh,
         getFullRequest: vi.fn().mockResolvedValue(fullRequest),
         getAllFullRequests: mockGetAllFullRequests,
+        toggleSaved: mockToggleSaved,
+        clearRequests: mockClearRequests,
       });
 
       const { lastFrame, stdin } = render(<App __testEnableInput />);
@@ -1007,6 +1061,8 @@ describe("App keyboard interactions", () => {
         refresh: vi.fn(),
         getFullRequest: vi.fn().mockResolvedValue(null),
         getAllFullRequests: vi.fn().mockResolvedValue([]),
+        toggleSaved: mockToggleSaved,
+        clearRequests: mockClearRequests,
       });
 
       const { lastFrame } = render(<App __testEnableInput />);
@@ -1143,6 +1199,8 @@ describe("App keyboard interactions", () => {
         refresh: vi.fn(),
         getFullRequest: vi.fn().mockResolvedValue(null),
         getAllFullRequests: vi.fn().mockResolvedValue([]),
+        toggleSaved: mockToggleSaved,
+        clearRequests: mockClearRequests,
       });
 
       const { lastFrame } = render(<App __testEnableInput />);
@@ -1233,6 +1291,8 @@ describe("App keyboard interactions", () => {
         refresh: mockRefresh,
         getFullRequest: vi.fn().mockResolvedValue(fullRequest),
         getAllFullRequests: mockGetAllFullRequests,
+        toggleSaved: mockToggleSaved,
+        clearRequests: mockClearRequests,
       });
 
       const { lastFrame, stdin } = render(<App __testEnableInput />);
@@ -1264,6 +1324,8 @@ describe("App keyboard interactions", () => {
         refresh: mockRefresh,
         getFullRequest: vi.fn().mockResolvedValue(fullRequest),
         getAllFullRequests: mockGetAllFullRequests,
+        toggleSaved: mockToggleSaved,
+        clearRequests: mockClearRequests,
       });
 
       const { lastFrame, stdin } = render(<App __testEnableInput />);
@@ -1294,6 +1356,8 @@ describe("App keyboard interactions", () => {
         refresh: mockRefresh,
         getFullRequest: vi.fn().mockResolvedValue(fullRequest),
         getAllFullRequests: mockGetAllFullRequests,
+        toggleSaved: mockToggleSaved,
+        clearRequests: mockClearRequests,
       });
 
       const { lastFrame, stdin } = render(<App __testEnableInput />);
@@ -1360,6 +1424,8 @@ describe("App keyboard interactions", () => {
         refresh: mockRefresh,
         getFullRequest: vi.fn().mockResolvedValue(fullRequest),
         getAllFullRequests: mockGetAllFullRequests,
+        toggleSaved: mockToggleSaved,
+        clearRequests: mockClearRequests,
       });
 
       const { lastFrame, stdin } = render(<App __testEnableInput />);
@@ -1390,6 +1456,8 @@ describe("App keyboard interactions", () => {
         refresh: mockRefresh,
         getFullRequest: vi.fn().mockResolvedValue(fullRequest),
         getAllFullRequests: mockGetAllFullRequests,
+        toggleSaved: mockToggleSaved,
+        clearRequests: mockClearRequests,
       });
 
       const { lastFrame, stdin } = render(<App __testEnableInput />);
@@ -1419,6 +1487,8 @@ describe("App keyboard interactions", () => {
         refresh: mockRefresh,
         getFullRequest: vi.fn().mockResolvedValue(fullRequest),
         getAllFullRequests: mockGetAllFullRequests,
+        toggleSaved: mockToggleSaved,
+        clearRequests: mockClearRequests,
       });
 
       const { lastFrame, stdin } = render(<App __testEnableInput />);
@@ -1446,6 +1516,8 @@ describe("App keyboard interactions", () => {
         refresh: mockRefresh,
         getFullRequest: vi.fn().mockResolvedValue(createMockFullRequest()),
         getAllFullRequests: mockGetAllFullRequests,
+        toggleSaved: mockToggleSaved,
+        clearRequests: mockClearRequests,
       });
 
       const { stdin } = render(<App __testEnableInput />);
