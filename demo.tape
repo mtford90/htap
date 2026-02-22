@@ -14,57 +14,80 @@ Enter
 Sleep 2s
 Show
 
-# Scroll through request list to show variety
+# Scroll through request list to show variety of methods, statuses, sources
+Sleep 800ms
 Type "j"
-Sleep 500ms
+Sleep 400ms
 Type "j"
-Sleep 500ms
+Sleep 400ms
 Type "j"
-Sleep 500ms
+Sleep 400ms
+Type "j"
+Sleep 400ms
+Type "j"
+Sleep 600ms
 
-# Now on POST /post - switch to detail panel
+# Switch to detail panel to inspect a request
 Tab
 Sleep 600ms
 
-# Navigate through accordion sections to response body
+# Navigate to response section
 Type "j"
-Sleep 500ms
+Sleep 400ms
 Type "j"
-Sleep 500ms
+Sleep 400ms
 Type "j"
 Sleep 500ms
 
 # Open JSON explorer on response body
 Enter
-Sleep 1s
+Sleep 800ms
 
 # Navigate and expand JSON tree
 Type "j"
+Sleep 300ms
+Type "j"
+Sleep 300ms
+Type "l"
 Sleep 400ms
 Type "j"
-Sleep 400ms
+Sleep 300ms
+Type "j"
+Sleep 300ms
 Type "l"
 Sleep 500ms
-Type "j"
-Sleep 400ms
-Type "j"
-Sleep 400ms
 
 # Close JSON explorer
 Escape
-Sleep 600ms
+Sleep 500ms
 
 # Back to request list
 Type "1"
 Sleep 500ms
 
-# Open filter and search
+# Show export menu
+Type "e"
+Sleep 1200ms
+Escape
+Sleep 500ms
+
+# Open filter and search for POST requests
 Type "/"
 Sleep 300ms
 Type "post"
-Sleep 1s
+Sleep 800ms
+Enter
+Sleep 800ms
 
-# Cancel filter to end on full list view
+# Clear filter
+Type "/"
+Sleep 300ms
+Escape
+Sleep 400ms
+
+# Show help modal
+Type "?"
+Sleep 1500ms
 Escape
 Sleep 500ms
 
