@@ -189,21 +189,22 @@ function AppContent({ __testEnableInput, projectRoot }: AppProps): React.ReactEl
   // Get the summary for the currently selected request
   const selectedSummary = requests[selectedIndex];
 
-  // Re-anchor cursor when requests change
+  // Re-anchor cursor when requests change, adjusting scroll offset to keep
+  // the selected item at the same visual position on screen.
   useEffect(() => {
     if (following) {
-      // Follow mode: always select newest (index 0)
       if (requests.length > 0 && selectedIndex !== 0) {
         setSelectedIndex(0);
       }
       return;
     }
-    // Browsing mode: re-anchor to same request by ID
     const targetId = selectedRequestIdRef.current;
     if (!targetId || requests.length === 0) return;
     const newIndex = requests.findIndex((r) => r.id === targetId);
     if (newIndex !== -1 && newIndex !== selectedIndex) {
+      const indexDelta = newIndex - selectedIndex;
       setSelectedIndex(newIndex);
+      setListScrollOffset((prev) => Math.max(0, prev + indexDelta));
     }
   }, [requests]);
 
