@@ -11,6 +11,7 @@ import {
   SECTION_REQUEST_BODY,
   SECTION_RESPONSE,
   SECTION_RESPONSE_BODY,
+  calculateHeights,
 } from "./AccordionPanel.js";
 import type { CapturedRequest } from "../../../shared/types.js";
 
@@ -370,5 +371,93 @@ describe("AccordionPanel", () => {
       // Should show size (e.g., "38 B" or similar)
       expect(frame).toMatch(/\d+\s*B/);
     });
+  });
+
+  describe("Multi-expand rendering", () => {
+    it("renders multiple sections expanded simultaneously", () => {
+      const request = createMockRequest();
+      const props = {
+        ...defaultProps,
+        expandedSections: new Set([SECTION_REQUEST, SECTION_RESPONSE]),
+      };
+      const { lastFrame } = render(<AccordionPanel {...props} request={request} />);
+      const frame = lastFrame();
+
+      // Both Request and Response sections should be expanded
+      const expandedCount = (frame.match(/▼/g) || []).length;
+      expect(expandedCount).toBe(2);
+
+      // Other two should be collapsed
+      const collapsedCount = (frame.match(/▶/g) || []).length;
+      expect(collapsedCount).toBe(2);
+    });
+
+    it("renders all 4 sections expanded", () => {
+      const request = createMockRequest();
+      const props = {
+        ...defaultProps,
+        expandedSections: new Set([SECTION_REQUEST, SECTION_REQUEST_BODY, SECTION_RESPONSE, SECTION_RESPONSE_BODY]),
+      };
+      const { lastFrame } = render(<AccordionPanel {...props} request={request} />);
+      const frame = lastFrame();
+
+      const expandedCount = (frame.match(/▼/g) || []).length;
+      expect(expandedCount).toBe(4);
+    });
+  });
+});
+
+describe("calculateHeights", () => {
+  const sectionCount = 4;
+
+  it("gives all sections 1 row when none expanded", () => {
+    const heights = calculateHeights(20, new Set(), sectionCount);
+    expect(heights).toEqual([1, 1, 1, 1]);
+  });
+
+  it("gives expanded section the remaining height when 1 expanded", () => {
+    const heights = calculateHeights(20, new Set([0]), sectionCount);
+    // Total 20, minus 1 for bottom border = 19 available
+    // 3 collapsed = 3 rows, remaining = 16 for the expanded section
+    expect(heights[0]).toBe(16);
+    expect(heights[1]).toBe(1);
+    expect(heights[2]).toBe(1);
+    expect(heights[3]).toBe(1);
+  });
+
+  it("splits remaining height equally when 2 expanded", () => {
+    const heights = calculateHeights(20, new Set([0, 2]), sectionCount);
+    // 19 available, 2 collapsed = 2, remaining = 17, split between 2 = 8 each
+    expect(heights[0]).toBe(8);
+    expect(heights[1]).toBe(1);
+    expect(heights[2]).toBe(8);
+    expect(heights[3]).toBe(1);
+  });
+
+  it("splits remaining height equally when 3 expanded", () => {
+    const heights = calculateHeights(20, new Set([0, 1, 2]), sectionCount);
+    // 19 available, 1 collapsed = 1, remaining = 18, split between 3 = 6 each
+    expect(heights[0]).toBe(6);
+    expect(heights[1]).toBe(6);
+    expect(heights[2]).toBe(6);
+    expect(heights[3]).toBe(1);
+  });
+
+  it("splits remaining height equally when all 4 expanded", () => {
+    const heights = calculateHeights(20, new Set([0, 1, 2, 3]), sectionCount);
+    // 19 available, 0 collapsed, remaining = 19, split between 4 = 4 each
+    expect(heights[0]).toBe(4);
+    expect(heights[1]).toBe(4);
+    expect(heights[2]).toBe(4);
+    expect(heights[3]).toBe(4);
+  });
+
+  it("enforces minimum height of 3 for expanded sections", () => {
+    // Very small total height
+    const heights = calculateHeights(8, new Set([0, 1, 2, 3]), sectionCount);
+    // Each expanded section should get at least 3
+    for (const h of heights) {
+      expect(h).toBeGreaterThanOrEqual(3);
+    }
   });
 });

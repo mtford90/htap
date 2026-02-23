@@ -34,11 +34,15 @@ const HELP_SECTIONS: HelpSection[] = [
     entries: [
       { key: "j / ↓", description: "Move down" },
       { key: "k / ↑", description: "Move up" },
+      { key: "F", description: "Toggle follow mode (auto-select newest)" },
       { key: "g / G", description: "First / last item" },
       { key: "Ctrl+u / Ctrl+d", description: "Half page up / down" },
       { key: "Ctrl+f / Ctrl+b", description: "Full page down / up" },
       { key: "Tab / Shift+Tab", description: "Next / prev panel" },
       { key: "1-5", description: "Jump to section" },
+      { key: "Space", description: "Toggle section expand/collapse" },
+      { key: "[ / ]", description: "Resize panels" },
+      { key: "=", description: "Reset panel size" },
     ],
   },
   {

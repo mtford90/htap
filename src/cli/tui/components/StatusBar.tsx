@@ -12,6 +12,7 @@ interface StatusBarContext {
   hasSelection: boolean;
   hasRequests: boolean;
   onViewableBodySection: boolean;
+  following: boolean;
 }
 
 interface KeyHint extends HintItem {
@@ -21,10 +22,13 @@ interface KeyHint extends HintItem {
 const KEY_HINTS: KeyHint[] = [
   { key: "j/k", action: "nav" },
   { key: "Tab", action: "panel" },
+  { key: "Space", action: "toggle", visible: (ctx) => ctx.hasSelection },
+  { key: "[ ]", action: "resize", visible: (ctx) => ctx.hasSelection },
   { key: "Enter", action: "view", visible: (ctx) => ctx.onViewableBodySection },
   { key: "e", action: "export", visible: (ctx) => ctx.hasSelection },
   { key: "R", action: "replay", visible: (ctx) => ctx.hasSelection },
   { key: "b", action: "bookmark", visible: (ctx) => ctx.hasSelection },
+  { key: "F", action: "follow", visible: (ctx) => ctx.hasRequests },
   { key: "x", action: "clear", visible: (ctx) => ctx.hasRequests },
   { key: "u", action: "URL" },
   { key: "/", action: "filter" },
@@ -37,6 +41,8 @@ export interface StatusBarProps {
   filterActive?: boolean;
   /** When true the filter bar is open and capturing input, so main-view hints are suppressed. */
   filterOpen?: boolean;
+  /** When true, cursor auto-tracks the newest request. */
+  following?: boolean;
   hasSelection?: boolean;
   hasRequests?: boolean;
   onViewableBodySection?: boolean;
@@ -54,8 +60,9 @@ export function getVisibleHints({
   hasSelection = false,
   hasRequests = false,
   onViewableBodySection = false,
-}: Pick<StatusBarProps, "hasSelection" | "hasRequests" | "onViewableBodySection">): KeyHint[] {
-  const ctx: StatusBarContext = { hasSelection, hasRequests, onViewableBodySection };
+  following = false,
+}: Pick<StatusBarProps, "hasSelection" | "hasRequests" | "onViewableBodySection" | "following">): KeyHint[] {
+  const ctx: StatusBarContext = { hasSelection, hasRequests, onViewableBodySection, following };
   return KEY_HINTS.filter((hint) => !hint.visible || hint.visible(ctx));
 }
 
@@ -63,6 +70,7 @@ export function StatusBar({
   message,
   filterActive,
   filterOpen,
+  following,
   hasSelection,
   hasRequests,
   onViewableBodySection,
@@ -70,8 +78,8 @@ export function StatusBar({
   interceptorErrorCount,
 }: StatusBarProps): React.ReactElement {
   const visibleHints = useMemo(
-    () => getVisibleHints({ hasSelection, hasRequests, onViewableBodySection }),
-    [hasSelection, hasRequests, onViewableBodySection],
+    () => getVisibleHints({ hasSelection, hasRequests, onViewableBodySection, following }),
+    [hasSelection, hasRequests, onViewableBodySection, following],
   );
 
   return (
@@ -102,6 +110,12 @@ export function StatusBar({
           {interceptorCount !== undefined && interceptorCount > 0 && (
             <>
               <Text color="magenta" bold>[{interceptorCount} interceptor{interceptorCount === 1 ? "" : "s"}]</Text>
+              <Text dimColor> │ </Text>
+            </>
+          )}
+          {following && (
+            <>
+              <Text color="green" bold>[FOLLOWING]</Text>
               <Text dimColor> │ </Text>
             </>
           )}

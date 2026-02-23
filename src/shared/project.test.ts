@@ -104,6 +104,19 @@ describe("project utilities", () => {
       expect(result.length).toBeGreaterThan(0);
     });
 
+    it("stops at .git boundary even when parent has .procsi", () => {
+      // A child project with .git should NOT walk past it to find .procsi in a parent
+      const parentProcsi = path.join(tempDir, ".procsi");
+      const child = path.join(tempDir, "child-project");
+      const childGit = path.join(child, ".git");
+
+      fs.mkdirSync(parentProcsi);
+      fs.mkdirSync(childGit, { recursive: true });
+
+      const result = findOrCreateProjectRoot(child);
+      expect(result).toBe(child);
+    });
+
     it("prefers .procsi over .git when both exist at different levels", () => {
       // Git root at tempDir, .procsi at a subdirectory
       const gitDir = path.join(tempDir, ".git");

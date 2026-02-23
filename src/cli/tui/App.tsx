@@ -7,7 +7,6 @@ import { Box, Text, useInput, useApp, useStdin } from "ink";
 import { MouseProvider, useOnClick, useOnWheel, useOnMouseEnter, useOnMouseLeave } from "@ink-tools/ink-mouse";
 import { useStdoutDimensions } from "./hooks/useStdoutDimensions.js";
 import { useRequests } from "./hooks/useRequests.js";
-import { useExport, type ExportFormat } from "./hooks/useExport.js";
 import { useSpinner } from "./hooks/useSpinner.js";
 import { useBodyExport, generateFilename } from "./hooks/useBodyExport.js";
 import { formatSize } from "./utils/formatters.js";
@@ -26,6 +25,7 @@ import {
 import { StatusBar } from "./components/StatusBar.js";
 import { FilterBar } from "./components/FilterBar.js";
 import { ExportModal, type ExportAction } from "./components/ExportModal.js";
+import { FormatExportModal } from "./components/FormatExportModal.js";
 import { HelpModal } from "./components/HelpModal.js";
 import { InterceptorLogModal } from "./components/InterceptorLogModal.js";
 import { InfoBar } from "./components/InfoBar.js";
@@ -51,6 +51,13 @@ export const MIN_TERMINAL_COLUMNS = 60;
 export const MIN_TERMINAL_ROWS = 10;
 const SHORT_REQUEST_ID_LENGTH = 7;
 
+// Panel width ratio constants
+export const DEFAULT_LIST_RATIO = 0.6;
+export const MIN_LIST_RATIO = 0.15;
+export const MAX_LIST_RATIO = 0.85;
+export const RATIO_STEP = 0.05;
+const ALL_SECTIONS_EXPANDED = new Set([0, 1, 2, 3]);
+
 function AppContent({ __testEnableInput, projectRoot }: AppProps): React.ReactElement {
   const { exit } = useApp();
   const { isRawModeSupported } = useStdin();
@@ -73,7 +80,6 @@ function AppContent({ __testEnableInput, projectRoot }: AppProps): React.ReactEl
     error,
     refresh,
     getFullRequest,
-    getAllFullRequests,
     replayRequest = async () => {
       throw new Error("Replay is not available");
     },
@@ -90,7 +96,6 @@ function AppContent({ __testEnableInput, projectRoot }: AppProps): React.ReactEl
     pollInterval: config?.pollInterval,
   });
   const startTime = useMemo(() => Date.now(), []);
-  const { exportFormat, exportHar } = useExport();
   const { saveBody } = useBodyExport();
   const spinnerFrame = useSpinner(isLoading && requests.length === 0);
 
@@ -101,8 +106,16 @@ function AppContent({ __testEnableInput, projectRoot }: AppProps): React.ReactEl
   const [hoveredPanel, setHoveredPanel] = useState<Panel | null>(null);
   const [listScrollOffset, setListScrollOffset] = useState(0);
 
-  // Accordion state — whichever section is focused is expanded (single-expand accordion)
+  // Follow mode — when true, cursor tracks the newest request (index 0)
+  const [following, setFollowing] = useState(true);
+  const selectedRequestIdRef = useRef<string | null>(null);
+
+  // Accordion state — independent expand/collapse per section
   const [focusedSection, setFocusedSection] = useState(SECTION_REQUEST);
+  const [expandedSections, setExpandedSections] = useState<Set<number>>(new Set(ALL_SECTIONS_EXPANDED));
+
+  // Resizable panel ratio
+  const [listWidthRatio, setListWidthRatio] = useState(DEFAULT_LIST_RATIO);
 
   // Help modal state
   const [showHelp, setShowHelp] = useState(false);
@@ -116,8 +129,8 @@ function AppContent({ __testEnableInput, projectRoot }: AppProps): React.ReactEl
   // Replay confirmation state — stores the request ID awaiting confirmation
   const [pendingReplayId, setPendingReplayId] = useState<string | null>(null);
 
-  // Export format picker state — when true, the next key selects the format
-  const [pendingExport, setPendingExport] = useState(false);
+  // Format export modal state
+  const [showFormatExport, setShowFormatExport] = useState(false);
 
   // Proxy details for info modal (one-time sync read)
   const proxyPort = useMemo(() => {
@@ -162,6 +175,10 @@ function AppContent({ __testEnableInput, projectRoot }: AppProps): React.ReactEl
   // Ref for status message timeout cleanup
   const statusTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
+  // Ref to track whether a request is selected (for stable callbacks)
+  const hasSelectedRequestRef = useRef(selectedFullRequest !== null);
+  hasSelectedRequestRef.current = selectedFullRequest !== null;
+
   // Refs for wheel handler to avoid stale closures
   // (useOnWheel may not update its stored callback on every render)
   const contentHeightRef = useRef(rows - 2);
@@ -172,6 +189,24 @@ function AppContent({ __testEnableInput, projectRoot }: AppProps): React.ReactEl
   // Get the summary for the currently selected request
   const selectedSummary = requests[selectedIndex];
 
+  // Re-anchor cursor when requests change
+  useEffect(() => {
+    if (following) {
+      // Follow mode: always select newest (index 0)
+      if (requests.length > 0 && selectedIndex !== 0) {
+        setSelectedIndex(0);
+      }
+      return;
+    }
+    // Browsing mode: re-anchor to same request by ID
+    const targetId = selectedRequestIdRef.current;
+    if (!targetId || requests.length === 0) return;
+    const newIndex = requests.findIndex((r) => r.id === targetId);
+    if (newIndex !== -1 && newIndex !== selectedIndex) {
+      setSelectedIndex(newIndex);
+    }
+  }, [requests]);
+
   // Stores the filter state at the moment the filter bar opens, so Escape can revert
   const preOpenFilterRef = useRef<RequestFilter>({});
   const preOpenBodySearchRef = useRef<BodySearchOptions | undefined>(undefined);
@@ -180,11 +215,15 @@ function AppContent({ __testEnableInput, projectRoot }: AppProps): React.ReactEl
   const handleFilterChange = useCallback((newFilter: RequestFilter) => {
     setFilter(newFilter);
     setSelectedIndex(0);
+    selectedRequestIdRef.current = null;
+    setFollowing(true);
   }, []);
 
   const handleBodySearchChange = useCallback((nextBodySearch: BodySearchOptions | undefined) => {
     setBodySearch(nextBodySearch);
     setSelectedIndex(0);
+    selectedRequestIdRef.current = null;
+    setFollowing(true);
   }, []);
 
   // Handle filter cancel — revert to pre-open state
@@ -192,14 +231,18 @@ function AppContent({ __testEnableInput, projectRoot }: AppProps): React.ReactEl
     setFilter(preOpenFilterRef.current);
     setBodySearch(preOpenBodySearchRef.current);
     setSelectedIndex(0);
+    selectedRequestIdRef.current = null;
+    setFollowing(true);
     setShowFilter(false);
   }, []);
 
   // Handle item click from the request list
   const handleItemClick = useCallback((index: number) => {
+    selectedRequestIdRef.current = requests[index]?.id ?? null;
+    if (following) setFollowing(false);
     setSelectedIndex(index);
     setActivePanel("list");
-  }, []);
+  }, [requests, following]);
 
   // Fetch full request data when selection changes
   useEffect(() => {
@@ -209,6 +252,13 @@ function AppContent({ __testEnableInput, projectRoot }: AppProps): React.ReactEl
       setSelectedFullRequest(null);
     }
   }, [selectedSummary?.id, getFullRequest]);
+
+  // Reset all sections to expanded when a new request is selected
+  useEffect(() => {
+    if (selectedSummary) {
+      setExpandedSections(new Set(ALL_SECTIONS_EXPANDED));
+    }
+  }, [selectedSummary?.id]);
 
   // Handle scroll wheel on list panel - scrolls the view, not the selection
   useOnWheel(listPanelRef, (event) => {
@@ -381,39 +431,10 @@ function AppContent({ __testEnableInput, projectRoot }: AppProps): React.ReactEl
       if (pendingClear) {
         setPendingClear(false);
         if (input === "y") {
+          selectedRequestIdRef.current = null;
+          setFollowing(true);
           void clearRequests().then((success) => {
             showStatus(success ? "Requests cleared (bookmarks preserved)" : "Failed to clear requests");
-          });
-        } else {
-          setStatusMessage(undefined);
-        }
-        return;
-      }
-
-      // Handle export format picker — map key to format, any unrecognised key cancels
-      if (pendingExport) {
-        setPendingExport(false);
-
-        if (input === "H") {
-          // HAR export — export all captured requests
-          showStatus("Exporting HAR...");
-          void getAllFullRequests().then((fullRequests) => {
-            const result = exportHar(fullRequests);
-            showStatus(result.success ? result.message : `Error: ${result.message}`);
-          });
-          return;
-        }
-
-        const formatMap: Partial<Record<string, ExportFormat>> = {
-          c: "curl",
-          f: "fetch",
-          p: "python",
-          h: "httpie",
-        };
-        const format = formatMap[input];
-        if (format && selectedFullRequest) {
-          void exportFormat(selectedFullRequest, format).then((result) => {
-            showStatus(result.success ? result.message : `Error: ${result.message}`);
           });
         } else {
           setStatusMessage(undefined);
@@ -424,29 +445,40 @@ function AppContent({ __testEnableInput, projectRoot }: AppProps): React.ReactEl
       // Navigation - behaviour depends on active panel
       if (input === "j" || key.downArrow) {
         if (activePanel === "list") {
-          setSelectedIndex((prev) => Math.min(prev + 1, requests.length - 1));
+          if (following) setFollowing(false);
+          const newIdx = Math.min(selectedIndex + 1, requests.length - 1);
+          selectedRequestIdRef.current = requests[newIdx]?.id ?? null;
+          setSelectedIndex(newIdx);
         } else {
           // Navigate sections in accordion
           setFocusedSection((prev) => Math.min(prev + 1, 3));
         }
       } else if (input === "k" || key.upArrow) {
         if (activePanel === "list") {
-          setSelectedIndex((prev) => Math.max(prev - 1, 0));
+          if (following) setFollowing(false);
+          const newIdx = Math.max(selectedIndex - 1, 0);
+          selectedRequestIdRef.current = requests[newIdx]?.id ?? null;
+          setSelectedIndex(newIdx);
         } else {
           // Navigate sections in accordion
           setFocusedSection((prev) => Math.max(prev - 1, 0));
         }
       } else if (input === "g" && !key.shift) {
-        // Jump to first item/section
+        // Jump to first item/section — re-enters follow mode in list
         if (activePanel === "list") {
+          selectedRequestIdRef.current = requests[0]?.id ?? null;
           setSelectedIndex(0);
+          setFollowing(true);
         } else {
           setFocusedSection(SECTION_REQUEST);
         }
       } else if (input === "G") {
         // Jump to last item/section
         if (activePanel === "list") {
-          setSelectedIndex(Math.max(0, requestsLengthRef.current - 1));
+          const lastIdx = Math.max(0, requestsLengthRef.current - 1);
+          if (following) setFollowing(false);
+          selectedRequestIdRef.current = requests[lastIdx]?.id ?? null;
+          setSelectedIndex(lastIdx);
         } else {
           setFocusedSection(SECTION_RESPONSE_BODY);
         }
@@ -454,17 +486,26 @@ function AppContent({ __testEnableInput, projectRoot }: AppProps): React.ReactEl
         // Half-page up (list only)
         if (activePanel === "list") {
           const halfPage = Math.floor(contentHeightRef.current / 2);
-          setSelectedIndex((prev) => Math.max(prev - halfPage, 0));
+          const newIdx = Math.max(selectedIndex - halfPage, 0);
+          if (following) setFollowing(false);
+          selectedRequestIdRef.current = requests[newIdx]?.id ?? null;
+          setSelectedIndex(newIdx);
         }
       } else if (input === "d" && key.ctrl) {
         // Half-page down (list only)
         if (activePanel === "list") {
           const halfPage = Math.floor(contentHeightRef.current / 2);
-          setSelectedIndex((prev) => Math.min(prev + halfPage, requestsLengthRef.current - 1));
+          const newIdx = Math.min(selectedIndex + halfPage, requestsLengthRef.current - 1);
+          if (following) setFollowing(false);
+          selectedRequestIdRef.current = requests[newIdx]?.id ?? null;
+          setSelectedIndex(newIdx);
         }
       } else if (key.tab) {
         // Tab cycles through all 5 panels: 1 (list), 2, 3, 4, 5 (accordion sections)
-        if (key.shift) {
+        // When no request is selected, stay on list
+        if (!hasSelectedRequestRef.current) {
+          // No-op — only the list panel is visible
+        } else if (key.shift) {
           // Shift+Tab cycles backwards
           if (activePanel === "accordion") {
             if (focusedSection > SECTION_REQUEST) {
@@ -504,6 +545,28 @@ function AppContent({ __testEnableInput, projectRoot }: AppProps): React.ReactEl
       } else if (input === "5") {
         setActivePanel("accordion");
         setFocusedSection(SECTION_RESPONSE_BODY);
+      }
+
+      // Space toggles expand/collapse for the focused accordion section
+      else if (input === " " && activePanel === "accordion") {
+        setExpandedSections((prev) => {
+          const next = new Set(prev);
+          if (next.has(focusedSection)) {
+            next.delete(focusedSection);
+          } else {
+            next.add(focusedSection);
+          }
+          return next;
+        });
+      }
+
+      // Panel resize keybindings
+      else if (input === "[") {
+        setListWidthRatio((prev) => Math.max(MIN_LIST_RATIO, prev - RATIO_STEP));
+      } else if (input === "]") {
+        setListWidthRatio((prev) => Math.min(MAX_LIST_RATIO, prev + RATIO_STEP));
+      } else if (input === "=") {
+        setListWidthRatio(DEFAULT_LIST_RATIO);
       }
 
       // Open viewer on body sections — JSON explorer for JSON, text viewer for other text
@@ -572,22 +635,36 @@ function AppContent({ __testEnableInput, projectRoot }: AppProps): React.ReactEl
         }
       } else if (input === "e") {
         if (selectedFullRequest) {
-          setPendingExport(true);
-          showStatus("Export: [c]url [f]etch [p]ython [h]ttpie [H]ar");
+          setShowFormatExport(true);
         } else {
           showStatus("No request selected");
         }
+      } else if (input === "F" && !key.ctrl) {
+        // Toggle follow mode
+        setFollowing((prev) => {
+          if (!prev) {
+            selectedRequestIdRef.current = requests[0]?.id ?? null;
+            setSelectedIndex(0);
+          }
+          return !prev;
+        });
       } else if (input === "f" && key.ctrl) {
         // Full-page down (list only)
         if (activePanel === "list") {
           const fullPage = contentHeightRef.current;
-          setSelectedIndex((prev) => Math.min(prev + fullPage, requestsLengthRef.current - 1));
+          const newIdx = Math.min(selectedIndex + fullPage, requestsLengthRef.current - 1);
+          if (following) setFollowing(false);
+          selectedRequestIdRef.current = requests[newIdx]?.id ?? null;
+          setSelectedIndex(newIdx);
         }
       } else if (input === "b" && key.ctrl) {
         // Full-page up (list only)
         if (activePanel === "list") {
           const fullPage = contentHeightRef.current;
-          setSelectedIndex((prev) => Math.max(prev - fullPage, 0));
+          const newIdx = Math.max(selectedIndex - fullPage, 0);
+          if (following) setFollowing(false);
+          selectedRequestIdRef.current = requests[newIdx]?.id ?? null;
+          setSelectedIndex(newIdx);
         }
       } else if (input === "u" && !key.ctrl) {
         const newShowFullUrl = !showFullUrl;
@@ -651,11 +728,12 @@ function AppContent({ __testEnableInput, projectRoot }: AppProps): React.ReactEl
         }
       }
     },
-    { isActive: (__testEnableInput || isRawModeSupported === true) && !showSaveModal && !showHelp && !showInterceptorLog && !showFilter && !showJsonExplorer && !showTextViewer },
+    { isActive: (__testEnableInput || isRawModeSupported === true) && !showSaveModal && !showHelp && !showInterceptorLog && !showFilter && !showJsonExplorer && !showTextViewer && !showFormatExport },
   );
 
-  // Calculate layout
-  const listWidth = Math.floor(columns * 0.4);
+  // Calculate layout — full-width list when no request selected
+  const hasSelectedRequest = selectedFullRequest !== null;
+  const listWidth = hasSelectedRequest ? Math.floor(columns * listWidthRatio) : columns;
   const accordionWidth = columns - listWidth;
   // Status bar takes 2 rows (border line + content line), InfoBar takes 1 row, filter bar takes 2 rows when visible
   const filterBarHeight = showFilter ? 2 : 0;
@@ -760,6 +838,23 @@ function AppContent({ __testEnableInput, projectRoot }: AppProps): React.ReactEl
     );
   }
 
+  // Format export modal - full screen replacement
+  if (showFormatExport && selectedFullRequest) {
+    return (
+      <FormatExportModal
+        request={selectedFullRequest}
+        width={columns}
+        height={rows}
+        onComplete={(result) => {
+          setShowFormatExport(false);
+          showStatus(result.success ? result.message : `Error: ${result.message}`);
+        }}
+        onClose={() => setShowFormatExport(false)}
+        isActive={__testEnableInput || isRawModeSupported === true}
+      />
+    );
+  }
+
   // Help modal - full screen replacement
   if (showHelp) {
     return (
@@ -825,15 +920,17 @@ function AppContent({ __testEnableInput, projectRoot }: AppProps): React.ReactEl
           scrollOffset={listScrollOffset}
           searchTerm={bodySearch ? undefined : filter.search}
         />
-        <AccordionPanel
-          ref={accordionPanelRef}
-          request={selectedFullRequest}
-          isActive={activePanel === "accordion"}
-          width={accordionWidth}
-          height={contentHeight}
-          focusedSection={focusedSection}
-          expandedSections={new Set([focusedSection])}
-        />
+        {hasSelectedRequest && (
+          <AccordionPanel
+            ref={accordionPanelRef}
+            request={selectedFullRequest}
+            isActive={activePanel === "accordion"}
+            width={accordionWidth}
+            height={contentHeight}
+            focusedSection={focusedSection}
+            expandedSections={expandedSections}
+          />
+        )}
       </Box>
 
       {/* Filter bar */}
@@ -864,6 +961,7 @@ function AppContent({ __testEnableInput, projectRoot }: AppProps): React.ReactEl
         message={statusMessage}
         filterActive={isFilterActive(filter) || bodySearch !== undefined}
         filterOpen={showFilter}
+        following={following}
         hasSelection={selectedFullRequest !== null}
         hasRequests={requests.length > 0}
         onViewableBodySection={currentBodyIsExportable && !currentBodyIsBinary}

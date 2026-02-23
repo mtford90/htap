@@ -98,6 +98,33 @@ export function exportHarToFile(requests: CapturedRequest[], filename?: string):
 }
 
 /**
+ * Export requests to HAR file in a specified directory.
+ */
+export function exportHarToDir(
+  requests: CapturedRequest[],
+  targetDir: string,
+  filename?: string
+): ExportResult {
+  try {
+    const harFilename = filename ?? `procsi-export-${Date.now()}.har`;
+    const harPath = path.resolve(targetDir, harFilename);
+    const harContent = generateHarString(requests);
+
+    fs.writeFileSync(harPath, harContent, "utf-8");
+
+    return {
+      success: true,
+      message: `Exported ${requests.length} request(s) to ${harPath}`,
+    };
+  } catch (err) {
+    return {
+      success: false,
+      message: err instanceof Error ? err.message : "Failed to export HAR",
+    };
+  }
+}
+
+/**
  * Hook providing export functionality for captured requests.
  * Wraps standalone functions with useCallback for React optimisation.
  */

@@ -59,7 +59,7 @@ export function hasExportableBody(
  * Collapsed sections get 1 row, expanded sections share the remaining space equally.
  * Reserves 1 row for the bottom border.
  */
-function calculateHeights(
+export function calculateHeights(
   totalHeight: number,
   expandedSections: Set<number>,
   sectionCount: number,
