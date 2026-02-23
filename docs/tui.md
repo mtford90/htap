@@ -4,31 +4,52 @@
 
 Open the interactive TUI with `procsi tui`.
 
-`j`/`k` to navigate, `Tab` to switch panels, `/` to filter, `c` to copy as curl, `Enter` to inspect bodies, `q` to quit.
+`j`/`k` to navigate, `Tab` to switch panels, `/` to filter, `e` to export, `Enter` to inspect bodies, `q` to quit.
 
 Mouse support: click to select, scroll to navigate, click panels to focus.
 
 ## Main View
 
-| Key                 | Action                                                                     |
-| ------------------- | -------------------------------------------------------------------------- |
+### Navigation
+
+| Key                  | Action                                                                     |
+| -------------------- | -------------------------------------------------------------------------- |
 | `j`/`k` or `↑`/`↓`  | Navigate up/down                                                           |
-| `g` / `G`           | Jump to first / last item                                                  |
-| `Ctrl+u` / `Ctrl+d` | Half-page up / down                                                        |
-| `Ctrl+f` / `Ctrl+b` | Full-page down / up                                                        |
-| `Tab` / `Shift+Tab` | Next / previous panel                                                      |
-| `1`-`5`             | Jump to section (list / request / request body / response / response body) |
-| `Enter`             | Open body in full-screen viewer                                            |
-| `/`                 | Open filter bar                                                            |
-| `u`                 | Toggle full URL display                                                    |
-| `c`                 | Copy request as curl                                                       |
-| `y`                 | Copy body to clipboard                                                     |
-| `s`                 | Export body (opens export modal)                                           |
-| `H`                 | Export all as HAR                                                          |
-| `r`                 | Refresh                                                                    |
-| `?`                 | Help                                                                       |
-| `i`                 | Proxy connection info                                                      |
-| `q`                 | Quit                                                                       |
+| `g` / `G`            | Jump to first / last item (`g` also enters follow mode)                    |
+| `F`                  | Toggle follow mode (auto-select newest request)                            |
+| `Ctrl+u` / `Ctrl+d`  | Half-page up / down                                                        |
+| `Ctrl+f` / `Ctrl+b`  | Full-page down / up                                                        |
+| `Tab` / `Shift+Tab`  | Next / previous panel                                                      |
+| `1`-`5`              | Jump to section (list / request / request body / response / response body) |
+| `Space`              | Toggle section expand/collapse (accordion panel)                           |
+| `[` / `]`            | Resize panels (shrink / grow list)                                         |
+| `=`                  | Reset panel size to default                                                |
+
+### Actions
+
+| Key     | Action                                              |
+| ------- | --------------------------------------------------- |
+| `Enter` | Open body in full-screen viewer                     |
+| `e`     | Export request (opens format picker modal)           |
+| `R`     | Replay request (with confirmation)                  |
+| `y`     | Copy body to clipboard                              |
+| `s`     | Export body content (opens destination picker modal) |
+| `b`     | Toggle bookmark on selected request                 |
+| `x`/`D` | Clear requests (with confirmation)                  |
+| `/`     | Open filter bar                                     |
+| `u`     | Toggle full URL display                             |
+| `r`     | Refresh                                             |
+| `L`     | Interceptor event log                               |
+| `?`     | Help                                                |
+| `q`     | Quit                                                |
+
+### Follow Mode
+
+By default the TUI starts in **follow mode** — the cursor automatically tracks the newest request as traffic arrives, similar to `tail -f`. The `[FOLLOWING]` badge appears in the status bar.
+
+- Any `j`/`k` navigation exits follow mode, anchoring the cursor to the current request by ID. New requests arriving will not move the cursor.
+- Press `F` to toggle follow mode back on (jumps to the newest request).
+- Press `g` (go to top) to re-enter follow mode.
 
 ## Filter Bar (`/`)
 
@@ -41,7 +62,7 @@ Mouse support: click to select, scroll to navigate, click panels to focus.
 
 Search field supports:
 
-- URL search (default): `users api` or regex literal `/users\\/\\d+/i`
+- URL search (default): `users api` or regex literal `/users\/\d+/i`
 - Body search (both): `body:error`
 - Request-body only: `body:req:error` (or `body:request:error`)
 - Response-body only: `body:res:error` (or `body:response:error`)
@@ -75,21 +96,20 @@ Tip: when you type a `body:` filter, the `body:` prefix (and `req:`/`res:` targe
 
 ## Export
 
-### Copy as curl
+### Export request (`e`)
 
-Press `c` to copy a request as curl:
+Press `e` to open the export modal. Select a format:
 
-```bash
-curl -X POST 'https://api.example.com/users' \
-  -H 'Content-Type: application/json' \
-  -H 'Authorization: Bearer token123' \
-  -d '{"name": "test"}'
-```
+| Option   | Action                                    |
+| -------- | ----------------------------------------- |
+| cURL     | Copy as curl command to clipboard         |
+| Fetch    | Copy as JavaScript fetch to clipboard     |
+| Python   | Copy as Python requests to clipboard      |
+| HTTPie   | Copy as HTTPie command to clipboard       |
+| HAR      | Save the selected request as a HAR file   |
 
-### Export as HAR
+Selecting HAR opens a destination picker — `.procsi/exports/`, `~/Downloads/`, or a custom directory path.
 
-Press `H` to export all requests as a HAR file. Compatible with browser dev tools.
+### Export body (`s`)
 
-### Export body
-
-Press `s` on a body to open the export modal — clipboard, `.procsi/exports/`, `~/Downloads/`, custom path, or open in default application.
+Press `s` on a body section to open the body export modal — clipboard, `.procsi/exports/`, `~/Downloads/`, custom path, or open in default application.

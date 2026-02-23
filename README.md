@@ -258,7 +258,7 @@ Anything that respects `HTTP_PROXY` works. procsi sets the right CA cert env var
 
 ## TUI
 
-`j`/`k` to navigate, `Tab` to switch panels, `/` to filter, `c` to copy as curl, `Enter` to inspect bodies, `q` to quit. Mouse support included.
+`j`/`k` to navigate, `Tab` to switch panels, `/` to filter, `e` to export, `Enter` to inspect bodies, `q` to quit. Mouse support included.
 
 See [full TUI documentation](docs/tui.md) for all keybindings and export features.
 
