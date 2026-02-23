@@ -1,10 +1,10 @@
 import * as path from "node:path";
 import { Command } from "commander";
-import { findOrCreateProjectRoot, ensureProcsiDir, getProcsiPaths } from "../../shared/project.js";
+import { ensureProcsiDir, getProcsiPaths } from "../../shared/project.js";
 import { startDaemon } from "../../shared/daemon.js";
 import { ControlClient } from "../../shared/control-client.js";
 import { parseVerbosity } from "../../shared/logger.js";
-import { getErrorMessage, getGlobalOptions } from "./helpers.js";
+import { getErrorMessage, getGlobalOptions, resolveProjectContext } from "./helpers.js";
 import { writeNodePreloadScript, getNodeEnvVars } from "../../overrides/node.js";
 import { writePythonOverride } from "../../overrides/python.js";
 import { writeRubyOverride } from "../../overrides/ruby.js";
@@ -178,7 +178,7 @@ export const onCommand = new Command("on")
       const logLevel = parseVerbosity(verbosity);
 
       // Find project root (auto-creates .procsi if needed)
-      const projectRoot = findOrCreateProjectRoot(undefined, globalOpts.dir);
+      const projectRoot = resolveProjectContext(globalOpts);
       ensureProcsiDir(projectRoot);
 
       const paths = getProcsiPaths(projectRoot);

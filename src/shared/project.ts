@@ -6,10 +6,25 @@ const PROCSI_DIR = ".procsi";
 const HOME_DIR_PREFIX = "~";
 
 /**
+ * Module-level override for the procsi data directory.
+ * When set, getProcsiDir returns this path directly instead of
+ * appending .procsi to the project root.
+ */
+let _configOverride: string | undefined;
+
+export function setConfigOverride(dir: string | undefined): void {
+  _configOverride = dir;
+}
+
+export function getConfigOverride(): string | undefined {
+  return _configOverride;
+}
+
+/**
  * Resolve an override path, expanding ~ to the user's home directory
  * and converting relative paths to absolute.
  */
-function resolveOverridePath(override: string): string {
+export function resolveOverridePath(override: string): string {
   if (override.startsWith(HOME_DIR_PREFIX + path.sep) || override === HOME_DIR_PREFIX) {
     return path.join(os.homedir(), override.slice(HOME_DIR_PREFIX.length));
   }
@@ -109,9 +124,10 @@ export function findOrCreateProjectRoot(
 
 /**
  * Get the .procsi directory path for a project root.
+ * Returns the config override when set (ignoring projectRoot).
  */
 export function getProcsiDir(projectRoot: string): string {
-  return path.join(projectRoot, PROCSI_DIR);
+  return _configOverride ?? path.join(projectRoot, PROCSI_DIR);
 }
 
 /**
