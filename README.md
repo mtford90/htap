@@ -73,6 +73,14 @@ your-project/
 
 Separate daemon, database, certificates etc. You can run procsi in multiple projects at the same time without them interfering with each other.
 
+For non-project contexts or custom setups, use `--config` to point directly at a data directory (no `.procsi` appended):
+
+```bash
+procsi --config /tmp/my-procsi-data on
+```
+
+See [CLI Reference](docs/cli-reference.md) for the full resolution order (`--config` > `--dir` > auto-detect).
+
 ## Use cases
 
 - AI analysis
