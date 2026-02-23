@@ -1808,5 +1808,256 @@ describe("App keyboard interactions", () => {
 
       expect(lastFrame()).toContain("FOLLOWING");
     });
+
+    it("follow mode tracks newest request on list update", async () => {
+      const initialSummaries = [
+        createMockSummary({ id: "req-a", path: "/a" }),
+        createMockSummary({ id: "req-b", path: "/b" }),
+        createMockSummary({ id: "req-c", path: "/c" }),
+      ];
+
+      const mockGetFull = vi.fn().mockImplementation((id: string) =>
+        Promise.resolve(createMockFullRequest({ id })),
+      );
+
+      mockUseRequests.mockReturnValue({
+        requests: initialSummaries,
+        isLoading: false,
+        error: null,
+        refresh: mockRefresh,
+        getFullRequest: mockGetFull,
+        getAllFullRequests: mockGetAllFullRequests,
+        replayRequest: mockReplayRequest,
+        toggleSaved: mockToggleSaved,
+        clearRequests: mockClearRequests,
+      });
+
+      const { lastFrame, rerender } = render(<App __testEnableInput />);
+      await tick();
+
+      // Should be in follow mode at index 0
+      expect(lastFrame()).toContain("FOLLOWING");
+      expect(mockGetFull).toHaveBeenCalledWith("req-a");
+
+      // Simulate a new request prepending to the list
+      const updatedSummaries = [
+        createMockSummary({ id: "req-new", path: "/new" }),
+        ...initialSummaries,
+      ];
+
+      mockUseRequests.mockReturnValue({
+        requests: updatedSummaries,
+        isLoading: false,
+        error: null,
+        refresh: mockRefresh,
+        getFullRequest: mockGetFull,
+        getAllFullRequests: mockGetAllFullRequests,
+        replayRequest: mockReplayRequest,
+        toggleSaved: mockToggleSaved,
+        clearRequests: mockClearRequests,
+      });
+
+      mockGetFull.mockClear();
+      rerender(<App __testEnableInput />);
+      await tick();
+
+      // Follow mode keeps cursor at index 0, which is now req-new
+      expect(mockGetFull).toHaveBeenCalledWith("req-new");
+      expect(lastFrame()).toContain("FOLLOWING");
+    });
+
+    it("multiple rapid request arrivals in browsing mode keep selection stable", async () => {
+      const initialSummaries = [
+        createMockSummary({ id: "req-a", path: "/a" }),
+        createMockSummary({ id: "req-b", path: "/b" }),
+        createMockSummary({ id: "req-c", path: "/c" }),
+      ];
+
+      const mockGetFull = vi.fn().mockImplementation((id: string) =>
+        Promise.resolve(createMockFullRequest({ id })),
+      );
+
+      mockUseRequests.mockReturnValue({
+        requests: initialSummaries,
+        isLoading: false,
+        error: null,
+        refresh: mockRefresh,
+        getFullRequest: mockGetFull,
+        getAllFullRequests: mockGetAllFullRequests,
+        replayRequest: mockReplayRequest,
+        toggleSaved: mockToggleSaved,
+        clearRequests: mockClearRequests,
+      });
+
+      const { stdin, rerender } = render(<App __testEnableInput />);
+      await tick();
+
+      // Navigate to req-b (exits follow mode)
+      stdin.write("j");
+      await tick();
+      expect(mockGetFull).toHaveBeenCalledWith("req-b");
+
+      // Simulate 3 consecutive new requests prepending
+      let summaries = initialSummaries;
+      for (let i = 0; i < 3; i++) {
+        summaries = [
+          createMockSummary({ id: `req-new-${i}`, path: `/new-${i}` }),
+          ...summaries,
+        ];
+
+        mockUseRequests.mockReturnValue({
+          requests: summaries,
+          isLoading: false,
+          error: null,
+          refresh: mockRefresh,
+          getFullRequest: mockGetFull,
+          getAllFullRequests: mockGetAllFullRequests,
+          replayRequest: mockReplayRequest,
+          toggleSaved: mockToggleSaved,
+          clearRequests: mockClearRequests,
+        });
+
+        mockGetFull.mockClear();
+        rerender(<App __testEnableInput />);
+        await tick();
+
+        // Selection should still be anchored to req-b
+        expect(mockGetFull).toHaveBeenCalledWith("req-b");
+      }
+    });
+
+    it("G (go to bottom) exits follow mode", async () => {
+      setupMocksWithRequests(5);
+
+      const { lastFrame, stdin } = render(<App __testEnableInput />);
+      await tick();
+
+      // Starts in follow mode
+      expect(lastFrame()).toContain("FOLLOWING");
+
+      // Press G to jump to last item
+      stdin.write("G");
+      await tick();
+
+      // Should exit follow mode and select the last item
+      expect(lastFrame()).not.toContain("FOLLOWING");
+      expect(mockGetFullRequest).toHaveBeenCalledWith("test-4");
+    });
+
+    it("Ctrl+d (half-page down) exits follow mode", async () => {
+      setupMocksWithRequests(15);
+
+      const { lastFrame, stdin } = render(<App __testEnableInput />);
+      await tick();
+
+      // Starts in follow mode
+      expect(lastFrame()).toContain("FOLLOWING");
+
+      // Press Ctrl+d
+      stdin.write("\x04");
+      await tick();
+
+      // Should exit follow mode
+      expect(lastFrame()).not.toContain("FOLLOWING");
+    });
+
+    it("Ctrl+u (half-page up) exits follow mode", async () => {
+      setupMocksWithRequests(15);
+
+      const { lastFrame, stdin } = render(<App __testEnableInput />);
+      await tick();
+
+      // Starts in follow mode
+      expect(lastFrame()).toContain("FOLLOWING");
+
+      // Press Ctrl+u — unconditionally exits follow mode even from index 0
+      stdin.write("\x15");
+      await tick();
+
+      expect(lastFrame()).not.toContain("FOLLOWING");
+    });
+
+    it("clear requests resets to follow mode", async () => {
+      setupMocksWithRequests(5);
+
+      const { lastFrame, stdin } = render(<App __testEnableInput />);
+      await tick();
+
+      // Navigate down to exit follow mode
+      stdin.write("j");
+      await tick();
+      expect(lastFrame()).not.toContain("FOLLOWING");
+
+      // Trigger clear: press x then confirm with y
+      stdin.write("x");
+      await tick();
+      stdin.write("y");
+      await tick(100);
+
+      // The status message "Requests cleared" overrides the badge for 3s.
+      // Wait for the message timeout to expire so the badge becomes visible.
+      await tick(3200);
+
+      // Follow mode should be re-entered
+      expect(lastFrame()).toContain("FOLLOWING");
+    });
+
+    it("selected request disappears from list without crashing", async () => {
+      const initialSummaries = [
+        createMockSummary({ id: "req-a", path: "/a" }),
+        createMockSummary({ id: "req-b", path: "/b" }),
+        createMockSummary({ id: "req-c", path: "/c" }),
+      ];
+
+      const mockGetFull = vi.fn().mockImplementation((id: string) =>
+        Promise.resolve(createMockFullRequest({ id })),
+      );
+
+      mockUseRequests.mockReturnValue({
+        requests: initialSummaries,
+        isLoading: false,
+        error: null,
+        refresh: mockRefresh,
+        getFullRequest: mockGetFull,
+        getAllFullRequests: mockGetAllFullRequests,
+        replayRequest: mockReplayRequest,
+        toggleSaved: mockToggleSaved,
+        clearRequests: mockClearRequests,
+      });
+
+      const { stdin, rerender } = render(<App __testEnableInput />);
+      await tick();
+
+      // Navigate to req-c (index 2) and exit follow mode
+      stdin.write("j");
+      await tick();
+      stdin.write("j");
+      await tick();
+      expect(mockGetFull).toHaveBeenCalledWith("req-c");
+
+      // Update list without req-b or req-c — selection index 2 is now out of bounds
+      const updatedSummaries = [
+        createMockSummary({ id: "req-a", path: "/a" }),
+      ];
+
+      mockUseRequests.mockReturnValue({
+        requests: updatedSummaries,
+        isLoading: false,
+        error: null,
+        refresh: mockRefresh,
+        getFullRequest: mockGetFull,
+        getAllFullRequests: mockGetAllFullRequests,
+        replayRequest: mockReplayRequest,
+        toggleSaved: mockToggleSaved,
+        clearRequests: mockClearRequests,
+      });
+
+      mockGetFull.mockClear();
+      rerender(<App __testEnableInput />);
+      await tick();
+
+      // Should clamp to the last valid index (0) and fetch that request
+      expect(mockGetFull).toHaveBeenCalledWith("req-a");
+    });
   });
 });
