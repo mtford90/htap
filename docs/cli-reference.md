@@ -4,10 +4,26 @@
 
 ## Global Options
 
-| Flag               | Description                                       |
-| ------------------ | ------------------------------------------------- |
-| `-v, --verbose`    | Increase log verbosity (stackable: `-vv`, `-vvv`) |
-| `-d, --dir <path>` | Override project root directory                   |
+| Flag                  | Description                                                  |
+| --------------------- | ------------------------------------------------------------ |
+| `-v, --verbose`       | Increase log verbosity (stackable: `-vv`, `-vvv`)            |
+| `-d, --dir <path>`    | Override project root directory (`.procsi` is appended)      |
+| `-c, --config <path>` | Override procsi data directory directly (no `.procsi` appended) |
+
+### Environment Variables
+
+| Variable        | Equivalent flag | Description                                              |
+| --------------- | --------------- | -------------------------------------------------------- |
+| `PROCSI_CONFIG` | `--config`      | Procsi data directory (highest priority, no `.procsi` appended) |
+| `PROCSI_DIR`    | `--dir`         | Project root directory (`.procsi` is appended)           |
+
+CLI flags override environment variables. `--config` / `PROCSI_CONFIG` takes precedence over `--dir` / `PROCSI_DIR`.
+
+**Resolution order:**
+
+1. `--config` / `PROCSI_CONFIG` — use as procsi data directory directly
+2. `--dir` / `PROCSI_DIR` — use as project root, append `.procsi`
+3. Auto-detect — walk directory tree for `.git` / `.procsi`, append `.procsi`
 
 ## `procsi on`
 
