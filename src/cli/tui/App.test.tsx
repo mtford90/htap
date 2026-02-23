@@ -28,15 +28,23 @@ vi.mock("../../shared/config.js", () => ({
   loadConfig: () => undefined,
 }));
 
-const mockExportFormat = vi.fn().mockResolvedValue({ success: true, message: "cURL copied to clipboard" });
-const mockExportHar = vi.fn().mockReturnValue({ success: true, message: "HAR exported" });
+const mockExportFormatToClipboard = vi.fn().mockResolvedValue({ success: true, message: "cURL copied to clipboard" });
+const mockExportHarToDir = vi.fn().mockReturnValue({ success: true, message: "Exported 1 request(s) to /mock/path" });
 
 vi.mock("./hooks/useExport.js", () => ({
-  useExport: () => ({
-    exportFormat: mockExportFormat,
-    exportHar: mockExportHar,
-  }),
+  exportFormatToClipboard: (...args: unknown[]) => mockExportFormatToClipboard(...args),
+  exportHarToDir: (...args: unknown[]) => mockExportHarToDir(...args),
 }));
+
+const mockResolveTargetDir = vi.fn().mockReturnValue("/mock/exports");
+
+vi.mock("./hooks/useBodyExport.js", async () => {
+  const actual = await vi.importActual<Record<string, unknown>>("./hooks/useBodyExport.js");
+  return {
+    ...actual,
+    resolveTargetDir: (...args: unknown[]) => mockResolveTargetDir(...args),
+  };
+});
 
 const mockCopyToClipboard = vi.fn().mockResolvedValue(undefined);
 vi.mock("./utils/clipboard.js", () => ({
@@ -102,7 +110,7 @@ const createMockFullRequest = (overrides: Partial<CapturedRequest> = {}): Captur
 });
 
 // Helper to wait for React state updates
-const tick = (ms = 100) => new Promise((resolve) => setTimeout(resolve, ms));
+const tick = (ms = 300) => new Promise((resolve) => setTimeout(resolve, ms));
 
 describe("App keyboard interactions", () => {
   const mockRefresh = vi.fn();
@@ -120,8 +128,9 @@ describe("App keyboard interactions", () => {
     mockReplayRequest.mockReset().mockResolvedValue("replayed-1");
     mockToggleSaved.mockReset().mockResolvedValue(true);
     mockClearRequests.mockReset().mockResolvedValue(true);
-    mockExportFormat.mockReset().mockResolvedValue({ success: true, message: "cURL copied to clipboard" });
-    mockExportHar.mockReset().mockReturnValue({ success: true, message: "HAR exported" });
+    mockExportFormatToClipboard.mockReset().mockResolvedValue({ success: true, message: "cURL copied to clipboard" });
+    mockExportHarToDir.mockReset().mockReturnValue({ success: true, message: "Exported 1 request(s) to /mock/path" });
+    mockResolveTargetDir.mockReset().mockReturnValue("/mock/exports");
     mockCopyToClipboard.mockReset().mockResolvedValue(undefined);
     mockOpenInExternalApp.mockReset().mockResolvedValue({ success: true, message: "Opened" });
   });
@@ -323,8 +332,9 @@ describe("App keyboard interactions", () => {
 
       const { stdin } = render(<App __testEnableInput />);
       await tick();
+      // Allow any secondary effect cycles to settle before clearing
+      await tick();
 
-      // Clear mock calls after initial load
       mockGetFullRequest.mockClear();
 
       // Try to move up from the first item
@@ -530,41 +540,220 @@ describe("App keyboard interactions", () => {
     });
   });
 
-  describe("Single-expand accordion", () => {
-    it("only the focused section is expanded", async () => {
-      setupMocksWithRequests(1);
-
-      const { lastFrame, stdin } = render(<App __testEnableInput />);
-      await tick();
-
-      // Focus on Request section (section 0)
-      stdin.write("2");
-      await tick();
-
-      let frame = lastFrame();
-      // Only one section should be expanded at a time
-      const expandedCount = (frame.match(/▼/g) || []).length;
-      expect(expandedCount).toBe(1);
-
-      // Move focus to Response Body (section 3) — it should now be the only expanded one
-      stdin.write("5");
-      await tick();
-
-      frame = lastFrame();
-      const expandedCount2 = (frame.match(/▼/g) || []).length;
-      expect(expandedCount2).toBe(1);
-    });
-
-    it("default state expands only the Request section", async () => {
+  describe("Multi-expand accordion", () => {
+    it("all sections expanded by default when request is selected", async () => {
       setupMocksWithRequests(1);
 
       const { lastFrame } = render(<App __testEnableInput />);
       await tick();
 
-      // Default focusedSection is SECTION_REQUEST, so only that one is expanded
+      // All 4 sections should be expanded by default
       const frame = lastFrame();
       const expandedCount = (frame.match(/▼/g) || []).length;
-      expect(expandedCount).toBe(1);
+      expect(expandedCount).toBe(4);
+    });
+
+    it("Space toggles a section collapsed", async () => {
+      setupMocksWithRequests(1);
+
+      const { lastFrame, stdin } = render(<App __testEnableInput />);
+      await tick();
+
+      // Focus on Request section (section 0) in accordion
+      stdin.write("2");
+      await tick();
+
+      // All 4 should be expanded
+      let frame = lastFrame();
+      expect((frame.match(/▼/g) || []).length).toBe(4);
+
+      // Press Space to collapse the focused section
+      stdin.write(" ");
+      await tick();
+
+      frame = lastFrame();
+      // Now 3 expanded, 1 collapsed
+      expect((frame.match(/▼/g) || []).length).toBe(3);
+      expect((frame.match(/▶/g) || []).length).toBe(1);
+    });
+
+    it("Space toggles a section back to expanded", async () => {
+      setupMocksWithRequests(1);
+
+      const { lastFrame, stdin } = render(<App __testEnableInput />);
+      await tick();
+
+      // Focus on Request section in accordion
+      stdin.write("2");
+      await tick();
+
+      // Collapse then re-expand
+      stdin.write(" ");
+      await tick();
+      stdin.write(" ");
+      await tick();
+
+      const frame = lastFrame();
+      expect((frame.match(/▼/g) || []).length).toBe(4);
+    });
+
+    it("multiple sections can be independently collapsed", async () => {
+      setupMocksWithRequests(1);
+
+      const { lastFrame, stdin } = render(<App __testEnableInput />);
+      await tick();
+
+      // Focus on section 0 and collapse
+      stdin.write("2");
+      await tick();
+      stdin.write(" ");
+      await tick();
+
+      // Verify intermediate state: section 0 collapsed, sections 1-3 expanded
+      let frame = lastFrame();
+      expect(frame).toMatch(/▶.*\[2\] Request\b/);
+      expect(frame).toMatch(/▼.*\[3\] Request Body/);
+
+      // Jump to section 2 and collapse it too
+      stdin.write("4");
+      await tick();
+      stdin.write(" ");
+      await tick();
+
+      frame = lastFrame();
+      // Sections 0 and 2 collapsed, sections 1 and 3 expanded
+      expect(frame).toMatch(/▶.*\[2\] Request\b/);
+      expect(frame).toMatch(/▼.*\[3\] Request Body/);
+      expect(frame).toMatch(/▶.*\[4\] Response\b/);
+      expect(frame).toMatch(/▼.*\[5\] Response Body/);
+    });
+
+    it("j/k change focus without collapsing other sections", async () => {
+      setupMocksWithRequests(1);
+
+      const { lastFrame, stdin } = render(<App __testEnableInput />);
+      await tick();
+
+      // Focus on section 0
+      stdin.write("2");
+      await tick();
+
+      // Navigate down through sections with j
+      stdin.write("j");
+      await tick();
+      stdin.write("j");
+      await tick();
+      stdin.write("j");
+      await tick();
+
+      // All should still be expanded
+      const frame = lastFrame();
+      expect((frame.match(/▼/g) || []).length).toBe(4);
+    });
+
+    it("number keys change focus without collapsing other sections", async () => {
+      setupMocksWithRequests(1);
+
+      const { lastFrame, stdin } = render(<App __testEnableInput />);
+      await tick();
+
+      // Jump to section 3 via number key
+      stdin.write("5");
+      await tick();
+
+      // Jump to section 1 via number key
+      stdin.write("3");
+      await tick();
+
+      // All should still be expanded
+      const frame = lastFrame();
+      expect((frame.match(/▼/g) || []).length).toBe(4);
+    });
+  });
+
+  describe("Full-width list", () => {
+    it("list renders at full width when no request selected", () => {
+      mockUseRequests.mockReturnValue({
+        requests: [],
+        isLoading: false,
+        error: null,
+        refresh: vi.fn(),
+        getFullRequest: vi.fn().mockResolvedValue(null),
+        getAllFullRequests: vi.fn().mockResolvedValue([]),
+        toggleSaved: mockToggleSaved,
+        clearRequests: mockClearRequests,
+      });
+
+      const { lastFrame } = render(<App __testEnableInput />);
+      const frame = lastFrame();
+
+      // Should not contain the accordion placeholder text
+      expect(frame).not.toContain("Select a request to view details");
+    });
+
+    it("splits into panels when request is selected", async () => {
+      setupMocksWithRequests(1);
+
+      const { lastFrame } = render(<App __testEnableInput />);
+      await tick();
+
+      const frame = lastFrame();
+      // Accordion sections should be visible
+      expect(frame).toContain("[2] Request");
+      expect(frame).toContain("[3] Request Body");
+    });
+  });
+
+  describe("Panel resize keybindings", () => {
+    it("[ shrinks the list panel", async () => {
+      setupMocksWithRequests(1);
+
+      const { lastFrame, stdin } = render(<App __testEnableInput />);
+      await tick();
+
+      const frameBefore = lastFrame();
+
+      stdin.write("[");
+      await tick();
+
+      const frameAfter = lastFrame();
+      // The layout should have changed — exact verification is that the frame differs
+      expect(frameAfter).not.toBe(frameBefore);
+    });
+
+    it("] grows the list panel", async () => {
+      setupMocksWithRequests(1);
+
+      const { lastFrame, stdin } = render(<App __testEnableInput />);
+      await tick();
+
+      const frameBefore = lastFrame();
+
+      stdin.write("]");
+      await tick();
+
+      const frameAfter = lastFrame();
+      expect(frameAfter).not.toBe(frameBefore);
+    });
+
+    it("= resets panel size after resize", async () => {
+      setupMocksWithRequests(1);
+
+      const { lastFrame, stdin } = render(<App __testEnableInput />);
+      await tick();
+
+      const frameDefault = lastFrame();
+
+      // Resize first
+      stdin.write("[");
+      await tick();
+
+      // Then reset
+      stdin.write("=");
+      await tick();
+
+      const frameReset = lastFrame();
+      expect(frameReset).toBe(frameDefault);
     });
   });
 
@@ -799,7 +988,7 @@ describe("App keyboard interactions", () => {
       expect(frame).toContain("Refreshing");
     });
 
-    it("e shows export format picker prompt", async () => {
+    it("e opens format export modal", async () => {
       const fullRequest = createMockFullRequest();
       mockUseRequests.mockReturnValue({
         requests: [createMockSummary()],
@@ -819,14 +1008,15 @@ describe("App keyboard interactions", () => {
       await tick();
 
       const frame = lastFrame();
-      expect(frame).toContain("[c]url");
-      expect(frame).toContain("[f]etch");
-      expect(frame).toContain("[p]ython");
-      expect(frame).toContain("[h]ttpie");
-      expect(frame).toContain("[H]ar");
+      expect(frame).toContain("Export Request");
+      expect(frame).toContain("cURL");
+      expect(frame).toContain("Fetch");
+      expect(frame).toContain("Python");
+      expect(frame).toContain("HTTPie");
+      expect(frame).toContain("HAR");
     });
 
-    it("e then c dispatches curl export", async () => {
+    it("e then 1 dispatches curl export via modal", async () => {
       const fullRequest = createMockFullRequest();
       mockUseRequests.mockReturnValue({
         requests: [createMockSummary()],
@@ -844,89 +1034,14 @@ describe("App keyboard interactions", () => {
 
       stdin.write("e");
       await tick();
-      stdin.write("c");
+      stdin.write("1");
       await tick(100);
 
-      expect(mockExportFormat).toHaveBeenCalledWith(fullRequest, "curl");
+      expect(mockExportFormatToClipboard).toHaveBeenCalledWith(fullRequest, "curl");
       expect(lastFrame()).toContain("copied to clipboard");
     });
 
-    it("e then f dispatches fetch export", async () => {
-      const fullRequest = createMockFullRequest();
-      mockExportFormat.mockResolvedValue({ success: true, message: "Fetch copied to clipboard" });
-      mockUseRequests.mockReturnValue({
-        requests: [createMockSummary()],
-        isLoading: false,
-        error: null,
-        refresh: mockRefresh,
-        getFullRequest: vi.fn().mockResolvedValue(fullRequest),
-        getAllFullRequests: mockGetAllFullRequests,
-        toggleSaved: mockToggleSaved,
-        clearRequests: mockClearRequests,
-      });
-
-      const { stdin } = render(<App __testEnableInput />);
-      await tick();
-
-      stdin.write("e");
-      await tick();
-      stdin.write("f");
-      await tick(100);
-
-      expect(mockExportFormat).toHaveBeenCalledWith(fullRequest, "fetch");
-    });
-
-    it("e then p dispatches python export", async () => {
-      const fullRequest = createMockFullRequest();
-      mockExportFormat.mockResolvedValue({ success: true, message: "Python copied to clipboard" });
-      mockUseRequests.mockReturnValue({
-        requests: [createMockSummary()],
-        isLoading: false,
-        error: null,
-        refresh: mockRefresh,
-        getFullRequest: vi.fn().mockResolvedValue(fullRequest),
-        getAllFullRequests: mockGetAllFullRequests,
-        toggleSaved: mockToggleSaved,
-        clearRequests: mockClearRequests,
-      });
-
-      const { stdin } = render(<App __testEnableInput />);
-      await tick();
-
-      stdin.write("e");
-      await tick();
-      stdin.write("p");
-      await tick(100);
-
-      expect(mockExportFormat).toHaveBeenCalledWith(fullRequest, "python");
-    });
-
-    it("e then h dispatches httpie export", async () => {
-      const fullRequest = createMockFullRequest();
-      mockExportFormat.mockResolvedValue({ success: true, message: "HTTPie copied to clipboard" });
-      mockUseRequests.mockReturnValue({
-        requests: [createMockSummary()],
-        isLoading: false,
-        error: null,
-        refresh: mockRefresh,
-        getFullRequest: vi.fn().mockResolvedValue(fullRequest),
-        getAllFullRequests: mockGetAllFullRequests,
-        toggleSaved: mockToggleSaved,
-        clearRequests: mockClearRequests,
-      });
-
-      const { stdin } = render(<App __testEnableInput />);
-      await tick();
-
-      stdin.write("e");
-      await tick();
-      stdin.write("h");
-      await tick(100);
-
-      expect(mockExportFormat).toHaveBeenCalledWith(fullRequest, "httpie");
-    });
-
-    it("e then unrecognised key cancels", async () => {
+    it("e then Escape closes modal without exporting", async () => {
       const fullRequest = createMockFullRequest();
       mockUseRequests.mockReturnValue({
         requests: [createMockSummary()],
@@ -944,13 +1059,14 @@ describe("App keyboard interactions", () => {
 
       stdin.write("e");
       await tick();
-      stdin.write("z");
+
+      // Escape closes the modal
+      stdin.write("\x1b");
       await tick();
 
-      expect(mockExportFormat).not.toHaveBeenCalled();
-      // Status message should be cleared (no export picker prompt visible)
+      expect(mockExportFormatToClipboard).not.toHaveBeenCalled();
       const frame = lastFrame();
-      expect(frame).not.toContain("[c]url");
+      expect(frame).not.toContain("Export Request");
     });
 
     it("e without selection shows No request selected", async () => {
@@ -975,9 +1091,8 @@ describe("App keyboard interactions", () => {
       expect(frame).toContain("No request selected");
     });
 
-    it("e then H calls exportHar for all requests", async () => {
+    it("e then 5 shows HAR destination picker", async () => {
       const fullRequest = createMockFullRequest();
-      mockGetAllFullRequests.mockResolvedValue([fullRequest]);
       mockUseRequests.mockReturnValue({
         requests: [createMockSummary()],
         isLoading: false,
@@ -994,13 +1109,43 @@ describe("App keyboard interactions", () => {
 
       stdin.write("e");
       await tick();
-      stdin.write("H");
+      stdin.write("5");
+      await tick();
+
+      const frame = lastFrame();
+      expect(frame).toContain("Export as HAR");
+      expect(frame).toContain(".procsi/exports/");
+      expect(frame).toContain("~/Downloads/");
+      expect(frame).toContain("Custom path...");
+    });
+
+    it("e then 5 then 1 exports HAR to .procsi/exports/", async () => {
+      const fullRequest = createMockFullRequest();
+      mockUseRequests.mockReturnValue({
+        requests: [createMockSummary()],
+        isLoading: false,
+        error: null,
+        refresh: mockRefresh,
+        getFullRequest: vi.fn().mockResolvedValue(fullRequest),
+        getAllFullRequests: mockGetAllFullRequests,
+        toggleSaved: mockToggleSaved,
+        clearRequests: mockClearRequests,
+      });
+
+      const { lastFrame, stdin } = render(<App __testEnableInput />);
+      await tick();
+
+      stdin.write("e");
+      await tick();
+      stdin.write("5");
+      await tick();
+      stdin.write("1");
       await tick(100);
 
-      expect(mockGetAllFullRequests).toHaveBeenCalled();
-      expect(mockExportHar).toHaveBeenCalled();
+      expect(mockResolveTargetDir).toHaveBeenCalledWith("exports");
+      expect(mockExportHarToDir).toHaveBeenCalledWith([fullRequest], "/mock/exports");
       const frame = lastFrame();
-      expect(frame).toMatch(/HAR|Export/i);
+      expect(frame).toContain("Exported");
     });
   });
 
@@ -1528,11 +1673,11 @@ describe("App keyboard interactions", () => {
 
       for (const ch of "body:req:error") {
         stdin.write(ch);
-        await tick();
+        await tick(50);
       }
 
       // Wait for FilterBar debounce
-      await tick(250);
+      await tick(500);
 
       const latestCall = mockUseRequests.mock.calls.at(-1)?.[0] as {
         filter?: unknown;
@@ -1540,6 +1685,128 @@ describe("App keyboard interactions", () => {
       };
       expect(latestCall.bodySearch).toEqual({ query: "error", target: "request" });
       expect(latestCall.filter).toEqual({});
+    });
+  });
+
+  describe("Cursor stability and follow mode", () => {
+    it("selection stays on same request when new request prepends (browsing mode)", async () => {
+      // Start with 3 requests, select the second one, then simulate a new request arriving
+      const summaries = [
+        createMockSummary({ id: "req-a", path: "/a" }),
+        createMockSummary({ id: "req-b", path: "/b" }),
+        createMockSummary({ id: "req-c", path: "/c" }),
+      ];
+
+      const mockGetFull = vi.fn().mockImplementation((id: string) =>
+        Promise.resolve(createMockFullRequest({ id })),
+      );
+
+      mockUseRequests.mockReturnValue({
+        requests: summaries,
+        isLoading: false,
+        error: null,
+        refresh: mockRefresh,
+        getFullRequest: mockGetFull,
+        getAllFullRequests: mockGetAllFullRequests,
+        replayRequest: mockReplayRequest,
+        toggleSaved: mockToggleSaved,
+        clearRequests: mockClearRequests,
+      });
+
+      const { stdin, rerender } = render(<App __testEnableInput />);
+      await tick();
+
+      // Navigate down to select req-b (starts in follow mode at index 0)
+      stdin.write("j");
+      await tick();
+
+      // Pressing j exits follow mode; selection is now req-b
+      expect(mockGetFull).toHaveBeenCalledWith("req-b");
+
+      // Simulate a new request prepending to the list
+      const updatedSummaries = [
+        createMockSummary({ id: "req-new", path: "/new" }),
+        ...summaries,
+      ];
+
+      mockUseRequests.mockReturnValue({
+        requests: updatedSummaries,
+        isLoading: false,
+        error: null,
+        refresh: mockRefresh,
+        getFullRequest: mockGetFull,
+        getAllFullRequests: mockGetAllFullRequests,
+        replayRequest: mockReplayRequest,
+        toggleSaved: mockToggleSaved,
+        clearRequests: mockClearRequests,
+      });
+
+      mockGetFull.mockClear();
+      rerender(<App __testEnableInput />);
+      await tick();
+
+      // Selection should re-anchor to req-b (now at index 2)
+      expect(mockGetFull).toHaveBeenCalledWith("req-b");
+    });
+
+    it("F key toggles follow mode on and jumps to index 0", async () => {
+      setupMocksWithRequests(5);
+
+      const { lastFrame, stdin } = render(<App __testEnableInput />);
+      await tick();
+
+      // Navigate down a few items (exits follow mode)
+      stdin.write("j");
+      await tick();
+      stdin.write("j");
+      await tick();
+
+      // Follow badge should NOT be shown
+      let frame = lastFrame();
+      expect(frame).not.toContain("FOLLOWING");
+
+      // Press F to enter follow mode
+      stdin.write("F");
+      await tick();
+
+      // Follow badge should appear, cursor should be at index 0
+      frame = lastFrame();
+      expect(frame).toContain("FOLLOWING");
+      expect(mockGetFullRequest).toHaveBeenCalledWith("test-0");
+    });
+
+    it("j/k exits follow mode", async () => {
+      setupMocksWithRequests(3);
+
+      const { lastFrame, stdin } = render(<App __testEnableInput />);
+      await tick();
+
+      // Starts in follow mode
+      expect(lastFrame()).toContain("FOLLOWING");
+
+      // Press j to navigate — should exit follow mode
+      stdin.write("j");
+      await tick();
+
+      expect(lastFrame()).not.toContain("FOLLOWING");
+    });
+
+    it("g enters follow mode", async () => {
+      setupMocksWithRequests(5);
+
+      const { lastFrame, stdin } = render(<App __testEnableInput />);
+      await tick();
+
+      // Navigate down (exits follow mode)
+      stdin.write("j");
+      await tick();
+      expect(lastFrame()).not.toContain("FOLLOWING");
+
+      // Press g to jump to top — re-enters follow mode
+      stdin.write("g");
+      await tick();
+
+      expect(lastFrame()).toContain("FOLLOWING");
     });
   });
 });

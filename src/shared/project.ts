@@ -85,9 +85,8 @@ export function findProjectRoot(
 
 /**
  * Determine the project root, creating .procsi if needed.
- * - If .procsi exists anywhere in the tree, use that directory
- * - If .git exists, use the git root
- * - Otherwise, fall back to the user's home directory (global instance)
+ * Delegates to findProjectRoot for consistent traversal, then falls back
+ * to the user's home directory (global instance) when no root is found.
  *
  * When override is provided, returns the resolved override path directly
  * (the caller is responsible for creating .procsi as needed).
@@ -100,26 +99,7 @@ export function findOrCreateProjectRoot(
     return resolveOverridePath(override);
   }
 
-  let currentDir = path.resolve(startDir);
-  const root = path.parse(currentDir).root;
-  let gitRoot: string | undefined;
-
-  while (currentDir !== root) {
-    // Check for .procsi directory first - this takes priority
-    if (fs.existsSync(path.join(currentDir, PROCSI_DIR))) {
-      return currentDir;
-    }
-
-    // Remember the git root if we find one
-    if (!gitRoot && fs.existsSync(path.join(currentDir, ".git"))) {
-      gitRoot = currentDir;
-    }
-
-    currentDir = path.dirname(currentDir);
-  }
-
-  // Fall back to home directory for a global procsi instance
-  return gitRoot ?? os.homedir();
+  return findProjectRoot(startDir) ?? os.homedir();
 }
 
 /**

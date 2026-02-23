@@ -47,6 +47,8 @@ export async function isDaemonRunning(projectRoot: string): Promise<boolean> {
   const client = new ControlClient(paths.controlSocketFile);
   try {
     return await client.ping();
+  } catch {
+    return false;
   } finally {
     client.close();
   }

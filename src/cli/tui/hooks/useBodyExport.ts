@@ -120,7 +120,7 @@ function getExtensionFromContentType(contentType: string): string {
 /**
  * Resolve the target directory based on save location.
  */
-function resolveTargetDir(location: SaveLocation, customPath?: string): string {
+export function resolveTargetDir(location: SaveLocation, customPath?: string): string {
   switch (location) {
     case "exports": {
       const projectRoot = findOrCreateProjectRoot();

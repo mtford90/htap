@@ -133,8 +133,10 @@ async function main() {
     replayTracker,
   });
 
-  // Write proxy port to file
+  // Write proxy port and PID files before the control server starts,
+  // so they exist by the time waitForDaemon's ping() succeeds.
   writeProxyPort(projectRoot, proxy.port);
+  writeDaemonPid(projectRoot, process.pid);
 
   // Write preferred port for next restart
   fs.writeFileSync(paths.preferredPortFile, proxy.port.toString(), "utf-8");
@@ -159,9 +161,6 @@ async function main() {
     replayTracker,
     caCertPem,
   });
-
-  // Write PID file
-  writeDaemonPid(projectRoot, process.pid);
 
   logger.info("Daemon started", {
     pid: process.pid,
