@@ -92,11 +92,12 @@ Validated support for mocking fully fictional hosts/paths through interceptors, 
 
 ## Up Next
 
-Each feature should be considered across all three surfaces where applicable:
+Each feature should be considered across all four surfaces where applicable:
 
 - **TUI** — interactive terminal UI (filter bar, keybindings, modals)
 - **CLI** — REST-like commands (`procsi requests --flag`)
 - **MCP** — AI-facing tools (`procsi_list_requests` etc.)
+- **API** — programmatic Node.js API (`import { ... } from 'procsi'`)
 
 ---
 
@@ -183,6 +184,20 @@ Each feature should be considered across all three surfaces where applicable:
 - [x] **Simplify README** — current README is ~700 lines; trim to quick-start + feature highlights + architecture diagram and move detailed reference (MCP tools/filters, full keybindings, CLI reference, interceptor cookbook) to a GitHub wiki. Inspiration: [sql-tap](https://github.com/mickamy/sql-tap) keeps its README short and scannable
 
 - [x] **CLI query interface** — see Completed section above
+
+- [ ] **TUI layout: full-width list + resizable panels** — improve panel layout when no request is selected and allow dynamic resizing
+  - When no request is selected, the request list should expand to fill the entire screen (no empty detail pane)
+  - Resizable panels (zellij-style): allow dragging or keybinding-based resizing of the request list / detail pane split
+
+- [ ] **Programmatic Node.js API** — `npm install procsi` and use from a script; fourth surface alongside TUI/CLI/MCP
+  - **Why:** procsi will be composed with other packages (SQL proxy, logger, OTEL tool) into a larger toolkit; needs to be embeddable, not just a standalone CLI
+  - Public API exported from `procsi` package entry point (e.g. `import { createProxy, ... } from 'procsi'`)
+  - Start/stop daemon programmatically, configure proxy settings, register interceptors
+  - Query captured traffic (list, filter, search, get request detail)
+  - Event-based hooks (on request captured, on interceptor match, etc.)
+  - Manage interceptors (load, reload, write, delete)
+  - Replay requests
+  - Clean separation from CLI — API should not depend on commander/ink
 
 ---
 

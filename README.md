@@ -4,15 +4,15 @@
 [![CI](https://github.com/mtford90/procsi/actions/workflows/ci.yml/badge.svg)](https://github.com/mtford90/procsi/actions/workflows/ci.yml)
 [![License: AGPL v3](https://img.shields.io/badge/License-AGPL_v3-blue.svg)](https://www.gnu.org/licenses/agpl-3.0)
 
-Procsi is a terminal-based, project-isolated HTTP proxy with a powerful CLI & MCP server. Quickly intercept, inspect & rewrite HTTP traffic from the comfort of your terminal or favourite AI agent.
+Procsi is a terminal-based, project-scoped HTTP proxy with a powerful CLI & MCP server. Quickly intercept, inspect & rewrite HTTP traffic from the comfort of your terminal or favourite AI agent.
 
 ![procsi demo](demo.gif)
 
 ## Feature Highlights
 
-- **Project isolation** — each project gets its own `.procsi/` directory with a separate daemon, database, CA cert and interceptors
+- **Project-scoped** — each project gets its own `.procsi/` directory with a separate daemon, database, CA cert and interceptors
 - **MCP server** — AI agents get full access to your captured traffic and can search, filter, inspect, mock — all via tool calls.
-- **Interceptors** — mock, modify or observe traffic with `.ts` files. Match on anything, query past traffic from within handlers, compose complex scenarios.
+- **Interceptors** — mock, modify or observe traffic by writing typescript. Agent can do this over MCP meaning you can express complex scenarios in natural language! 
 
 ## Quick Start
 
@@ -54,7 +54,7 @@ Each browser session gets its own isolated profile and is automatically attribut
 | Chromium | Chrome, Brave, Edge, Vivaldi, Arc, Chromium |
 | Firefox  | Firefox, Zen Browser, LibreWolf             |
 
-## Project Isolation
+## Project Scoping
 
 procsi doesn't use a global system proxy. Each project gets its own `.procsi/` directory in the project root (detected by `.git` or an existing `.procsi/`):
 
