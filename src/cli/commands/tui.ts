@@ -2,7 +2,7 @@ import { Command } from "commander";
 import { render } from "ink";
 import React from "react";
 import { App } from "../tui/App.js";
-import { findProjectRoot } from "../../shared/project.js";
+import { findProjectRoot, setConfigOverride, resolveOverridePath } from "../../shared/project.js";
 import { createLogger, parseVerbosity } from "../../shared/logger.js";
 import { getGlobalOptions } from "./helpers.js";
 
@@ -13,7 +13,14 @@ export const tuiCommand = new Command("tui")
     const globalOpts = getGlobalOptions(command);
     const verbosity = globalOpts.verbose;
     const logLevel = parseVerbosity(verbosity);
-    const projectRoot = findProjectRoot(undefined, globalOpts.dir);
+
+    if (globalOpts.config) {
+      setConfigOverride(resolveOverridePath(globalOpts.config));
+    }
+
+    const projectRoot = globalOpts.config
+      ? resolveOverridePath(globalOpts.config)
+      : findProjectRoot(undefined, globalOpts.dir);
 
     // Log TUI startup
     if (projectRoot) {

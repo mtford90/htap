@@ -28,7 +28,8 @@ program
     (_, prev: number) => prev + 1,
     0
   )
-  .option("-d, --dir <path>", "override project root directory");
+  .option("-d, --dir <path>", "override project root directory")
+  .option("-c, --config <path>", "override procsi data directory (no .procsi appended)");
 
 program.addCommand(browserCommand);
 program.addCommand(clearCommand);

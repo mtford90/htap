@@ -17,6 +17,7 @@ import {
   writeProxyPort,
   writeDaemonPid,
   removeDaemonPid,
+  setConfigOverride,
 } from "../shared/project.js";
 import { createLogger, isValidLogLevel, type LogLevel } from "../shared/logger.js";
 import { getProcsiVersion } from "../shared/version.js";
@@ -27,6 +28,12 @@ import { loadConfig } from "../shared/config.js";
  * Expected to be spawned as a background process with PROJECT_ROOT env var set.
  */
 async function main() {
+  // Apply config override before any path resolution
+  const configOverride = process.env["PROCSI_CONFIG"];
+  if (configOverride) {
+    setConfigOverride(configOverride);
+  }
+
   const projectRoot = process.env["PROJECT_ROOT"];
   if (!projectRoot) {
     console.error("PROJECT_ROOT environment variable is required");

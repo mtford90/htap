@@ -2,11 +2,11 @@ import * as fs from "node:fs";
 import * as path from "node:path";
 import * as crypto from "node:crypto";
 import { Command } from "commander";
-import { findOrCreateProjectRoot, ensureProcsiDir, getProcsiPaths } from "../../shared/project.js";
+import { ensureProcsiDir, getProcsiPaths } from "../../shared/project.js";
 import { startDaemon } from "../../shared/daemon.js";
 import { ControlClient } from "../../shared/control-client.js";
 import { parseVerbosity } from "../../shared/logger.js";
-import { getErrorMessage, getGlobalOptions } from "./helpers.js";
+import { getErrorMessage, getGlobalOptions, resolveProjectContext } from "./helpers.js";
 import { detectBrowsers, findBrowser, launchBrowser } from "../../shared/browser.js";
 
 export const browserCommand = new Command("browser")
@@ -40,7 +40,7 @@ export const browserCommand = new Command("browser")
       }
 
       // Ensure project root and daemon
-      const projectRoot = findOrCreateProjectRoot(undefined, globalOpts.dir);
+      const projectRoot = resolveProjectContext(globalOpts);
       ensureProcsiDir(projectRoot);
       const paths = getProcsiPaths(projectRoot);
 

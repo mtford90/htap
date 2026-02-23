@@ -1,5 +1,6 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
+import { getProcsiDir } from "./project.js";
 import { createLogger, type LogLevel } from "./logger.js";
 
 export const DEFAULT_MAX_STORED_REQUESTS = 5000;
@@ -72,7 +73,7 @@ function validateConfig(raw: Record<string, unknown>): ProcsiConfig {
  * if the JSON is malformed or contains invalid values.
  */
 export function loadConfig(projectRoot: string, logLevel?: LogLevel): ProcsiConfig {
-  const configPath = path.join(projectRoot, ".procsi", "config.json");
+  const configPath = path.join(getProcsiDir(projectRoot), "config.json");
 
   if (!fs.existsSync(configPath)) {
     return { ...DEFAULT_CONFIG };

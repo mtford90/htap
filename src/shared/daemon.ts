@@ -2,7 +2,13 @@ import * as fs from "node:fs";
 import * as path from "node:path";
 import { spawn } from "node:child_process";
 import { fileURLToPath } from "node:url";
-import { getProcsiPaths, readDaemonPid, isProcessRunning, ensureProcsiDir } from "./project.js";
+import {
+  getProcsiPaths,
+  readDaemonPid,
+  isProcessRunning,
+  ensureProcsiDir,
+  getConfigOverride,
+} from "./project.js";
 import { ControlClient } from "./control-client.js";
 import type { LogLevel } from "./logger.js";
 import { getProcsiVersion } from "./version.js";
@@ -149,11 +155,14 @@ async function spawnDaemon(projectRoot: string, logLevel: LogLevel): Promise<num
     ...cleanEnv
   } = process.env;
 
+  const configOverride = getConfigOverride();
+
   const child = spawn("node", [daemonPath], {
     env: {
       ...cleanEnv,
       PROJECT_ROOT: projectRoot,
       PROCSI_LOG_LEVEL: logLevel,
+      ...(configOverride ? { PROCSI_CONFIG: configOverride } : {}),
     },
     detached: true,
     stdio: ["ignore", out, err],

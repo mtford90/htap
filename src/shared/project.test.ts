@@ -14,6 +14,8 @@ import {
   writeDaemonPid,
   removeDaemonPid,
   isProcessRunning,
+  setConfigOverride,
+  getConfigOverride,
 } from "./project.js";
 
 describe("project utilities", () => {
@@ -296,6 +298,80 @@ describe("project utilities", () => {
       const result = findOrCreateProjectRoot(subDir);
       expect(typeof result).toBe("string");
       expect(result.length).toBeGreaterThan(0);
+    });
+  });
+
+  describe("config override", () => {
+    afterEach(() => {
+      setConfigOverride(undefined);
+    });
+
+    it("setConfigOverride sets the override and getConfigOverride returns it", () => {
+      expect(getConfigOverride()).toBeUndefined();
+      setConfigOverride("/tmp/custom-procsi");
+      expect(getConfigOverride()).toBe("/tmp/custom-procsi");
+    });
+
+    it("setConfigOverride(undefined) clears the override", () => {
+      setConfigOverride("/tmp/custom-procsi");
+      setConfigOverride(undefined);
+      expect(getConfigOverride()).toBeUndefined();
+    });
+
+    it("getProcsiDir returns the override when set, ignoring projectRoot", () => {
+      const overrideDir = path.join(tempDir, "custom-data");
+      setConfigOverride(overrideDir);
+      const result = getProcsiDir("/some/ignored/path");
+      expect(result).toBe(overrideDir);
+    });
+
+    it("getProcsiDir returns projectRoot + .procsi when no override is set", () => {
+      const result = getProcsiDir(tempDir);
+      expect(result).toBe(path.join(tempDir, ".procsi"));
+    });
+
+    it("getProcsiPaths uses the override as the procsi dir when set", () => {
+      const overrideDir = path.join(tempDir, "custom-data");
+      setConfigOverride(overrideDir);
+      const paths = getProcsiPaths("/ignored");
+      expect(paths.procsiDir).toBe(overrideDir);
+      expect(paths.proxyPortFile).toBe(path.join(overrideDir, "proxy.port"));
+      expect(paths.controlSocketFile).toBe(path.join(overrideDir, "control.sock"));
+      expect(paths.databaseFile).toBe(path.join(overrideDir, "requests.db"));
+      expect(paths.pidFile).toBe(path.join(overrideDir, "daemon.pid"));
+      expect(paths.logFile).toBe(path.join(overrideDir, "procsi.log"));
+      expect(paths.configFile).toBe(path.join(overrideDir, "config.json"));
+    });
+
+    it("ensureProcsiDir creates the override directory when set", () => {
+      const overrideDir = path.join(tempDir, "custom-data");
+      setConfigOverride(overrideDir);
+      const result = ensureProcsiDir("/ignored");
+      expect(result).toBe(overrideDir);
+      expect(fs.existsSync(overrideDir)).toBe(true);
+    });
+
+    it("readProxyPort / writeProxyPort operate inside the override dir", () => {
+      const overrideDir = path.join(tempDir, "custom-data");
+      fs.mkdirSync(overrideDir, { recursive: true });
+      setConfigOverride(overrideDir);
+
+      writeProxyPort("/ignored", 9999);
+      expect(readProxyPort("/ignored")).toBe(9999);
+      expect(fs.existsSync(path.join(overrideDir, "proxy.port"))).toBe(true);
+    });
+
+    it("readDaemonPid / writeDaemonPid / removeDaemonPid operate inside the override dir", () => {
+      const overrideDir = path.join(tempDir, "custom-data");
+      fs.mkdirSync(overrideDir, { recursive: true });
+      setConfigOverride(overrideDir);
+
+      writeDaemonPid("/ignored", 12345);
+      expect(readDaemonPid("/ignored")).toBe(12345);
+      expect(fs.existsSync(path.join(overrideDir, "daemon.pid"))).toBe(true);
+
+      removeDaemonPid("/ignored");
+      expect(readDaemonPid("/ignored")).toBeUndefined();
     });
   });
 });

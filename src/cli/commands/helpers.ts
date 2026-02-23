@@ -1,28 +1,48 @@
 import { Command } from "commander";
-import { findProjectRoot, getProcsiPaths } from "../../shared/project.js";
+import {
+  findProjectRoot,
+  findOrCreateProjectRoot,
+  getProcsiPaths,
+  setConfigOverride,
+  getConfigOverride,
+  resolveOverridePath,
+} from "../../shared/project.js";
 import { isDaemonRunning } from "../../shared/daemon.js";
 import { ControlClient } from "../../shared/control-client.js";
 
 export interface GlobalOptions {
   verbose: number;
   dir?: string;
+  config?: string;
 }
 
 /**
  * Validate and extract global CLI options from a Commander command.
+ * CLI flags take precedence over environment variables.
  */
 export function getGlobalOptions(command: Command): GlobalOptions {
   const raw = command.optsWithGlobals() as Record<string, unknown>;
   return {
     verbose: typeof raw["verbose"] === "number" ? raw["verbose"] : 0,
-    dir: typeof raw["dir"] === "string" ? raw["dir"] : undefined,
+    dir: typeof raw["dir"] === "string" ? raw["dir"] : (process.env["PROCSI_DIR"] ?? undefined),
+    config:
+      typeof raw["config"] === "string"
+        ? raw["config"]
+        : (process.env["PROCSI_CONFIG"] ?? undefined),
   };
 }
 
 /**
  * Find the project root or exit with a friendly error message.
+ * When a config override is active, returns the override path as a
+ * stand-in project root (getProcsiDir will ignore it).
  */
 export function requireProjectRoot(override?: string): string {
+  const configOverride = getConfigOverride();
+  if (configOverride) {
+    return configOverride;
+  }
+
   const projectRoot = findProjectRoot(undefined, override);
   if (!projectRoot) {
     if (override) {
@@ -33,6 +53,21 @@ export function requireProjectRoot(override?: string): string {
     process.exit(1);
   }
   return projectRoot;
+}
+
+/**
+ * Set the config override from global options and return an appropriate
+ * project root. When --config is provided, the override is set and the
+ * resolved config path is returned (getProcsiDir will use the override).
+ * Otherwise falls back to findOrCreateProjectRoot with --dir.
+ */
+export function resolveProjectContext(globalOpts: GlobalOptions): string {
+  if (globalOpts.config) {
+    const resolved = resolveOverridePath(globalOpts.config);
+    setConfigOverride(resolved);
+    return resolved;
+  }
+  return findOrCreateProjectRoot(undefined, globalOpts.dir);
 }
 
 /**
@@ -51,6 +86,12 @@ export async function connectToDaemon(command: Command): Promise<{
   projectRoot: string;
 }> {
   const globalOpts = getGlobalOptions(command);
+
+  // Set config override before any path resolution
+  if (globalOpts.config) {
+    setConfigOverride(resolveOverridePath(globalOpts.config));
+  }
+
   const projectRoot = requireProjectRoot(globalOpts.dir);
   const paths = getProcsiPaths(projectRoot);
 
