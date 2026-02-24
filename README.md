@@ -12,7 +12,7 @@ Procsi is a terminal-based, project-scoped HTTP proxy with a powerful CLI & MCP 
 
 - **Project-scoped** — each project gets its own `.procsi/` directory with a separate daemon, database, CA cert and interceptors
 - **MCP server** — AI agents get full access to your captured traffic and can search, filter, inspect, mock — all via tool calls.
-- **Interceptors** — mock, modify or observe traffic by writing typescript. Agent can do this over MCP meaning you can express complex scenarios in natural language! 
+- **Interceptors** — mock, modify or observe traffic by writing typescript. Agent can do this over MCP meaning you can express complex scenarios in natural language!
 
 ## Quick Start
 
@@ -81,13 +81,7 @@ procsi --config /tmp/my-procsi-data on
 
 See [CLI Reference](docs/cli-reference.md) for the full resolution order (`--config` > `--dir` > auto-detect).
 
-## Use cases
-
-- AI analysis
-- Chaos monkey
-- Mock out APIs that do not yet exist
-
-## MCP Integration
+#### MCP Integration
 
 procsi has a built-in [MCP](https://modelcontextprotocol.io/) server that gives AI agents full access to your captured traffic and interceptor system.
 
