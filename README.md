@@ -304,6 +304,10 @@ Your HTTP client needs to respect proxy environment variables.
 
 There are workarounds implemented for node - e.g. fetch override. Other libraries in different environments may need a similar treatment.
 
+## Acknowledgements
+
+procsi is built on top of [MockTTP](https://github.com/httptoolkit/mockttp) by [Tim Perry](https://github.com/pimterry), the same MITM proxy engine that powers [HTTP Toolkit](https://httptoolkit.com/).
+
 ## Licence
 
 AGPL-3.0-or-later
