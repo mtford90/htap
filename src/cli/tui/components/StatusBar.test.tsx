@@ -266,22 +266,11 @@ describe("StatusBar component", () => {
   });
 
   describe("following badge", () => {
-    it("renders [FOLLOWING] badge when following is true", () => {
+    it("does not render following badge in status bar (moved to panel border)", () => {
       const { lastFrame } = render(<StatusBar following />);
       const frame = lastFrame();
-      expect(frame).toContain("FOLLOWING");
-    });
-
-    it("does not render [FOLLOWING] badge when following is false", () => {
-      const { lastFrame } = render(<StatusBar following={false} />);
-      const frame = lastFrame();
       expect(frame).not.toContain("FOLLOWING");
-    });
-
-    it("does not render [FOLLOWING] badge when following is undefined", () => {
-      const { lastFrame } = render(<StatusBar />);
-      const frame = lastFrame();
-      expect(frame).not.toContain("FOLLOWING");
+      expect(frame).not.toContain("Following");
     });
   });
 

@@ -43,8 +43,6 @@ export interface StatusBarProps {
   filterOpen?: boolean;
   /** When true, cursor auto-tracks the newest request. */
   following?: boolean;
-  /** Number of unseen new requests while browsing (follow mode off). */
-  pendingNewCount?: number;
   hasSelection?: boolean;
   hasRequests?: boolean;
   onViewableBodySection?: boolean;
@@ -73,7 +71,6 @@ export function StatusBar({
   filterActive,
   filterOpen,
   following,
-  pendingNewCount,
   hasSelection,
   hasRequests,
   onViewableBodySection,
@@ -113,18 +110,6 @@ export function StatusBar({
           {interceptorCount !== undefined && interceptorCount > 0 && (
             <>
               <Text color="magenta" bold>[{interceptorCount} interceptor{interceptorCount === 1 ? "" : "s"}]</Text>
-              <Text dimColor> │ </Text>
-            </>
-          )}
-          {following && (
-            <>
-              <Text color="green" bold>[FOLLOWING]</Text>
-              <Text dimColor> │ </Text>
-            </>
-          )}
-          {!following && (pendingNewCount ?? 0) > 0 && (
-            <>
-              <Text color="cyan" bold>[{pendingNewCount} new]</Text>
               <Text dimColor> │ </Text>
             </>
           )}
