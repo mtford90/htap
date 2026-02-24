@@ -2,9 +2,80 @@ import { Command } from "commander";
 import { createProcsiMcpServer } from "../../mcp/server.js";
 import { getGlobalOptions, requireProjectRoot } from "./helpers.js";
 
+const SEPARATOR_WIDTH = 48;
+
+function printSetupInstructions(): void {
+  console.log("procsi MCP server");
+  console.log("");
+  console.log("Add procsi to your AI tool to give it access to captured HTTP traffic.");
+  console.log("");
+
+  const clients: { name: string; lines: string[] }[] = [
+    {
+      name: "Claude Code",
+      lines: ["  claude mcp add procsi -- procsi mcp"],
+    },
+    {
+      name: "Cursor",
+      lines: [
+        "  Add to .cursor/mcp.json:",
+        "",
+        "  {",
+        '    "mcpServers": {',
+        '      "procsi": {',
+        '        "command": "procsi",',
+        '        "args": ["mcp"]',
+        "      }",
+        "    }",
+        "  }",
+      ],
+    },
+    {
+      name: "Codex",
+      lines: ["  codex mcp add procsi -- procsi mcp"],
+    },
+    {
+      name: "Other (Windsurf, etc.)",
+      lines: [
+        "  Add to your MCP client config:",
+        "",
+        "  {",
+        '    "mcpServers": {',
+        '      "procsi": {',
+        '        "command": "procsi",',
+        '        "args": ["mcp"]',
+        "      }",
+        "    }",
+        "  }",
+      ],
+    },
+  ];
+
+  for (const client of clients) {
+    const label = ` ${client.name} `;
+    const padding = "\u2500".repeat(Math.max(0, SEPARATOR_WIDTH - label.length - 2));
+    console.log(`\u2500\u2500${label}${padding}`);
+    console.log("");
+    for (const line of client.lines) {
+      console.log(line);
+    }
+    console.log("");
+  }
+
+  console.log(
+    'Note: The proxy must be running (eval "$(procsi on)") for the MCP server to connect.'
+  );
+}
+
 export const mcpCommand = new Command("mcp")
   .description("Start the procsi MCP server (stdio transport for AI tool integration)")
   .action(async (_, command: Command) => {
+    // If stdout is a TTY, user ran directly — show setup instructions instead
+    if (process.stdout.isTTY) {
+      printSetupInstructions();
+      return;
+    }
+
     const globalOpts = getGlobalOptions(command);
     const projectRoot = requireProjectRoot(globalOpts.dir);
 
