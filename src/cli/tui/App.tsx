@@ -967,6 +967,8 @@ function AppContent({ __testEnableInput, projectRoot }: AppProps): React.ReactEl
           onItemClick={handleItemClick}
           scrollOffset={effectiveListScrollOffset}
           searchTerm={bodySearch ? undefined : filter.search}
+          following={following}
+          pendingNewCount={pendingNewCount}
         />
         {hasSelectedRequest && (
           <AccordionPanel
@@ -1010,7 +1012,6 @@ function AppContent({ __testEnableInput, projectRoot }: AppProps): React.ReactEl
         filterActive={isFilterActive(filter) || bodySearch !== undefined}
         filterOpen={showFilter}
         following={following}
-        pendingNewCount={pendingNewCount}
         hasSelection={selectedFullRequest !== null}
         hasRequests={requests.length > 0}
         onViewableBodySection={currentBodyIsExportable && !currentBodyIsBinary}

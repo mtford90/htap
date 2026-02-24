@@ -1766,7 +1766,7 @@ describe("App keyboard interactions", () => {
 
       // Follow badge should NOT be shown
       let frame = lastFrame();
-      expect(frame).not.toContain("FOLLOWING");
+      expect(frame).not.toContain("Following");
 
       // Press F to enter follow mode
       stdin.write("F");
@@ -1774,7 +1774,7 @@ describe("App keyboard interactions", () => {
 
       // Follow badge should appear, cursor should be at index 0
       frame = lastFrame();
-      expect(frame).toContain("FOLLOWING");
+      expect(frame).toContain("Following");
       expect(mockGetFullRequest).toHaveBeenCalledWith("test-0");
     });
 
@@ -1785,13 +1785,13 @@ describe("App keyboard interactions", () => {
       await tick();
 
       // Starts in follow mode
-      expect(lastFrame()).toContain("FOLLOWING");
+      expect(lastFrame()).toContain("Following");
 
       // Press j to navigate — should exit follow mode
       stdin.write("j");
       await tick();
 
-      expect(lastFrame()).not.toContain("FOLLOWING");
+      expect(lastFrame()).not.toContain("Following");
     });
 
     it("g enters follow mode", async () => {
@@ -1803,13 +1803,13 @@ describe("App keyboard interactions", () => {
       // Navigate down (exits follow mode)
       stdin.write("j");
       await tick();
-      expect(lastFrame()).not.toContain("FOLLOWING");
+      expect(lastFrame()).not.toContain("Following");
 
       // Press g to jump to top — re-enters follow mode
       stdin.write("g");
       await tick();
 
-      expect(lastFrame()).toContain("FOLLOWING");
+      expect(lastFrame()).toContain("Following");
     });
 
     it("follow mode tracks newest request on list update", async () => {
@@ -1839,7 +1839,7 @@ describe("App keyboard interactions", () => {
       await tick();
 
       // Should be in follow mode at index 0
-      expect(lastFrame()).toContain("FOLLOWING");
+      expect(lastFrame()).toContain("Following");
       expect(mockGetFull).toHaveBeenCalledWith("req-a");
 
       // Simulate a new request prepending to the list
@@ -1866,7 +1866,7 @@ describe("App keyboard interactions", () => {
 
       // Follow mode keeps cursor at index 0, which is now req-new
       expect(mockGetFull).toHaveBeenCalledWith("req-new");
-      expect(lastFrame()).toContain("FOLLOWING");
+      expect(lastFrame()).toContain("Following");
     });
 
     it("multiple rapid request arrivals in browsing mode keep selection stable", async () => {
@@ -1940,14 +1940,14 @@ describe("App keyboard interactions", () => {
       await tick();
 
       // Starts in follow mode
-      expect(lastFrame()).toContain("FOLLOWING");
+      expect(lastFrame()).toContain("Following");
 
       // Press G to jump to last item
       stdin.write("G");
       await tick();
 
       // Should exit follow mode and select the last item
-      expect(lastFrame()).not.toContain("FOLLOWING");
+      expect(lastFrame()).not.toContain("Following");
       expect(mockGetFullRequest).toHaveBeenCalledWith("test-4");
     });
 
@@ -1958,14 +1958,14 @@ describe("App keyboard interactions", () => {
       await tick();
 
       // Starts in follow mode
-      expect(lastFrame()).toContain("FOLLOWING");
+      expect(lastFrame()).toContain("Following");
 
       // Press Ctrl+d
       stdin.write("\x04");
       await tick();
 
       // Should exit follow mode
-      expect(lastFrame()).not.toContain("FOLLOWING");
+      expect(lastFrame()).not.toContain("Following");
     });
 
     it("Ctrl+u (half-page up) exits follow mode", async () => {
@@ -1975,13 +1975,13 @@ describe("App keyboard interactions", () => {
       await tick();
 
       // Starts in follow mode
-      expect(lastFrame()).toContain("FOLLOWING");
+      expect(lastFrame()).toContain("Following");
 
       // Press Ctrl+u — unconditionally exits follow mode even from index 0
       stdin.write("\x15");
       await tick();
 
-      expect(lastFrame()).not.toContain("FOLLOWING");
+      expect(lastFrame()).not.toContain("Following");
     });
 
     it("clear requests resets to follow mode", async () => {
@@ -1993,7 +1993,7 @@ describe("App keyboard interactions", () => {
       // Navigate down to exit follow mode
       stdin.write("j");
       await tick();
-      expect(lastFrame()).not.toContain("FOLLOWING");
+      expect(lastFrame()).not.toContain("Following");
 
       // Trigger clear: press x then confirm with y
       stdin.write("x");
@@ -2006,7 +2006,7 @@ describe("App keyboard interactions", () => {
       await tick(3200);
 
       // Follow mode should be re-entered
-      expect(lastFrame()).toContain("FOLLOWING");
+      expect(lastFrame()).toContain("Following");
     });
 
     it("selected request disappears from list without crashing", async () => {

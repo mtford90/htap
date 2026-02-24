@@ -19,10 +19,14 @@ interface RequestListProps {
   onItemClick?: (index: number) => void;
   scrollOffset?: number;
   searchTerm?: string;
+  /** When true, cursor auto-tracks the newest request. */
+  following?: boolean;
+  /** Number of unseen new requests while browsing (follow mode off). */
+  pendingNewCount?: number;
 }
 
 export const RequestList = forwardRef<DOMElement, RequestListProps>(function RequestList(
-  { requests, selectedIndex, isActive, isHovered, width, height, showFullUrl, onItemClick, scrollOffset: providedScrollOffset, searchTerm },
+  { requests, selectedIndex, isActive, isHovered, width, height, showFullUrl, onItemClick, scrollOffset: providedScrollOffset, searchTerm, following, pendingNewCount },
   ref,
 ) {
   // Calculate visible window (accounting for border - 2 lines for top/bottom)
@@ -44,11 +48,24 @@ export const RequestList = forwardRef<DOMElement, RequestListProps>(function Req
     rightValue = `${effectiveScrollOffset + 1}-${Math.min(effectiveScrollOffset + visibleHeight, requests.length)}/${requests.length}`;
   }
 
+  // Centre label: following indicator or new-request count
+  let centerValue: string | undefined;
+  let centerColor: string | undefined;
+  if (following) {
+    centerValue = "Following";
+    centerColor = "green";
+  } else if ((pendingNewCount ?? 0) > 0) {
+    centerValue = `${pendingNewCount} new`;
+    centerColor = "cyan";
+  }
+
   return (
     <Panel
       ref={ref}
       title={title}
       rightValue={rightValue}
+      centerValue={centerValue}
+      centerColor={centerColor}
       isActive={isActive}
       isHovered={isHovered}
       width={width}
