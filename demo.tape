@@ -7,15 +7,17 @@ Set Height 700
 Set Padding 20
 Set TypingSpeed 40ms
 
-# Launch TUI off-screen, then show once it's rendered
+# Launch TUI off-screen, wait for render and requests to stream in
 Hide
 Type "node dist/cli/index.js tui"
 Enter
 Sleep 2s
 Show
 
-# Scroll through request list to show variety of methods, statuses, sources
-Sleep 800ms
+# Follow mode — requests auto-scroll with green "Following" badge visible
+Sleep 3s
+
+# Exit follow — scroll down to break out of follow mode
 Type "j"
 Sleep 400ms
 Type "j"
@@ -25,7 +27,14 @@ Sleep 400ms
 Type "j"
 Sleep 400ms
 Type "j"
-Sleep 600ms
+Sleep 400ms
+
+# Pause so the cyan "N new" count appears and grows
+Sleep 2s
+
+# Re-enter follow mode — snap back to latest with "Following" badge
+Type "F"
+Sleep 2s
 
 # Switch to detail panel to inspect a request
 Tab

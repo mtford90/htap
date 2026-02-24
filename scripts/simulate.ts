@@ -189,12 +189,12 @@ const REQUEST_POOL: SimRequest[] = [
   },
   {
     method: "GET",
-    url: "http://httpbin.org/status/404",
+    url: "http://httpbin.org/json",
     headers: { "user-agent": "curl/8.4.0", accept: "*/*" },
   },
   {
     method: "GET",
-    url: "http://httpbin.org/status/500",
+    url: "http://httpbin.org/ip",
     headers: { "user-agent": "curl/8.4.0", accept: "*/*" },
   },
   {
@@ -209,7 +209,7 @@ const REQUEST_POOL: SimRequest[] = [
   },
   {
     method: "GET",
-    url: "http://example.com/",
+    url: "http://httpbin.org/user-agent",
     headers: { "user-agent": "curl/8.4.0", accept: "*/*" },
   },
   {
@@ -266,15 +266,14 @@ const REQUEST_POOL: SimRequest[] = [
   },
   {
     method: "POST",
-    url: "http://api.example.com/v2/users",
+    url: "http://jsonplaceholder.typicode.com/posts",
     headers: jsonHeaders({ "user-agent": "python-requests/2.31.0" }),
-    body: JSON.stringify({ email: "not-an-email", name: "" }),
+    body: JSON.stringify({ title: "New post", body: "Lorem ipsum", userId: 1 }),
   },
   {
-    method: "POST",
-    url: "http://api.example.com/v1/payments",
+    method: "GET",
+    url: "http://jsonplaceholder.typicode.com/users/1",
     headers: jsonHeaders({ "user-agent": "Faraday v2.7.0" }),
-    body: JSON.stringify({ amount: -100, currency: "gbp" }),
   },
 ];
 
