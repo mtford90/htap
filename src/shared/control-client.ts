@@ -13,6 +13,7 @@ import type {
   Session,
   BodySearchTarget,
   ReplayInitiator,
+  RequestListDeltaResult,
 } from "./types.js";
 
 const CONTROL_TIMEOUT_MS = 5000;
@@ -211,6 +212,17 @@ export class ControlClient {
     filter?: RequestFilter;
   }): Promise<CapturedRequestSummary[]> {
     return this.request<CapturedRequestSummary[]>("listRequestsSummary", options);
+  }
+
+  /**
+   * Fetch incremental request list updates using a monotonic change cursor.
+   */
+  async listRequestsSummaryDelta(options: {
+    afterChangeSeq: number;
+    limit?: number;
+    filter?: RequestFilter;
+  }): Promise<RequestListDeltaResult> {
+    return this.request<RequestListDeltaResult>("listRequestsSummaryDelta", options);
   }
 
   /**

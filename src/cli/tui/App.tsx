@@ -99,16 +99,16 @@ function AppContent({ __testEnableInput, projectRoot }: AppProps): React.ReactEl
   const { saveBody } = useBodyExport();
   const spinnerFrame = useSpinner(isLoading && requests.length === 0);
 
-  const [selectedIndex, setSelectedIndex] = useState(0);
+  const [selectedRequestId, setSelectedRequestId] = useState<string | null>(null);
+  const [topVisibleRequestId, setTopVisibleRequestId] = useState<string | null>(null);
+  const [pendingNewCount, setPendingNewCount] = useState(0);
   const [activePanel, setActivePanel] = useState<Panel>("list");
   const [statusMessage, setStatusMessage] = useState<string | undefined>();
   const [showFullUrl, setShowFullUrl] = useState(false);
   const [hoveredPanel, setHoveredPanel] = useState<Panel | null>(null);
-  const [listScrollOffset, setListScrollOffset] = useState(0);
 
   // Follow mode — when true, cursor tracks the newest request (index 0)
   const [following, setFollowing] = useState(true);
-  const selectedRequestIdRef = useRef<string | null>(null);
 
   // Accordion state — independent expand/collapse per section
   const [focusedSection, setFocusedSection] = useState(SECTION_REQUEST);
@@ -179,34 +179,69 @@ function AppContent({ __testEnableInput, projectRoot }: AppProps): React.ReactEl
   const hasSelectedRequestRef = useRef(selectedFullRequest !== null);
   hasSelectedRequestRef.current = selectedFullRequest !== null;
 
+  const filterBarHeight = showFilter ? 2 : 0;
+  const infoBarHeight = 1;
+  const contentHeight = rows - 2 - infoBarHeight - filterBarHeight;
+
   // Refs for wheel handler to avoid stale closures
   // (useOnWheel may not update its stored callback on every render)
-  const contentHeightRef = useRef(rows - 2);
-  contentHeightRef.current = rows - 2;
+  const contentHeightRef = useRef(contentHeight);
+  contentHeightRef.current = contentHeight;
   const requestsLengthRef = useRef(requests.length);
   requestsLengthRef.current = requests.length;
+  const followingRef = useRef(following);
+  followingRef.current = following;
+  const requestsRef = useRef(requests);
+  requestsRef.current = requests;
+  const visibleListHeight = Math.max(1, contentHeight - 2);
+  const maxListOffset = Math.max(0, requests.length - visibleListHeight);
+
+  const selectedIndex = useMemo(() => {
+    if (requests.length === 0) {
+      return -1;
+    }
+
+    if (selectedRequestId) {
+      const matchedIndex = requests.findIndex((request) => request.id === selectedRequestId);
+      if (matchedIndex !== -1) {
+        return matchedIndex;
+      }
+    }
+
+    if (following) {
+      return 0;
+    }
+
+    return 0;
+  }, [following, requests, selectedRequestId]);
+
+  const effectiveListScrollOffset = useMemo(() => {
+    if (following) {
+      return 0;
+    }
+
+    if (topVisibleRequestId) {
+      const topIndex = requests.findIndex((request) => request.id === topVisibleRequestId);
+      if (topIndex !== -1) {
+        return Math.min(topIndex, maxListOffset);
+      }
+    }
+
+    if (selectedIndex <= 0) {
+      return 0;
+    }
+
+    return Math.min(selectedIndex, maxListOffset);
+  }, [following, topVisibleRequestId, requests, selectedIndex, maxListOffset]);
+
+  const effectiveListScrollOffsetRef = useRef(0);
+  effectiveListScrollOffsetRef.current = effectiveListScrollOffset;
+
+  const selectedIndexRef = useRef(selectedIndex);
+  selectedIndexRef.current = selectedIndex;
 
   // Get the summary for the currently selected request
-  const selectedSummary = requests[selectedIndex];
-
-  // Re-anchor cursor when requests change, adjusting scroll offset to keep
-  // the selected item at the same visual position on screen.
-  useEffect(() => {
-    if (following) {
-      if (requests.length > 0 && selectedIndex !== 0) {
-        setSelectedIndex(0);
-      }
-      return;
-    }
-    const targetId = selectedRequestIdRef.current;
-    if (!targetId || requests.length === 0) return;
-    const newIndex = requests.findIndex((r) => r.id === targetId);
-    if (newIndex !== -1 && newIndex !== selectedIndex) {
-      const indexDelta = newIndex - selectedIndex;
-      setSelectedIndex(newIndex);
-      setListScrollOffset((prev) => Math.max(0, prev + indexDelta));
-    }
-  }, [requests]);
+  const selectedSummary = selectedIndex >= 0 ? requests[selectedIndex] : undefined;
 
   // Stores the filter state at the moment the filter bar opens, so Escape can revert
   const preOpenFilterRef = useRef<RequestFilter>({});
@@ -215,15 +250,17 @@ function AppContent({ __testEnableInput, projectRoot }: AppProps): React.ReactEl
   // Handle filter change from the filter bar
   const handleFilterChange = useCallback((newFilter: RequestFilter) => {
     setFilter(newFilter);
-    setSelectedIndex(0);
-    selectedRequestIdRef.current = null;
+    setSelectedRequestId(null);
+    setTopVisibleRequestId(null);
+    setPendingNewCount(0);
     setFollowing(true);
   }, []);
 
   const handleBodySearchChange = useCallback((nextBodySearch: BodySearchOptions | undefined) => {
     setBodySearch(nextBodySearch);
-    setSelectedIndex(0);
-    selectedRequestIdRef.current = null;
+    setSelectedRequestId(null);
+    setTopVisibleRequestId(null);
+    setPendingNewCount(0);
     setFollowing(true);
   }, []);
 
@@ -231,28 +268,56 @@ function AppContent({ __testEnableInput, projectRoot }: AppProps): React.ReactEl
   const handleFilterCancel = useCallback(() => {
     setFilter(preOpenFilterRef.current);
     setBodySearch(preOpenBodySearchRef.current);
-    setSelectedIndex(0);
-    selectedRequestIdRef.current = null;
+    setSelectedRequestId(null);
+    setTopVisibleRequestId(null);
+    setPendingNewCount(0);
     setFollowing(true);
     setShowFilter(false);
   }, []);
 
   // Handle item click from the request list
   const handleItemClick = useCallback((index: number) => {
-    selectedRequestIdRef.current = requests[index]?.id ?? null;
-    if (following) setFollowing(false);
-    setSelectedIndex(index);
+    const selected = requests[index];
+    if (!selected) {
+      return;
+    }
+
+    if (following) {
+      setFollowing(false);
+      setTopVisibleRequestId(requests[effectiveListScrollOffsetRef.current]?.id ?? requests[0]?.id ?? null);
+    }
+
+    setSelectedRequestId(selected.id);
     setActivePanel("list");
   }, [requests, following]);
 
-  // Fetch full request data when selection changes
+  const selectedDetailRequestIdRef = useRef<string | null>(null);
+
+  // Fetch full request data when selection changes.
+  // Guard against stale async responses when selection changes rapidly.
   useEffect(() => {
-    if (selectedSummary) {
-      void getFullRequest(selectedSummary.id).then(setSelectedFullRequest);
-    } else {
+    if (!selectedSummary) {
+      selectedDetailRequestIdRef.current = null;
       setSelectedFullRequest(null);
+      return;
     }
-  }, [selectedSummary?.id, getFullRequest]);
+
+    // In browse mode, wait for an explicit ID anchor before fetching detail.
+    // This avoids transient fetches for index 0 during follow->browse transitions.
+    if (!following && !selectedRequestId) {
+      return;
+    }
+
+    const requestId = selectedSummary.id;
+    selectedDetailRequestIdRef.current = requestId;
+
+    void getFullRequest(requestId).then((fullRequest) => {
+      if (selectedDetailRequestIdRef.current !== requestId) {
+        return;
+      }
+      setSelectedFullRequest(fullRequest);
+    });
+  }, [selectedSummary?.id, getFullRequest, following, selectedRequestId]);
 
   // Reset all sections to expanded when a new request is selected
   useEffect(() => {
@@ -261,15 +326,98 @@ function AppContent({ __testEnableInput, projectRoot }: AppProps): React.ReactEl
     }
   }, [selectedSummary?.id]);
 
+  // Keep browse-mode selection valid when the selected request disappears.
+  useEffect(() => {
+    if (following) {
+      return;
+    }
+
+    if (requests.length === 0) {
+      if (selectedRequestId !== null) {
+        setSelectedRequestId(null);
+      }
+      return;
+    }
+
+    if (!selectedRequestId) {
+      return;
+    }
+
+    if (!requests.some((request) => request.id === selectedRequestId)) {
+      const fallbackIndex = Math.min(effectiveListScrollOffsetRef.current, requests.length - 1);
+      setSelectedRequestId(requests[fallbackIndex]?.id ?? requests[0]?.id ?? null);
+    }
+  }, [following, requests, selectedRequestId]);
+
+  // Track how many new requests arrived while browsing.
+  const previousRequestIdsRef = useRef<string[]>([]);
+  useEffect(() => {
+    const previousIds = previousRequestIdsRef.current;
+
+    if (following) {
+      setPendingNewCount(0);
+      previousRequestIdsRef.current = requests.map((request) => request.id);
+      return;
+    }
+
+    if (previousIds.length > 0 && requests.length > 0) {
+      const previousIdSet = new Set(previousIds);
+      let prependedCount = 0;
+
+      for (const request of requests) {
+        if (previousIdSet.has(request.id)) {
+          break;
+        }
+        prependedCount += 1;
+      }
+
+      if (prependedCount > 0) {
+        setPendingNewCount((prev) => prev + prependedCount);
+      }
+    }
+
+    previousRequestIdsRef.current = requests.map((request) => request.id);
+  }, [requests, following]);
+
+  // Keep selected row visible in browse mode.
+  useEffect(() => {
+    if (following || selectedIndex < 0) {
+      return;
+    }
+
+    const currentOffset = effectiveListScrollOffset;
+
+    if (selectedIndex < currentOffset) {
+      setTopVisibleRequestId(requests[selectedIndex]?.id ?? null);
+      return;
+    }
+
+    if (selectedIndex >= currentOffset + visibleListHeight) {
+      const nextOffset = selectedIndex - visibleListHeight + 1;
+      setTopVisibleRequestId(requests[nextOffset]?.id ?? null);
+    }
+  }, [following, selectedIndex, effectiveListScrollOffset, visibleListHeight, requests]);
+
   // Handle scroll wheel on list panel - scrolls the view, not the selection
   useOnWheel(listPanelRef, (event) => {
     // Use refs to avoid stale closures if useOnWheel caches the callback
     const visibleHeight = Math.max(1, contentHeightRef.current - 2);
     const maxOffset = Math.max(0, requestsLengthRef.current - visibleHeight);
+    const currentOffset = effectiveListScrollOffsetRef.current;
+
+    const currentRequests = requestsRef.current;
+
+    if (followingRef.current) {
+      setFollowing(false);
+      setTopVisibleRequestId(currentRequests[currentOffset]?.id ?? currentRequests[0]?.id ?? null);
+    }
+
     if (event.button === "wheel-up") {
-      setListScrollOffset((prev) => Math.max(prev - 1, 0));
+      const nextOffset = Math.max(currentOffset - 1, 0);
+      setTopVisibleRequestId(currentRequests[nextOffset]?.id ?? null);
     } else if (event.button === "wheel-down") {
-      setListScrollOffset((prev) => Math.min(prev + 1, maxOffset));
+      const nextOffset = Math.min(currentOffset + 1, maxOffset);
+      setTopVisibleRequestId(currentRequests[nextOffset]?.id ?? null);
     }
   });
 
@@ -432,7 +580,9 @@ function AppContent({ __testEnableInput, projectRoot }: AppProps): React.ReactEl
       if (pendingClear) {
         setPendingClear(false);
         if (input === "y") {
-          selectedRequestIdRef.current = null;
+          setSelectedRequestId(null);
+          setTopVisibleRequestId(null);
+          setPendingNewCount(0);
           setFollowing(true);
           void clearRequests().then((success) => {
             showStatus(success ? "Requests cleared (bookmarks preserved)" : "Failed to clear requests");
@@ -446,20 +596,32 @@ function AppContent({ __testEnableInput, projectRoot }: AppProps): React.ReactEl
       // Navigation - behaviour depends on active panel
       if (input === "j" || key.downArrow) {
         if (activePanel === "list") {
-          if (following) setFollowing(false);
-          const newIdx = Math.min(selectedIndex + 1, requests.length - 1);
-          selectedRequestIdRef.current = requests[newIdx]?.id ?? null;
-          setSelectedIndex(newIdx);
+          const currentRequests = requestsRef.current;
+          const currentIndex = Math.max(0, selectedIndexRef.current);
+          const newIdx = Math.min(currentIndex + 1, currentRequests.length - 1);
+
+          if (followingRef.current) {
+            setFollowing(false);
+            setTopVisibleRequestId(currentRequests[effectiveListScrollOffsetRef.current]?.id ?? currentRequests[0]?.id ?? null);
+          }
+
+          setSelectedRequestId(currentRequests[newIdx]?.id ?? null);
         } else {
           // Navigate sections in accordion
           setFocusedSection((prev) => Math.min(prev + 1, 3));
         }
       } else if (input === "k" || key.upArrow) {
         if (activePanel === "list") {
-          if (following) setFollowing(false);
-          const newIdx = Math.max(selectedIndex - 1, 0);
-          selectedRequestIdRef.current = requests[newIdx]?.id ?? null;
-          setSelectedIndex(newIdx);
+          const currentRequests = requestsRef.current;
+          const currentIndex = Math.max(0, selectedIndexRef.current);
+          const newIdx = Math.max(currentIndex - 1, 0);
+
+          if (followingRef.current) {
+            setFollowing(false);
+            setTopVisibleRequestId(currentRequests[effectiveListScrollOffsetRef.current]?.id ?? currentRequests[0]?.id ?? null);
+          }
+
+          setSelectedRequestId(currentRequests[newIdx]?.id ?? null);
         } else {
           // Navigate sections in accordion
           setFocusedSection((prev) => Math.max(prev - 1, 0));
@@ -467,39 +629,51 @@ function AppContent({ __testEnableInput, projectRoot }: AppProps): React.ReactEl
       } else if (input === "g" && !key.shift) {
         // Jump to first item/section — re-enters follow mode in list
         if (activePanel === "list") {
-          selectedRequestIdRef.current = requests[0]?.id ?? null;
-          setSelectedIndex(0);
           setFollowing(true);
+          setSelectedRequestId(null);
+          setTopVisibleRequestId(null);
+          setPendingNewCount(0);
         } else {
           setFocusedSection(SECTION_REQUEST);
         }
       } else if (input === "G") {
         // Jump to last item/section
         if (activePanel === "list") {
-          const lastIdx = Math.max(0, requestsLengthRef.current - 1);
-          if (following) setFollowing(false);
-          selectedRequestIdRef.current = requests[lastIdx]?.id ?? null;
-          setSelectedIndex(lastIdx);
+          const currentRequests = requestsRef.current;
+          const lastIdx = Math.max(0, currentRequests.length - 1);
+          if (followingRef.current) {
+            setFollowing(false);
+          }
+          setTopVisibleRequestId(currentRequests[Math.max(0, lastIdx - visibleListHeight + 1)]?.id ?? currentRequests[0]?.id ?? null);
+          setSelectedRequestId(currentRequests[lastIdx]?.id ?? null);
         } else {
           setFocusedSection(SECTION_RESPONSE_BODY);
         }
       } else if (input === "u" && key.ctrl) {
         // Half-page up (list only)
         if (activePanel === "list") {
+          const currentRequests = requestsRef.current;
+          const currentIndex = Math.max(0, selectedIndexRef.current);
           const halfPage = Math.floor(contentHeightRef.current / 2);
-          const newIdx = Math.max(selectedIndex - halfPage, 0);
-          if (following) setFollowing(false);
-          selectedRequestIdRef.current = requests[newIdx]?.id ?? null;
-          setSelectedIndex(newIdx);
+          const newIdx = Math.max(currentIndex - halfPage, 0);
+          if (followingRef.current) {
+            setFollowing(false);
+            setTopVisibleRequestId(currentRequests[effectiveListScrollOffsetRef.current]?.id ?? currentRequests[0]?.id ?? null);
+          }
+          setSelectedRequestId(currentRequests[newIdx]?.id ?? null);
         }
       } else if (input === "d" && key.ctrl) {
         // Half-page down (list only)
         if (activePanel === "list") {
+          const currentRequests = requestsRef.current;
+          const currentIndex = Math.max(0, selectedIndexRef.current);
           const halfPage = Math.floor(contentHeightRef.current / 2);
-          const newIdx = Math.min(selectedIndex + halfPage, requestsLengthRef.current - 1);
-          if (following) setFollowing(false);
-          selectedRequestIdRef.current = requests[newIdx]?.id ?? null;
-          setSelectedIndex(newIdx);
+          const newIdx = Math.min(currentIndex + halfPage, currentRequests.length - 1);
+          if (followingRef.current) {
+            setFollowing(false);
+            setTopVisibleRequestId(currentRequests[effectiveListScrollOffsetRef.current]?.id ?? currentRequests[0]?.id ?? null);
+          }
+          setSelectedRequestId(currentRequests[newIdx]?.id ?? null);
         }
       } else if (key.tab) {
         // Tab cycles through all 5 panels: 1 (list), 2, 3, 4, 5 (accordion sections)
@@ -643,29 +817,44 @@ function AppContent({ __testEnableInput, projectRoot }: AppProps): React.ReactEl
       } else if (input === "F" && !key.ctrl) {
         // Toggle follow mode
         setFollowing((prev) => {
-          if (!prev) {
-            selectedRequestIdRef.current = requests[0]?.id ?? null;
-            setSelectedIndex(0);
+          const next = !prev;
+          if (next) {
+            setSelectedRequestId(null);
+            setTopVisibleRequestId(null);
+            setPendingNewCount(0);
+          } else {
+            const currentRequests = requestsRef.current;
+            const anchorOffset = effectiveListScrollOffsetRef.current;
+            setSelectedRequestId(currentRequests[Math.max(0, selectedIndexRef.current)]?.id ?? currentRequests[0]?.id ?? null);
+            setTopVisibleRequestId(currentRequests[anchorOffset]?.id ?? currentRequests[0]?.id ?? null);
           }
-          return !prev;
+          return next;
         });
       } else if (input === "f" && key.ctrl) {
         // Full-page down (list only)
         if (activePanel === "list") {
+          const currentRequests = requestsRef.current;
           const fullPage = contentHeightRef.current;
-          const newIdx = Math.min(selectedIndex + fullPage, requestsLengthRef.current - 1);
-          if (following) setFollowing(false);
-          selectedRequestIdRef.current = requests[newIdx]?.id ?? null;
-          setSelectedIndex(newIdx);
+          const currentIndex = Math.max(0, selectedIndexRef.current);
+          const newIdx = Math.min(currentIndex + fullPage, requestsLengthRef.current - 1);
+          if (followingRef.current) {
+            setFollowing(false);
+            setTopVisibleRequestId(currentRequests[effectiveListScrollOffsetRef.current]?.id ?? currentRequests[0]?.id ?? null);
+          }
+          setSelectedRequestId(currentRequests[newIdx]?.id ?? null);
         }
       } else if (input === "b" && key.ctrl) {
         // Full-page up (list only)
         if (activePanel === "list") {
+          const currentRequests = requestsRef.current;
           const fullPage = contentHeightRef.current;
-          const newIdx = Math.max(selectedIndex - fullPage, 0);
-          if (following) setFollowing(false);
-          selectedRequestIdRef.current = requests[newIdx]?.id ?? null;
-          setSelectedIndex(newIdx);
+          const currentIndex = Math.max(0, selectedIndexRef.current);
+          const newIdx = Math.max(currentIndex - fullPage, 0);
+          if (followingRef.current) {
+            setFollowing(false);
+            setTopVisibleRequestId(currentRequests[effectiveListScrollOffsetRef.current]?.id ?? currentRequests[0]?.id ?? null);
+          }
+          setSelectedRequestId(currentRequests[newIdx]?.id ?? null);
         }
       } else if (input === "u" && !key.ctrl) {
         const newShowFullUrl = !showFullUrl;
@@ -736,28 +925,6 @@ function AppContent({ __testEnableInput, projectRoot }: AppProps): React.ReactEl
   const hasSelectedRequest = selectedFullRequest !== null;
   const listWidth = hasSelectedRequest ? Math.floor(columns * listWidthRatio) : columns;
   const accordionWidth = columns - listWidth;
-  // Status bar takes 2 rows (border line + content line), InfoBar takes 1 row, filter bar takes 2 rows when visible
-  const filterBarHeight = showFilter ? 2 : 0;
-  const infoBarHeight = 1;
-  const contentHeight = rows - 2 - infoBarHeight - filterBarHeight;
-
-  // Keep selection in bounds when requests change
-  React.useEffect(() => {
-    if (selectedIndex >= requests.length && requests.length > 0) {
-      setSelectedIndex(requests.length - 1);
-    }
-  }, [requests.length, selectedIndex]);
-
-  // Auto-scroll list view when selection moves outside visible area
-  React.useEffect(() => {
-    const visibleHeight = Math.max(1, contentHeight - 2);
-    if (selectedIndex < listScrollOffset) {
-      setListScrollOffset(selectedIndex);
-    } else if (selectedIndex >= listScrollOffset + visibleHeight) {
-      setListScrollOffset(selectedIndex - visibleHeight + 1);
-    }
-    // Intentionally omit listScrollOffset to allow free mouse wheel scrolling
-  }, [selectedIndex, contentHeight]);
 
   // Terminal size check — re-evaluates on resize via useStdoutDimensions
   if (columns < MIN_TERMINAL_COLUMNS || rows < MIN_TERMINAL_ROWS) {
@@ -918,7 +1085,7 @@ function AppContent({ __testEnableInput, projectRoot }: AppProps): React.ReactEl
           height={contentHeight}
           showFullUrl={showFullUrl}
           onItemClick={handleItemClick}
-          scrollOffset={listScrollOffset}
+          scrollOffset={effectiveListScrollOffset}
           searchTerm={bodySearch ? undefined : filter.search}
         />
         {hasSelectedRequest && (
@@ -963,6 +1130,7 @@ function AppContent({ __testEnableInput, projectRoot }: AppProps): React.ReactEl
         filterActive={isFilterActive(filter) || bodySearch !== undefined}
         filterOpen={showFilter}
         following={following}
+        pendingNewCount={pendingNewCount}
         hasSelection={selectedFullRequest !== null}
         hasRequests={requests.length > 0}
         onViewableBodySection={currentBodyIsExportable && !currentBodyIsBinary}

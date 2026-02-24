@@ -1117,6 +1117,72 @@ describe("RequestRepository", () => {
       expect(page1).toHaveLength(2);
       expect(page2).toHaveLength(2);
     });
+
+    it("orders deterministically when timestamps are identical", () => {
+      const sharedTimestamp = Date.now();
+
+      repo.saveRequest({
+        sessionId,
+        timestamp: sharedTimestamp,
+        method: "GET",
+        url: "https://api.example.com/one",
+        host: "api.example.com",
+        path: "/one",
+        requestHeaders: {},
+      });
+      repo.saveRequest({
+        sessionId,
+        timestamp: sharedTimestamp,
+        method: "GET",
+        url: "https://api.example.com/two",
+        host: "api.example.com",
+        path: "/two",
+        requestHeaders: {},
+      });
+      repo.saveRequest({
+        sessionId,
+        timestamp: sharedTimestamp,
+        method: "GET",
+        url: "https://api.example.com/three",
+        host: "api.example.com",
+        path: "/three",
+        requestHeaders: {},
+      });
+
+      const summaries = repo.listRequestsSummary();
+      expect(summaries.map((summary) => summary.path)).toEqual(["/three", "/two", "/one"]);
+    });
+
+    it("returns delta entries for inserts and updates", () => {
+      const requestId = repo.saveRequest({
+        sessionId,
+        timestamp: Date.now(),
+        method: "GET",
+        url: "https://api.example.com/delta",
+        host: "api.example.com",
+        path: "/delta",
+        requestHeaders: {},
+      });
+
+      const insertDelta = repo.listRequestsSummaryDelta({ afterChangeSeq: 0, limit: 10 });
+      expect(insertDelta.entries).toHaveLength(1);
+      expect(insertDelta.entries[0]?.summary.id).toBe(requestId);
+
+      repo.updateRequestResponse(requestId, {
+        status: 204,
+        headers: {},
+        durationMs: 25,
+      });
+
+      const updateDelta = repo.listRequestsSummaryDelta({
+        afterChangeSeq: insertDelta.cursor,
+        limit: 10,
+      });
+      expect(updateDelta.entries).toHaveLength(1);
+      expect(updateDelta.entries[0]?.summary.id).toBe(requestId);
+      expect(updateDelta.entries[0]?.summary.responseStatus).toBe(204);
+      expect(updateDelta.cursor).toBeGreaterThan(insertDelta.cursor);
+    });
   });
 
   describe("migrations", () => {
@@ -1182,7 +1248,7 @@ describe("RequestRepository", () => {
       // Verify user_version was set to latest migration
       const checkDb = new Database(migrationDbPath);
       const version = checkDb.pragma("user_version", { simple: true });
-      expect(version).toBe(11);
+      expect(version).toBe(12);
       checkDb.close();
 
       migratedRepo.close();
@@ -1193,7 +1259,7 @@ describe("RequestRepository", () => {
       // The default repo from beforeEach is a fresh DB
       const checkDb = new Database(dbPath);
       const version = checkDb.pragma("user_version", { simple: true });
-      expect(version).toBe(11);
+      expect(version).toBe(12);
       checkDb.close();
     });
 
