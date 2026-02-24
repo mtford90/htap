@@ -39,6 +39,7 @@
     "format": "prettier --write \"src/**/*.ts\" \"tests/**/*.ts\"",
     "format:check": "prettier --check \"src/**/*.ts\" \"tests/**/*.ts\"",
     "seed": "npx tsx scripts/seed.ts",
+    "simulate": "npx tsx scripts/simulate.ts",
     "typecheck": "tsc --noEmit",
     "prepare": "husky"
   },
