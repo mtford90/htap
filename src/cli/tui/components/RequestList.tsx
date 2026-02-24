@@ -55,7 +55,12 @@ export const RequestList = forwardRef<DOMElement, RequestListProps>(function Req
     centerValue = "Following";
     centerColor = "green";
   } else if ((pendingNewCount ?? 0) > 0) {
-    centerValue = `${pendingNewCount} new`;
+    // New requests are prepended at indices [0, pendingNewCount). Show only
+    // those still above the viewport so the count drops as the user scrolls up.
+    const unseenNewCount = Math.min(pendingNewCount ?? 0, effectiveScrollOffset);
+    if (unseenNewCount > 0) {
+      centerValue = `${unseenNewCount} new`;
+    }
     centerColor = "cyan";
   }
 
