@@ -2,7 +2,7 @@
 
 [![npm version](https://img.shields.io/npm/v/procsi.svg)](https://www.npmjs.com/package/procsi)
 [![CI](https://github.com/mtford90/procsi/actions/workflows/ci.yml/badge.svg)](https://github.com/mtford90/procsi/actions/workflows/ci.yml)
-[![License: AGPL v3](https://img.shields.io/badge/License-AGPL_v3-blue.svg)](https://www.gnu.org/licenses/agpl-3.0)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
 Procsi is a terminal-based, project-scoped HTTP proxy with a powerful CLI & MCP server. Quickly intercept, inspect & rewrite HTTP traffic from the comfort of your terminal or favourite AI agent.
 
@@ -338,4 +338,4 @@ procsi is built on top of [MockTTP](https://github.com/httptoolkit/mockttp) by [
 
 ## Licence
 
-AGPL-3.0-or-later
+MIT

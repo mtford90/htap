@@ -8,6 +8,6 @@
   },
   "homepage": "https://github.com/mtford90/procsi",
   "repository": "https://github.com/mtford90/procsi",
-  "license": "AGPL-3.0-or-later",
+  "license": "MIT",
   "keywords": ["http", "proxy", "intercept", "debugging", "mcp"]
 }
