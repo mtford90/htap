@@ -1,16 +1,16 @@
 import * as fs from "node:fs";
 import { createRequire } from "node:module";
 import {
-  PROCSI_RUNTIME_SOURCE_HEADER,
-  PROCSI_SESSION_ID_HEADER,
-  PROCSI_SESSION_TOKEN_HEADER,
+  HTAP_RUNTIME_SOURCE_HEADER,
+  HTAP_SESSION_ID_HEADER,
+  HTAP_SESSION_TOKEN_HEADER,
 } from "../shared/constants.js";
 
 const require = createRequire(import.meta.url);
 
 /**
  * Resolve the absolute filesystem path to a dependency installed
- * within procsi's own node_modules. Uses `createRequire` so the
+ * within htap's own node_modules. Uses `createRequire` so the
  * resolution is relative to *this* package, not the user's project.
  */
 export function resolveDependencyPath(dep: string): string {
@@ -22,7 +22,7 @@ export function resolveDependencyPath(dep: string): string {
  * Node.js `http`/`https` global agents and native `fetch()` to
  * route through the proxy specified by env vars.
  *
- * Absolute paths to procsi's own `global-agent` and `undici` are
+ * Absolute paths to htap's own `global-agent` and `undici` are
  * baked in so the script works regardless of the user's project
  * dependencies.
  */
@@ -49,12 +49,12 @@ export function generateNodePreloadScript(): string {
     "",
     "// Inject session tracking header into outgoing requests",
     "try {",
-    "  var procsiSessionId = process.env.PROCSI_SESSION_ID;",
-    "  var procsiSessionToken = process.env.PROCSI_SESSION_TOKEN;",
-    "  if (procsiSessionId && procsiSessionToken) {",
-    `    var SESSION_ID_HEADER = '${PROCSI_SESSION_ID_HEADER}';`,
-    `    var SESSION_TOKEN_HEADER = '${PROCSI_SESSION_TOKEN_HEADER}';`,
-    `    var RUNTIME_HEADER = '${PROCSI_RUNTIME_SOURCE_HEADER}';`,
+    "  var htapSessionId = process.env.HTAP_SESSION_ID;",
+    "  var htapSessionToken = process.env.HTAP_SESSION_TOKEN;",
+    "  if (htapSessionId && htapSessionToken) {",
+    `    var SESSION_ID_HEADER = '${HTAP_SESSION_ID_HEADER}';`,
+    `    var SESSION_TOKEN_HEADER = '${HTAP_SESSION_TOKEN_HEADER}';`,
+    `    var RUNTIME_HEADER = '${HTAP_RUNTIME_SOURCE_HEADER}';`,
     "    var RUNTIME_VALUE = 'node';",
     "    ['http', 'https'].forEach(function(modName) {",
     "      var mod = require(modName);",
@@ -64,15 +64,15 @@ export function generateNodePreloadScript(): string {
     "          if (typeof options === 'function') { cb = options; options = {}; }",
     "          options = Object.assign({}, options);",
     "          options.headers = Object.assign({}, options.headers);",
-    "          options.headers[SESSION_ID_HEADER] = procsiSessionId;",
-    "          options.headers[SESSION_TOKEN_HEADER] = procsiSessionToken;",
+    "          options.headers[SESSION_ID_HEADER] = htapSessionId;",
+    "          options.headers[SESSION_TOKEN_HEADER] = htapSessionToken;",
     "          options.headers[RUNTIME_HEADER] = RUNTIME_VALUE;",
     "          return origRequest.call(mod, url, options, cb);",
     "        }",
     "        url = Object.assign({}, url);",
     "        url.headers = Object.assign({}, url.headers);",
-    "        url.headers[SESSION_ID_HEADER] = procsiSessionId;",
-    "        url.headers[SESSION_TOKEN_HEADER] = procsiSessionToken;",
+    "        url.headers[SESSION_ID_HEADER] = htapSessionId;",
+    "        url.headers[SESSION_TOKEN_HEADER] = htapSessionToken;",
     "        url.headers[RUNTIME_HEADER] = RUNTIME_VALUE;",
     "        return origRequest.call(mod, url, options);",
     "      };",
@@ -98,8 +98,8 @@ export function generateNodePreloadScript(): string {
     "            mergedHeaders.set(key, value);",
     "          });",
     "        }",
-    "        mergedHeaders.set(SESSION_ID_HEADER, procsiSessionId);",
-    "        mergedHeaders.set(SESSION_TOKEN_HEADER, procsiSessionToken);",
+    "        mergedHeaders.set(SESSION_ID_HEADER, htapSessionId);",
+    "        mergedHeaders.set(SESSION_TOKEN_HEADER, htapSessionToken);",
     "        mergedHeaders.set(RUNTIME_HEADER, RUNTIME_VALUE);",
     "        init = Object.assign({}, init, { headers: mergedHeaders });",
     "        return origFetch.call(globalThis, input, init);",
@@ -113,7 +113,7 @@ export function generateNodePreloadScript(): string {
 
 /**
  * Write the CJS preload script to the given path (typically
- * `.procsi/proxy-preload.cjs`). Creates parent directories if needed.
+ * `.htap/proxy-preload.cjs`). Creates parent directories if needed.
  *
  * Returns the absolute path written to.
  */

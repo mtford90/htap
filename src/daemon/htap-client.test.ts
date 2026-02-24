@@ -3,16 +3,16 @@ import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
 import { RequestRepository } from "./storage.js";
-import { createProcsiClient } from "./procsi-client.js";
-import type { ProcsiClient } from "../shared/types.js";
+import { createHtapClient } from "./htap-client.js";
+import type { HtapClient } from "../shared/types.js";
 
-describe("createProcsiClient", () => {
+describe("createHtapClient", () => {
   let tmpDir: string;
   let storage: RequestRepository;
-  let client: ProcsiClient;
+  let client: HtapClient;
 
   beforeEach(() => {
-    tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "procsi-client-test-"));
+    tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "htap-client-test-"));
     const dbPath = path.join(tmpDir, "test.db");
     storage = new RequestRepository(dbPath);
     const session = storage.registerSession("test");
@@ -40,7 +40,7 @@ describe("createProcsiClient", () => {
       requestBody: Buffer.from('{"name":"test"}'),
     });
 
-    client = createProcsiClient(storage);
+    client = createHtapClient(storage);
   });
 
   afterEach(() => {

@@ -1,9 +1,9 @@
 import { ProxyAgent } from "undici";
 import {
-  PROCSI_REPLAY_TOKEN_HEADER,
-  PROCSI_RUNTIME_SOURCE_HEADER,
-  PROCSI_SESSION_ID_HEADER,
-  PROCSI_SESSION_TOKEN_HEADER,
+  HTAP_REPLAY_TOKEN_HEADER,
+  HTAP_RUNTIME_SOURCE_HEADER,
+  HTAP_SESSION_ID_HEADER,
+  HTAP_SESSION_TOKEN_HEADER,
 } from "../shared/constants.js";
 
 const DEFAULT_REPLAY_TIMEOUT_MS = 10_000;
@@ -39,10 +39,10 @@ const HOP_BY_HOP_HEADERS = new Set([
 ]);
 
 const INTERNAL_HEADERS = new Set([
-  PROCSI_SESSION_ID_HEADER,
-  PROCSI_SESSION_TOKEN_HEADER,
-  PROCSI_RUNTIME_SOURCE_HEADER,
-  PROCSI_REPLAY_TOKEN_HEADER,
+  HTAP_SESSION_ID_HEADER,
+  HTAP_SESSION_TOKEN_HEADER,
+  HTAP_RUNTIME_SOURCE_HEADER,
+  HTAP_REPLAY_TOKEN_HEADER,
 ]);
 
 function clampReplayTimeout(timeoutMs: number | undefined): number {
@@ -96,7 +96,7 @@ export function buildReplayHeaders(options: {
   // Let fetch calculate content-length for us
   delete headers["content-length"];
 
-  headers[PROCSI_REPLAY_TOKEN_HEADER] = options.replayToken;
+  headers[HTAP_REPLAY_TOKEN_HEADER] = options.replayToken;
 
   return headers;
 }

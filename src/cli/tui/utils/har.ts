@@ -3,7 +3,7 @@
  */
 
 import type { CapturedRequest } from "../../../shared/types.js";
-import { getProcsiVersion } from "../../../shared/version.js";
+import { getHtapVersion } from "../../../shared/version.js";
 import { getStatusText } from "./formatters.js";
 
 /**
@@ -168,8 +168,8 @@ export function generateHar(requests: CapturedRequest[]): Har {
     log: {
       version: "1.2",
       creator: {
-        name: "procsi",
-        version: getProcsiVersion(),
+        name: "htap",
+        version: getHtapVersion(),
       },
       entries: requests.map(requestToHarEntry),
     },

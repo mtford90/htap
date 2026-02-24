@@ -63,15 +63,15 @@ vi.mock("./hooks/useStdoutDimensions.js", () => ({
 vi.mock("../../shared/project.js", () => ({
   findProjectRoot: () => "/mock/project",
   readProxyPort: () => 54321,
-  getProcsiPaths: () => ({
-    procsiDir: "/mock/project/.procsi",
-    proxyPortFile: "/mock/project/.procsi/proxy.port",
-    controlSocketFile: "/mock/project/.procsi/control.sock",
-    databaseFile: "/mock/project/.procsi/requests.db",
-    caKeyFile: "/mock/project/.procsi/ca-key.pem",
-    caCertFile: "/mock/project/.procsi/ca.pem",
-    pidFile: "/mock/project/.procsi/daemon.pid",
-    logFile: "/mock/project/.procsi/procsi.log",
+  getHtapPaths: () => ({
+    htapDir: "/mock/project/.htap",
+    proxyPortFile: "/mock/project/.htap/proxy.port",
+    controlSocketFile: "/mock/project/.htap/control.sock",
+    databaseFile: "/mock/project/.htap/requests.db",
+    caKeyFile: "/mock/project/.htap/ca-key.pem",
+    caCertFile: "/mock/project/.htap/ca.pem",
+    pidFile: "/mock/project/.htap/daemon.pid",
+    logFile: "/mock/project/.htap/htap.log",
   }),
 }));
 
@@ -1114,12 +1114,12 @@ describe("App keyboard interactions", () => {
 
       const frame = lastFrame();
       expect(frame).toContain("Export as HAR");
-      expect(frame).toContain(".procsi/exports/");
+      expect(frame).toContain(".htap/exports/");
       expect(frame).toContain("~/Downloads/");
       expect(frame).toContain("Custom path...");
     });
 
-    it("e then 5 then 1 exports HAR to .procsi/exports/", async () => {
+    it("e then 5 then 1 exports HAR to .htap/exports/", async () => {
       const fullRequest = createMockFullRequest();
       mockUseRequests.mockReturnValue({
         requests: [createMockSummary()],
@@ -1213,7 +1213,7 @@ describe("App keyboard interactions", () => {
       const { lastFrame } = render(<App __testEnableInput />);
       const frame = lastFrame();
 
-      expect(frame).toContain("eval \"$(procsi on)\"");
+      expect(frame).toContain("eval \"$(htap on)\"");
     });
   });
 

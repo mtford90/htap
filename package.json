@@ -1,11 +1,11 @@
 {
-  "name": "procsi",
+  "name": "htap",
   "version": "0.9.0",
   "description": "Terminal HTTP interception toolkit",
   "type": "module",
   "main": "dist/cli/index.js",
   "bin": {
-    "procsi": "dist/cli/index.js"
+    "htap": "dist/cli/index.js"
   },
   "exports": {
     ".": "./dist/cli/index.js",
@@ -21,8 +21,8 @@
   "agents": {
     "skills": [
       {
-        "name": "procsi",
-        "path": "./skills/procsi"
+        "name": "htap",
+        "path": "./skills/htap"
       }
     ]
   },
@@ -64,12 +64,12 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/mtford90/procsi.git"
+    "url": "git+https://github.com/mtford90/htap.git"
   },
   "bugs": {
-    "url": "https://github.com/mtford90/procsi/issues"
+    "url": "https://github.com/mtford90/htap/issues"
   },
-  "homepage": "https://github.com/mtford90/procsi#readme",
+  "homepage": "https://github.com/mtford90/htap#readme",
   "packageManager": "pnpm@10.13.1",
   "engines": {
     "node": ">=20"

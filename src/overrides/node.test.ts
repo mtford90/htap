@@ -36,11 +36,11 @@ describe("generateNodePreloadScript", () => {
 
   it("contains session header injection code", () => {
     const script = generateNodePreloadScript();
-    expect(script).toContain("x-procsi-internal-session-id");
-    expect(script).toContain("x-procsi-internal-session-token");
-    expect(script).toContain("x-procsi-internal-runtime");
-    expect(script).toContain("PROCSI_SESSION_ID");
-    expect(script).toContain("PROCSI_SESSION_TOKEN");
+    expect(script).toContain("x-htap-internal-session-id");
+    expect(script).toContain("x-htap-internal-session-token");
+    expect(script).toContain("x-htap-internal-runtime");
+    expect(script).toContain("HTAP_SESSION_ID");
+    expect(script).toContain("HTAP_SESSION_TOKEN");
   });
 
   it("wraps each block in try/catch for resilience", () => {

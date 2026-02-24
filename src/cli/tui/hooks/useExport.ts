@@ -79,7 +79,7 @@ export async function exportCurlToClipboard(request: CapturedRequest): Promise<E
  */
 export function exportHarToFile(requests: CapturedRequest[], filename?: string): ExportResult {
   try {
-    const harFilename = filename ?? `procsi-export-${Date.now()}.har`;
+    const harFilename = filename ?? `htap-export-${Date.now()}.har`;
     const harPath = path.resolve(process.cwd(), harFilename);
     const harContent = generateHarString(requests);
 
@@ -106,7 +106,7 @@ export function exportHarToDir(
   filename?: string
 ): ExportResult {
   try {
-    const harFilename = filename ?? `procsi-export-${Date.now()}.har`;
+    const harFilename = filename ?? `htap-export-${Date.now()}.har`;
     const harPath = path.resolve(targetDir, harFilename);
     const harContent = generateHarString(requests);
 

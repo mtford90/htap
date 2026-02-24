@@ -1,5 +1,5 @@
 /**
- * `procsi sessions` — list active proxy sessions.
+ * `htap sessions` — list active proxy sessions.
  */
 
 import { Command } from "commander";
@@ -27,10 +27,7 @@ export const sessionsCommand = new Command("sessions")
 
       console.log(formatSessionTable(sessions));
 
-      const hint = formatHint([
-        "procsi requests to see captured traffic",
-        "--json for JSON output",
-      ]);
+      const hint = formatHint(["htap requests to see captured traffic", "--json for JSON output"]);
       if (hint) console.log(hint);
     } catch (err) {
       console.error(`Error listing sessions: ${getErrorMessage(err)}`);

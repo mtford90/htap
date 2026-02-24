@@ -7,7 +7,7 @@ import {
   getDaemonVersion,
 } from "../../shared/daemon.js";
 import { parseVerbosity } from "../../shared/logger.js";
-import { getProcsiVersion } from "../../shared/version.js";
+import { getHtapVersion } from "../../shared/version.js";
 import { requireProjectRoot, getErrorMessage, getGlobalOptions } from "./helpers.js";
 
 const stopSubCommand = new Command("stop")
@@ -42,7 +42,7 @@ const restartSubCommand = new Command("restart")
     const projectRoot = requireProjectRoot(globalOpts.dir);
 
     try {
-      const cliVersion = getProcsiVersion();
+      const cliVersion = getHtapVersion();
 
       if (await isDaemonRunning(projectRoot)) {
         const daemonVersion = await getDaemonVersion(projectRoot);
@@ -54,7 +54,7 @@ const restartSubCommand = new Command("restart")
         console.log(`Restarting daemon${versionInfo}...`);
         const port = await restartDaemon(projectRoot, logLevel);
         console.log(`Daemon restarted on port ${port}`);
-        console.log('If your shell env vars are stale, run: eval "$(procsi on)"');
+        console.log('If your shell env vars are stale, run: eval "$(htap on)"');
       } else {
         console.log("Daemon not running, starting...");
         const port = await startDaemon(projectRoot, { logLevel });
@@ -67,6 +67,6 @@ const restartSubCommand = new Command("restart")
   });
 
 export const daemonCommand = new Command("daemon")
-  .description("Manage the procsi daemon")
+  .description("Manage the htap daemon")
   .addCommand(stopSubCommand)
   .addCommand(restartSubCommand);

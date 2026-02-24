@@ -6,24 +6,24 @@ import { generateCACertificate } from "mockttp";
 import { RequestRepository } from "../../src/daemon/storage.js";
 import { createProxy } from "../../src/daemon/proxy.js";
 import { createControlServer } from "../../src/daemon/control.js";
-import { ensureProcsiDir, getProcsiPaths, writeDaemonPid } from "../../src/shared/project.js";
+import { ensureHtapDir, getHtapPaths, writeDaemonPid } from "../../src/shared/project.js";
 import { startDaemon, getDaemonVersion } from "../../src/shared/daemon.js";
-import { getProcsiVersion } from "../../src/shared/version.js";
+import { getHtapVersion } from "../../src/shared/version.js";
 
 describe("version checking", () => {
   let tempDir: string;
-  let paths: ReturnType<typeof getProcsiPaths>;
+  let paths: ReturnType<typeof getHtapPaths>;
   let storage: RequestRepository;
   let cleanup: (() => Promise<void>)[] = [];
 
   beforeEach(async () => {
-    tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "procsi-version-test-"));
-    ensureProcsiDir(tempDir);
-    paths = getProcsiPaths(tempDir);
+    tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "htap-version-test-"));
+    ensureHtapDir(tempDir);
+    paths = getHtapPaths(tempDir);
 
     // Generate CA certificate
     const ca = await generateCACertificate({
-      subject: { commonName: "procsi Test CA" },
+      subject: { commonName: "htap Test CA" },
     });
     fs.writeFileSync(paths.caKeyFile, ca.key);
     fs.writeFileSync(paths.caCertFile, ca.cert);
@@ -104,7 +104,7 @@ describe("version checking", () => {
       cleanup.push(controlServer.close);
 
       const onVersionMismatch = vi.fn();
-      const cliVersion = getProcsiVersion();
+      const cliVersion = getHtapVersion();
 
       // Since autoRestart is false, it should not restart
       await startDaemon(tempDir, {
@@ -117,7 +117,7 @@ describe("version checking", () => {
 
     it("does not call onVersionMismatch when versions match", async () => {
       const session = storage.registerSession("test", process.pid);
-      const cliVersion = getProcsiVersion();
+      const cliVersion = getHtapVersion();
 
       const proxy = await createProxy({
         caKeyPath: paths.caKeyFile,

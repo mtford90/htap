@@ -1,6 +1,6 @@
 #!/usr/bin/env npx tsx
 /**
- * Seed script — populates the local .procsi database with realistic example requests.
+ * Seed script — populates the local .htap database with realistic example requests.
  * Works directly against the storage layer (no daemon or network needed).
  *
  * Usage:
@@ -10,7 +10,7 @@
 
 import * as path from "node:path";
 import { RequestRepository } from "../src/daemon/storage.js";
-import { ensureProcsiDir, getProcsiPaths } from "../src/shared/project.js";
+import { ensureHtapDir, getHtapPaths } from "../src/shared/project.js";
 import type { CapturedRequest, InterceptionType } from "../src/shared/types.js";
 
 // ---------------------------------------------------------------------------
@@ -70,9 +70,9 @@ const nodeRequests: SeedRequest[] = [
     sessionId: "seed-node",
     source: "node",
     method: "GET",
-    url: "https://api.github.com/repos/mtford90/procsi",
+    url: "https://api.github.com/repos/mtford90/htap",
     host: "api.github.com",
-    path: "/repos/mtford90/procsi",
+    path: "/repos/mtford90/htap",
     requestHeaders: jsonHeaders({
       authorization: "Bearer ghp_xxxxxxxxxxxx",
       "user-agent": "node-fetch/3.3.2",
@@ -84,8 +84,8 @@ const nodeRequests: SeedRequest[] = [
     },
     responseBody: JSON.stringify({
       id: 12345,
-      name: "procsi",
-      full_name: "mtford90/procsi",
+      name: "htap",
+      full_name: "mtford90/htap",
       stargazers_count: 42,
     }),
     durationMs: 187,
@@ -199,14 +199,14 @@ const nodeRequests: SeedRequest[] = [
     sessionId: "seed-node",
     source: "node",
     method: "GET",
-    url: "https://registry.npmjs.org/procsi",
+    url: "https://registry.npmjs.org/htap",
     host: "registry.npmjs.org",
-    path: "/procsi",
+    path: "/htap",
     requestHeaders: jsonHeaders({ "user-agent": "npm/10.2.0 node/v20.11.0" }),
     responseStatus: 200,
     responseHeaders: { "content-type": "application/json" },
     responseBody: JSON.stringify({
-      name: "procsi",
+      name: "htap",
       "dist-tags": { latest: "0.3.1" },
       versions: {},
     }),
@@ -399,12 +399,12 @@ const curlRequests: SeedRequest[] = [
     requestHeaders: {
       "user-agent": "curl/8.4.0",
       accept: "*/*",
-      "x-custom-header": "hello-procsi",
+      "x-custom-header": "hello-htap",
       authorization: "Bearer test-token-123",
     },
     responseStatus: 200,
     responseHeaders: { "content-type": "application/json" },
-    responseBody: JSON.stringify({ headers: { "X-Custom-Header": "hello-procsi" } }),
+    responseBody: JSON.stringify({ headers: { "X-Custom-Header": "hello-htap" } }),
     durationMs: 110,
   },
   {
@@ -667,9 +667,9 @@ const savedRequests: SeedRequest[] = [
     sessionId: "seed-python",
     source: "python3",
     method: "GET",
-    url: "https://api.github.com/repos/mtford90/procsi/issues?state=open",
+    url: "https://api.github.com/repos/mtford90/htap/issues?state=open",
     host: "api.github.com",
-    path: "/repos/mtford90/procsi/issues?state=open",
+    path: "/repos/mtford90/htap/issues?state=open",
     requestHeaders: jsonHeaders({
       authorization: "Bearer ghp_xxxx",
       "user-agent": "python-httpx/0.25.0",
@@ -700,12 +700,12 @@ const ALL_REQUESTS: SeedRequest[] = [
 ];
 
 function seed(): void {
-  console.log("procsi seed script");
+  console.log("htap seed script");
   console.log("==================\n");
 
-  // Ensure .procsi directory exists
-  ensureProcsiDir(PROJECT_ROOT);
-  const { databaseFile } = getProcsiPaths(PROJECT_ROOT);
+  // Ensure .htap directory exists
+  ensureHtapDir(PROJECT_ROOT);
+  const { databaseFile } = getHtapPaths(PROJECT_ROOT);
 
   console.log(`Database: ${databaseFile}`);
 
@@ -785,7 +785,7 @@ function seed(): void {
   }
 
   console.log(`\nDone! Inserted ${requestCount} requests across ${SESSIONS.length} sessions.`);
-  console.log("\nRun 'procsi tui' to inspect the seeded data.");
+  console.log("\nRun 'htap tui' to inspect the seeded data.");
 
   storage.close();
 }

@@ -1,5 +1,5 @@
 /**
- * `procsi requests` — list, search, query, count, and clear captured requests.
+ * `htap requests` — list, search, query, count, and clear captured requests.
  */
 
 import { Command } from "commander";
@@ -212,7 +212,7 @@ searchSubcommand.action(
 
       console.log(formatRequestTable(results, results.length));
 
-      const hint = formatHint(["procsi request <id> for detail", "--json for JSON output"]);
+      const hint = formatHint(["htap request <id> for detail", "--json for JSON output"]);
       if (hint) console.log(hint);
     } catch (err) {
       console.error(`Error searching requests: ${getErrorMessage(err)}`);
@@ -381,7 +381,7 @@ requestsCommand.action(
 
       if (summaries.length === 0) {
         console.log("  No requests captured");
-        const hint = formatHint(["make HTTP requests while procsi is intercepting"]);
+        const hint = formatHint(["make HTTP requests while htap is intercepting"]);
         if (hint) console.log(hint);
         return;
       }
@@ -389,7 +389,7 @@ requestsCommand.action(
       console.log(formatRequestTable(summaries, total));
 
       const hint = formatHint([
-        "procsi request <id>",
+        "htap request <id>",
         "--method, --status, --host, --since to filter",
         "--json for JSON",
       ]);

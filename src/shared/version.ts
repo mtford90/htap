@@ -6,9 +6,9 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 /**
- * Get procsi version from package.json.
+ * Get htap version from package.json.
  */
-export function getProcsiVersion(): string {
+export function getHtapVersion(): string {
   try {
     // Find package.json relative to this file (dist/shared/version.js -> package.json)
     const packageJsonPath = path.resolve(__dirname, "..", "..", "package.json");

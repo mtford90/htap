@@ -2,14 +2,14 @@
  * Shared constants used across daemon, CLI, and overrides.
  */
 
-/** Internal header carrying the procsi session ID (injected by runtime overrides). */
-export const PROCSI_SESSION_ID_HEADER = "x-procsi-internal-session-id";
+/** Internal header carrying the htap session ID (injected by runtime overrides). */
+export const HTAP_SESSION_ID_HEADER = "x-htap-internal-session-id";
 
-/** Internal header carrying the procsi session token (injected by runtime overrides). */
-export const PROCSI_SESSION_TOKEN_HEADER = "x-procsi-internal-session-token";
+/** Internal header carrying the htap session token (injected by runtime overrides). */
+export const HTAP_SESSION_TOKEN_HEADER = "x-htap-internal-session-token";
 
 /** Internal header carrying a best-effort runtime source hint (e.g. "node"). */
-export const PROCSI_RUNTIME_SOURCE_HEADER = "x-procsi-internal-runtime";
+export const HTAP_RUNTIME_SOURCE_HEADER = "x-htap-internal-runtime";
 
 /** Internal header used to correlate daemon-initiated replay requests. */
-export const PROCSI_REPLAY_TOKEN_HEADER = "x-procsi-internal-replay-token";
+export const HTAP_REPLAY_TOKEN_HEADER = "x-htap-internal-replay-token";

@@ -34,7 +34,7 @@ export interface LaunchBrowserOptions {
 
 const WHICH_TIMEOUT_MS = 1000;
 
-const FIREFOX_EXTENSION_ID = "procsi@procsi.dev";
+const FIREFOX_EXTENSION_ID = "htap@htap.dev";
 
 /**
  * Known browser executable paths per platform.
@@ -182,7 +182,7 @@ export function findBrowser(browsers: BrowserInfo[], preferred?: string): Browse
 // ── Chrome Extension Generator ───────────────────────────────────────────────
 
 /**
- * Generate a Chrome MV3 extension that injects procsi session headers
+ * Generate a Chrome MV3 extension that injects htap session headers
  * into every outgoing request via declarativeNetRequest.
  */
 export function generateChromeExtension(
@@ -194,15 +194,15 @@ export function generateChromeExtension(
 
   const manifest = {
     manifest_version: 3,
-    name: "procsi Session Headers",
+    name: "htap Session Headers",
     version: "1.0",
-    description: "Injects procsi session headers for traffic attribution",
+    description: "Injects htap session headers for traffic attribution",
     permissions: ["declarativeNetRequest"],
     host_permissions: ["<all_urls>"],
     declarative_net_request: {
       rule_resources: [
         {
-          id: "procsi_rules",
+          id: "htap_rules",
           enabled: true,
           path: "rules.json",
         },
@@ -218,12 +218,12 @@ export function generateChromeExtension(
         type: "modifyHeaders",
         requestHeaders: [
           {
-            header: "x-procsi-internal-session-id",
+            header: "x-htap-internal-session-id",
             operation: "set",
             value: sessionId,
           },
           {
-            header: "x-procsi-internal-session-token",
+            header: "x-htap-internal-session-token",
             operation: "set",
             value: sessionToken,
           },
@@ -257,7 +257,7 @@ export function generateChromeExtension(
 // ── Firefox Extension Generator ──────────────────────────────────────────────
 
 /**
- * Generate a Firefox MV2 extension that injects procsi session headers
+ * Generate a Firefox MV2 extension that injects htap session headers
  * via the webRequest API.
  *
  * Firefox requires extensions to be placed in `<profile>/extensions/<id>/`.
@@ -273,9 +273,9 @@ export function generateFirefoxExtension(
 
   const manifest = {
     manifest_version: 2,
-    name: "procsi Session Headers",
+    name: "htap Session Headers",
     version: "1.0",
-    description: "Injects procsi session headers for traffic attribution",
+    description: "Injects htap session headers for traffic attribution",
     permissions: ["webRequest", "webRequestBlocking", "<all_urls>"],
     background: {
       scripts: ["background.js"],
@@ -292,11 +292,11 @@ export function generateFirefoxExtension(
 browser.webRequest.onBeforeSendHeaders.addListener(
   function(details) {
     details.requestHeaders.push({
-      name: "x-procsi-internal-session-id",
+      name: "x-htap-internal-session-id",
       value: ${JSON.stringify(sessionId)}
     });
     details.requestHeaders.push({
-      name: "x-procsi-internal-session-token",
+      name: "x-htap-internal-session-token",
       value: ${JSON.stringify(sessionToken)}
     });
     return { requestHeaders: details.requestHeaders };
@@ -314,7 +314,7 @@ browser.webRequest.onBeforeSendHeaders.addListener(
 
 /**
  * Generate a Firefox `user.js` file that pre-configures the profile to use
- * the procsi proxy, allow unsigned extensions, and suppress telemetry prompts.
+ * the htap proxy, allow unsigned extensions, and suppress telemetry prompts.
  */
 export function generateFirefoxProfile(
   profileDir: string,
@@ -373,7 +373,7 @@ export function computeSpkiHash(certPemPath: string): string {
 // ── Browser Launcher ─────────────────────────────────────────────────────────
 
 /**
- * Launch a Chrome/Chromium browser pre-configured to use the procsi proxy.
+ * Launch a Chrome/Chromium browser pre-configured to use the htap proxy.
  */
 export function launchChrome(info: BrowserInfo, options: LaunchBrowserOptions): ChildProcess {
   const { proxyPort, caCertPath, profileDir, url } = options;
@@ -404,7 +404,7 @@ export function launchChrome(info: BrowserInfo, options: LaunchBrowserOptions): 
 }
 
 /**
- * Launch a Firefox browser pre-configured to use the procsi proxy.
+ * Launch a Firefox browser pre-configured to use the htap proxy.
  */
 export function launchFirefox(info: BrowserInfo, options: LaunchBrowserOptions): ChildProcess {
   const { proxyPort, caCertPath, profileDir, url } = options;
@@ -429,7 +429,7 @@ export function launchFirefox(info: BrowserInfo, options: LaunchBrowserOptions):
 }
 
 /**
- * Launch a browser pre-configured to use the procsi proxy.
+ * Launch a browser pre-configured to use the htap proxy.
  * Dispatches to the appropriate launcher based on browser type.
  */
 export function launchBrowser(info: BrowserInfo, options: LaunchBrowserOptions): ChildProcess {

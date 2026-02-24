@@ -4,8 +4,8 @@ node_modules/
 # Build output
 dist/
 
-# procsi data (per-project)
-.procsi/
+# htap data (per-project)
+.htap/
 
 # IDE
 .idea/

@@ -2,7 +2,7 @@
 
 [Back to README](../README.md) | [Interceptors](interceptors.md)
 
-procsi has a built-in [MCP](https://modelcontextprotocol.io/) server that gives AI agents full access to your captured traffic and interceptor system. Agents can search through requests, inspect headers and bodies, and write interceptor files directly into `.procsi/interceptors/`.
+htap has a built-in [MCP](https://modelcontextprotocol.io/) server that gives AI agents full access to your captured traffic and interceptor system. Agents can search through requests, inspect headers and bodies, and write interceptor files directly into `.htap/interceptors/`.
 
 This means you can ask things like:
 
@@ -12,34 +12,34 @@ This means you can ask things like:
 - "Write an interceptor that logs all requests with missing auth headers"
 - "Send me a notification whenever an api request fails"
 
-The agent reads your traffic, writes the TypeScript, and procsi hot-reloads it.
+The agent reads your traffic, writes the TypeScript, and htap hot-reloads it.
 
 ## Setup
 
-Add procsi to your MCP client config:
+Add htap to your MCP client config:
 
 ```json
 {
   "mcpServers": {
-    "procsi": {
-      "command": "procsi",
+    "htap": {
+      "command": "htap",
       "args": ["mcp"]
     }
   }
 }
 ```
 
-The proxy must be running (`eval "$(procsi on)"`) — the MCP server connects to the same daemon as the TUI.
+The proxy must be running (`eval "$(htap on)"`) — the MCP server connects to the same daemon as the TUI.
 
 ## Agent Skill
 
-procsi also ships an agent skill that teaches AI assistants how to use the MCP tools properly. Gets you better results out of the box.
+htap also ships an agent skill that teaches AI assistants how to use the MCP tools properly. Gets you better results out of the box.
 
 **Claude Code:**
 
 ```bash
-/plugin marketplace add mtford90/procsi
-/plugin install procsi
+/plugin marketplace add mtford90/htap
+/plugin install htap
 ```
 
 **npm-agentskills** (works with Cursor, Copilot, Codex, etc.):
@@ -52,19 +52,19 @@ npx agents export --target claude
 
 | Tool                         | Description                                          |
 | ---------------------------- | ---------------------------------------------------- |
-| `procsi_get_status`          | Daemon status, proxy port, request count             |
-| `procsi_list_requests`       | Search and filter captured requests                  |
-| `procsi_get_request`         | Full request details by ID (headers, bodies, timing) |
-| `procsi_search_bodies`       | Full-text search through body content                |
-| `procsi_query_json`          | Extract values from JSON bodies via JSONPath         |
-| `procsi_count_requests`      | Count matching requests                              |
-| `procsi_clear_requests`      | Delete all captured requests                         |
-| `procsi_replay_request`      | Replay a captured request with optional overrides    |
-| `procsi_list_sessions`       | List active proxy sessions                           |
-| `procsi_write_interceptor`   | Write/update interceptor files and reload            |
-| `procsi_delete_interceptor`  | Delete interceptor files and reload                  |
-| `procsi_list_interceptors`   | List loaded interceptors with status and errors      |
-| `procsi_reload_interceptors` | Reload interceptors from disk                        |
+| `htap_get_status`          | Daemon status, proxy port, request count             |
+| `htap_list_requests`       | Search and filter captured requests                  |
+| `htap_get_request`         | Full request details by ID (headers, bodies, timing) |
+| `htap_search_bodies`       | Full-text search through body content                |
+| `htap_query_json`          | Extract values from JSON bodies via JSONPath         |
+| `htap_count_requests`      | Count matching requests                              |
+| `htap_clear_requests`      | Delete all captured requests                         |
+| `htap_replay_request`      | Replay a captured request with optional overrides    |
+| `htap_list_sessions`       | List active proxy sessions                           |
+| `htap_write_interceptor`   | Write/update interceptor files and reload            |
+| `htap_delete_interceptor`  | Delete interceptor files and reload                  |
+| `htap_list_interceptors`   | List loaded interceptors with status and errors      |
+| `htap_reload_interceptors` | Reload interceptors from disk                        |
 
 ## Filtering
 
@@ -88,15 +88,15 @@ Most tools accept these filters:
 | `offset`           | Pagination offset (0-based)                 | `0`                                   |
 | `limit`            | Max results (default 50, max 500)           | `100`                                 |
 
-`procsi_get_request` accepts comma-separated IDs for batch fetching (e.g. `"id1,id2,id3"`).
+`htap_get_request` accepts comma-separated IDs for batch fetching (e.g. `"id1,id2,id3"`).
 
-`procsi_search_bodies` also takes:
+`htap_search_bodies` also takes:
 
 | Parameter | Description                                                              | Example       |
 | --------- | ------------------------------------------------------------------------ | ------------- |
 | `target`  | Which body to search: `"request"`, `"response"`, or `"both"` (default) | `"response"` |
 
-`procsi_query_json` also takes:
+`htap_query_json` also takes:
 
 | Parameter | Description                                                           | Example      |
 | --------- | --------------------------------------------------------------------- | ------------ |
@@ -113,12 +113,12 @@ All query tools accept a `format` parameter:
 ## Examples
 
 ```
-procsi_list_requests({ status_range: "5xx", path: "/api" })
-procsi_search_bodies({ query: "error_code", method: "POST", target: "response" })
-procsi_list_requests({ regex: "users/\\d+$" })
-procsi_query_json({ json_path: "$.user.id", target: "response" })
-procsi_list_requests({ header_name: "authorization", header_target: "request" })
-procsi_replay_request({ id: "abc123", method: "POST", url: "https://api.example.com/test" })
-procsi_write_interceptor({ path: "mock-users.ts", content: "export default { ... }" })
-procsi_delete_interceptor({ path: "mock-users.ts" })
+htap_list_requests({ status_range: "5xx", path: "/api" })
+htap_search_bodies({ query: "error_code", method: "POST", target: "response" })
+htap_list_requests({ regex: "users/\\d+$" })
+htap_query_json({ json_path: "$.user.id", target: "response" })
+htap_list_requests({ header_name: "authorization", header_target: "request" })
+htap_replay_request({ id: "abc123", method: "POST", url: "https://api.example.com/test" })
+htap_write_interceptor({ path: "mock-users.ts", content: "export default { ... }" })
+htap_delete_interceptor({ path: "mock-users.ts" })
 ```

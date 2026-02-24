@@ -1,6 +1,6 @@
 import * as path from "node:path";
 import { Command } from "commander";
-import { ensureProcsiDir, getProcsiPaths } from "../../shared/project.js";
+import { ensureHtapDir, getHtapPaths } from "../../shared/project.js";
 import { startDaemon } from "../../shared/daemon.js";
 import { ControlClient } from "../../shared/control-client.js";
 import { parseVerbosity } from "../../shared/logger.js";
@@ -46,8 +46,8 @@ export function formatUnsetVars(vars: string[]): string {
  * Generate shell statements that save the current NODE_OPTIONS value
  * and append a --require flag for the preload script.
  *
- * Uses PROCSI_ORIG_NODE_OPTIONS as a guard — only saves the original
- * value on the first call, so repeated `procsi on` invocations are
+ * Uses HTAP_ORIG_NODE_OPTIONS as a guard — only saves the original
+ * value on the first call, so repeated `htap on` invocations are
  * idempotent.
  *
  * This must be raw shell (not through formatEnvVars) because it needs
@@ -62,22 +62,22 @@ export function formatNodeOptionsExport(preloadPath: string): string {
   const escaped = escapeDoubleQuoted(preloadPath);
   return [
     // Save original NODE_OPTIONS on first invocation only (${param-word} keeps existing value when set)
-    `export PROCSI_ORIG_NODE_OPTIONS="\${PROCSI_ORIG_NODE_OPTIONS-\${NODE_OPTIONS:-}}"`,
+    `export HTAP_ORIG_NODE_OPTIONS="\${HTAP_ORIG_NODE_OPTIONS-\${NODE_OPTIONS:-}}"`,
     // Append --require to NODE_OPTIONS, preserving any existing value
     // No inner quotes needed — the entire RHS is double-quoted so the shell won't word-split
-    `export NODE_OPTIONS="\${PROCSI_ORIG_NODE_OPTIONS:+\${PROCSI_ORIG_NODE_OPTIONS} }--require ${escaped}"`,
+    `export NODE_OPTIONS="\${HTAP_ORIG_NODE_OPTIONS:+\${HTAP_ORIG_NODE_OPTIONS} }--require ${escaped}"`,
   ].join("\n");
 }
 
 /**
  * Generate shell statements that restore NODE_OPTIONS to its original
- * value (or unset it if it was empty before procsi set it).
+ * value (or unset it if it was empty before htap set it).
  */
 export function formatNodeOptionsRestore(): string {
   return [
     // Restore to saved value; unset if the original was empty
-    `test -n "\${PROCSI_ORIG_NODE_OPTIONS:-}" && export NODE_OPTIONS="\${PROCSI_ORIG_NODE_OPTIONS}" || unset NODE_OPTIONS 2>/dev/null`,
-    "unset PROCSI_ORIG_NODE_OPTIONS 2>/dev/null",
+    `test -n "\${HTAP_ORIG_NODE_OPTIONS:-}" && export NODE_OPTIONS="\${HTAP_ORIG_NODE_OPTIONS}" || unset NODE_OPTIONS 2>/dev/null`,
+    "unset HTAP_ORIG_NODE_OPTIONS 2>/dev/null",
   ].join("\n");
 }
 
@@ -90,8 +90,8 @@ export function formatNodeOptionsRestore(): string {
 export function formatPythonPathExport(overrideDir: string): string {
   const escaped = escapeDoubleQuoted(overrideDir);
   return [
-    `export PROCSI_ORIG_PYTHONPATH="\${PROCSI_ORIG_PYTHONPATH-\${PYTHONPATH:-}}"`,
-    `export PYTHONPATH="${escaped}\${PROCSI_ORIG_PYTHONPATH:+:\${PROCSI_ORIG_PYTHONPATH}}"`,
+    `export HTAP_ORIG_PYTHONPATH="\${HTAP_ORIG_PYTHONPATH-\${PYTHONPATH:-}}"`,
+    `export PYTHONPATH="${escaped}\${HTAP_ORIG_PYTHONPATH:+:\${HTAP_ORIG_PYTHONPATH}}"`,
   ].join("\n");
 }
 
@@ -100,22 +100,22 @@ export function formatPythonPathExport(overrideDir: string): string {
  */
 export function formatPythonPathRestore(): string {
   return [
-    `test -n "\${PROCSI_ORIG_PYTHONPATH:-}" && export PYTHONPATH="\${PROCSI_ORIG_PYTHONPATH}" || unset PYTHONPATH 2>/dev/null`,
-    "unset PROCSI_ORIG_PYTHONPATH 2>/dev/null",
+    `test -n "\${HTAP_ORIG_PYTHONPATH:-}" && export PYTHONPATH="\${HTAP_ORIG_PYTHONPATH}" || unset PYTHONPATH 2>/dev/null`,
+    "unset HTAP_ORIG_PYTHONPATH 2>/dev/null",
   ].join("\n");
 }
 
 /**
  * Generate shell statements that save the current RUBYOPT and append
- * a -r flag for the procsi intercept script.
+ * a -r flag for the htap intercept script.
  *
  * Same idempotency pattern as formatNodeOptionsExport.
  */
 export function formatRubyOptExport(overridePath: string): string {
   const escaped = escapeDoubleQuoted(overridePath);
   return [
-    `export PROCSI_ORIG_RUBYOPT="\${PROCSI_ORIG_RUBYOPT-\${RUBYOPT:-}}"`,
-    `export RUBYOPT="\${PROCSI_ORIG_RUBYOPT:+\${PROCSI_ORIG_RUBYOPT} }-r ${escaped}"`,
+    `export HTAP_ORIG_RUBYOPT="\${HTAP_ORIG_RUBYOPT-\${RUBYOPT:-}}"`,
+    `export RUBYOPT="\${HTAP_ORIG_RUBYOPT:+\${HTAP_ORIG_RUBYOPT} }-r ${escaped}"`,
   ].join("\n");
 }
 
@@ -124,8 +124,8 @@ export function formatRubyOptExport(overridePath: string): string {
  */
 export function formatRubyOptRestore(): string {
   return [
-    `test -n "\${PROCSI_ORIG_RUBYOPT:-}" && export RUBYOPT="\${PROCSI_ORIG_RUBYOPT}" || unset RUBYOPT 2>/dev/null`,
-    "unset PROCSI_ORIG_RUBYOPT 2>/dev/null",
+    `test -n "\${HTAP_ORIG_RUBYOPT:-}" && export RUBYOPT="\${HTAP_ORIG_RUBYOPT}" || unset RUBYOPT 2>/dev/null`,
+    "unset HTAP_ORIG_RUBYOPT 2>/dev/null",
   ].join("\n");
 }
 
@@ -138,9 +138,9 @@ export function formatRubyOptRestore(): string {
 export function formatPhpIniScanDirExport(overrideDir: string): string {
   const escaped = escapeDoubleQuoted(overrideDir);
   return [
-    `export PROCSI_ORIG_PHP_INI_SCAN_DIR="\${PROCSI_ORIG_PHP_INI_SCAN_DIR-\${PHP_INI_SCAN_DIR:-}}"`,
+    `export HTAP_ORIG_PHP_INI_SCAN_DIR="\${HTAP_ORIG_PHP_INI_SCAN_DIR-\${PHP_INI_SCAN_DIR:-}}"`,
     // The `:` prefix tells PHP to scan default dirs plus our override dir
-    `export PHP_INI_SCAN_DIR=":\${PROCSI_ORIG_PHP_INI_SCAN_DIR:+\${PROCSI_ORIG_PHP_INI_SCAN_DIR}:}${escaped}"`,
+    `export PHP_INI_SCAN_DIR=":\${HTAP_ORIG_PHP_INI_SCAN_DIR:+\${HTAP_ORIG_PHP_INI_SCAN_DIR}:}${escaped}"`,
   ].join("\n");
 }
 
@@ -149,8 +149,8 @@ export function formatPhpIniScanDirExport(overrideDir: string): string {
  */
 export function formatPhpIniScanDirRestore(): string {
   return [
-    `test -n "\${PROCSI_ORIG_PHP_INI_SCAN_DIR:-}" && export PHP_INI_SCAN_DIR="\${PROCSI_ORIG_PHP_INI_SCAN_DIR}" || unset PHP_INI_SCAN_DIR 2>/dev/null`,
-    "unset PROCSI_ORIG_PHP_INI_SCAN_DIR 2>/dev/null",
+    `test -n "\${HTAP_ORIG_PHP_INI_SCAN_DIR:-}" && export PHP_INI_SCAN_DIR="\${HTAP_ORIG_PHP_INI_SCAN_DIR}" || unset PHP_INI_SCAN_DIR 2>/dev/null`,
+    "unset HTAP_ORIG_PHP_INI_SCAN_DIR 2>/dev/null",
   ].join("\n");
 }
 
@@ -165,7 +165,7 @@ export const onCommand = new Command("on")
       if (process.stdout.isTTY) {
         console.log("To intercept HTTP traffic, run:");
         console.log("");
-        console.log('  eval "$(procsi on)"');
+        console.log('  eval "$(htap on)"');
         console.log("");
         console.log("This sets the required environment variables in your shell.");
         return;
@@ -177,11 +177,11 @@ export const onCommand = new Command("on")
       const verbosity = globalOpts.verbose;
       const logLevel = parseVerbosity(verbosity);
 
-      // Find project root (auto-creates .procsi if needed)
+      // Find project root (auto-creates .htap if needed)
       const projectRoot = resolveProjectContext(globalOpts);
-      ensureProcsiDir(projectRoot);
+      ensureHtapDir(projectRoot);
 
-      const paths = getProcsiPaths(projectRoot);
+      const paths = getHtapPaths(projectRoot);
 
       try {
         // Start daemon if not already running
@@ -190,18 +190,18 @@ export const onCommand = new Command("on")
           autoRestart,
           onVersionMismatch: (running, cli) => {
             if (autoRestart) {
-              console.log(`# procsi: restarting daemon (version mismatch: ${running} -> ${cli})`);
+              console.log(`# htap: restarting daemon (version mismatch: ${running} -> ${cli})`);
             } else {
               console.log(
-                `# procsi warning: daemon version mismatch (running: ${running}, CLI: ${cli})`
+                `# htap warning: daemon version mismatch (running: ${running}, CLI: ${cli})`
               );
-              console.log(`# Use 'procsi daemon restart' to update.`);
+              console.log(`# Use 'htap daemon restart' to update.`);
             }
           },
         });
         const proxyUrl = `http://127.0.0.1:${proxyPort}`;
 
-        // Write runtime override scripts to .procsi/overrides/
+        // Write runtime override scripts to .htap/overrides/
         writeNodePreloadScript(paths.proxyPreloadFile);
         writePythonOverride(paths.pythonOverrideDir, paths.caCertFile);
         writeRubyOverride(path.dirname(paths.rubyOverrideFile), paths.caCertFile);
@@ -237,13 +237,13 @@ export const onCommand = new Command("on")
             CGI_HTTP_PROXY: proxyUrl,
             // Node.js runtime overrides (global-agent + undici)
             ...getNodeEnvVars(proxyUrl),
-            // procsi session tracking
-            PROCSI_SESSION_ID: session.id,
-            PROCSI_SESSION_TOKEN: session.token,
+            // htap session tracking
+            HTAP_SESSION_ID: session.id,
+            HTAP_SESSION_TOKEN: session.token,
           };
 
           if (label) {
-            envVars["PROCSI_LABEL"] = label;
+            envVars["HTAP_LABEL"] = label;
           }
 
           // Report interceptor status
@@ -254,10 +254,10 @@ export const onCommand = new Command("on")
               const loadedCount = interceptors.length - errorCount;
               if (errorCount > 0) {
                 console.log(
-                  `# Loaded ${loadedCount} interceptors (${errorCount} failed) from .procsi/interceptors/`
+                  `# Loaded ${loadedCount} interceptors (${errorCount} failed) from .htap/interceptors/`
                 );
               } else {
-                console.log(`# Loaded ${loadedCount} interceptors from .procsi/interceptors/`);
+                console.log(`# Loaded ${loadedCount} interceptors from .htap/interceptors/`);
               }
             }
           } catch {
@@ -275,17 +275,17 @@ export const onCommand = new Command("on")
 
           // Output confirmation as a comment (shown but not executed)
           const labelInfo = label ? ` (label: ${label})` : "";
-          console.log(`# procsi: intercepting traffic${labelInfo}`);
+          console.log(`# htap: intercepting traffic${labelInfo}`);
           console.log(`# Proxy: ${proxyUrl}`);
           console.log(`# Session: ${session.id}`);
           console.log(
-            `# Run 'procsi tui' for the interactive viewer, or 'procsi requests' to list traffic`
+            `# Run 'htap tui' for the interactive viewer, or 'htap requests' to list traffic`
           );
         } finally {
           client.close();
         }
       } catch (err) {
-        console.error(`# procsi error: ${getErrorMessage(err)}`);
+        console.error(`# htap error: ${getErrorMessage(err)}`);
         process.exit(1);
       }
     }

@@ -1,6 +1,6 @@
 #!/usr/bin/env npx tsx
 /**
- * Simulate script — continuously sends HTTP requests through the running procsi proxy
+ * Simulate script — continuously sends HTTP requests through the running htap proxy
  * so they appear live in the TUI. Useful for manual testing of real-time features.
  *
  * Usage:
@@ -86,7 +86,7 @@ const REQUEST_POOL: SimRequest[] = [
   // -- Node.js app requests --
   {
     method: "GET",
-    url: "http://api.github.com/repos/mtford90/procsi",
+    url: "http://api.github.com/repos/mtford90/htap",
     headers: jsonHeaders({
       authorization: "Bearer ghp_xxxxxxxxxxxx",
       "user-agent": "node-fetch/3.3.2",
@@ -137,7 +137,7 @@ const REQUEST_POOL: SimRequest[] = [
   },
   {
     method: "GET",
-    url: "http://registry.npmjs.org/procsi",
+    url: "http://registry.npmjs.org/htap",
     headers: jsonHeaders({ "user-agent": "npm/10.2.0 node/v20.11.0" }),
   },
 
@@ -218,7 +218,7 @@ const REQUEST_POOL: SimRequest[] = [
     headers: {
       "user-agent": "curl/8.4.0",
       accept: "*/*",
-      "x-custom-header": "hello-procsi",
+      "x-custom-header": "hello-htap",
       authorization: "Bearer test-token-123",
     },
   },
@@ -355,13 +355,13 @@ async function runWorker(proxyPort: number, opts: SimOptions): Promise<void> {
 async function main(): Promise<void> {
   const opts = parseArgs();
 
-  console.log("procsi simulate script");
+  console.log("htap simulate script");
   console.log("======================\n");
 
   const proxyPort = readProxyPort(PROJECT_ROOT);
 
   if (proxyPort === undefined) {
-    console.error("No proxy port found — is the daemon running? (procsi on)");
+    console.error("No proxy port found — is the daemon running? (htap on)");
     process.exit(1);
   }
 

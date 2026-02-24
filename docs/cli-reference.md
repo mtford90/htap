@@ -7,30 +7,30 @@
 | Flag                  | Description                                                  |
 | --------------------- | ------------------------------------------------------------ |
 | `-v, --verbose`       | Increase log verbosity (stackable: `-vv`, `-vvv`)            |
-| `-d, --dir <path>`    | Override project root directory (`.procsi` is appended)      |
-| `-c, --config <path>` | Override procsi data directory directly (no `.procsi` appended) |
+| `-d, --dir <path>`    | Override project root directory (`.htap` is appended)      |
+| `-c, --config <path>` | Override htap data directory directly (no `.htap` appended) |
 
 ### Environment Variables
 
 | Variable        | Equivalent flag | Description                                              |
 | --------------- | --------------- | -------------------------------------------------------- |
-| `PROCSI_CONFIG` | `--config`      | Procsi data directory (highest priority, no `.procsi` appended) |
-| `PROCSI_DIR`    | `--dir`         | Project root directory (`.procsi` is appended)           |
+| `HTAP_CONFIG` | `--config`      | Htap data directory (highest priority, no `.htap` appended) |
+| `HTAP_DIR`    | `--dir`         | Project root directory (`.htap` is appended)           |
 
-CLI flags override environment variables. `--config` / `PROCSI_CONFIG` takes precedence over `--dir` / `PROCSI_DIR`.
+CLI flags override environment variables. `--config` / `HTAP_CONFIG` takes precedence over `--dir` / `HTAP_DIR`.
 
 **Resolution order:**
 
-1. `--config` / `PROCSI_CONFIG` — use as procsi data directory directly
-2. `--dir` / `PROCSI_DIR` — use as project root, append `.procsi`
-3. Auto-detect — walk directory tree for `.git` / `.procsi`, append `.procsi`
+1. `--config` / `HTAP_CONFIG` — use as htap data directory directly
+2. `--dir` / `HTAP_DIR` — use as project root, append `.htap`
+3. Auto-detect — walk directory tree for `.git` / `.htap`, append `.htap`
 
-## `procsi on`
+## `htap on`
 
 Output shell `export` statements to start intercepting HTTP traffic. Use with `eval`:
 
 ```bash
-eval "$(procsi on)"
+eval "$(htap on)"
 ```
 
 If run directly in a TTY (without `eval`), shows usage instructions.
@@ -41,24 +41,24 @@ If run directly in a TTY (without `eval`), shows usage instructions.
 | `-s, --source <name>` | Label the source process (auto-detected from PID if omitted) |
 | `--no-restart`         | Don't auto-restart daemon on version mismatch            |
 
-## `procsi off`
+## `htap off`
 
 Output shell `unset` statements to stop intercepting HTTP traffic. Use with `eval`:
 
 ```bash
-eval "$(procsi off)"
+eval "$(htap off)"
 ```
 
-## `procsi browser`
+## `htap browser`
 
-Launch a browser pre-configured to use the procsi proxy. The browser runs in an isolated temporary profile with session attribution via a browser extension — all traffic appears in the TUI with the correct source.
+Launch a browser pre-configured to use the htap proxy. The browser runs in an isolated temporary profile with session attribution via a browser extension — all traffic appears in the TUI with the correct source.
 
 ```bash
-procsi browser                              # auto-detect and launch
-procsi browser https://example.com          # open a specific URL
-procsi browser --browser firefox            # choose browser by name/type
-procsi browser --browser brave              # works with any supported browser
-procsi browser --label "manual testing"     # custom session label
+htap browser                              # auto-detect and launch
+htap browser https://example.com          # open a specific URL
+htap browser --browser firefox            # choose browser by name/type
+htap browser --browser brave              # works with any supported browser
+htap browser --label "manual testing"     # custom session label
 ```
 
 | Flag                    | Description                                                     |
@@ -76,7 +76,7 @@ procsi browser --label "manual testing"     # custom session label
 
 The browser process is tied to the CLI — close the browser window or press `Ctrl+C` to stop. The temporary profile is cleaned up automatically on exit.
 
-## `procsi tui`
+## `htap tui`
 
 Open the interactive TUI. See [TUI documentation](tui.md) for keybindings and features.
 
@@ -84,39 +84,39 @@ Open the interactive TUI. See [TUI documentation](tui.md) for keybindings and fe
 | ------ | ------------------------------------------- |
 | `--ci` | CI mode: render once and exit (for testing) |
 
-## `procsi status`
+## `htap status`
 
 Show comprehensive status: daemon state, interception state, sessions, request count, loaded interceptors.
 
-## `procsi daemon stop`
+## `htap daemon stop`
 
 Stop the daemon.
 
-## `procsi daemon restart`
+## `htap daemon restart`
 
 Restart the daemon (or start it if not running).
 
-## `procsi requests`
+## `htap requests`
 
 List and filter captured requests. Output is a colour-coded table with short IDs — pipe to other tools or use `--json` for structured output.
 
 ```bash
-procsi requests                              # list recent (default limit 50)
-procsi requests --method GET,POST            # filter by method
-procsi requests --status 4xx                 # filter by status range
-procsi requests --host api.example.com       # filter by host
-procsi requests --path /api/v2               # filter by path prefix
-procsi requests --search "keyword"           # substring match on URL
-procsi requests --search "/users\\/\\d+/"    # regex literal match on URL
-procsi requests --regex "users/\\d+$"       # regex pattern match on URL
-procsi requests --since 5m                   # last 5 minutes
-procsi requests --since yesterday            # since midnight yesterday
-procsi requests --since 10am --before 11am   # time window
-procsi requests --header "content-type:application/json"  # header filter
-procsi requests --intercepted-by mock-users  # interceptor filter
-procsi requests --saved                       # only saved/bookmarked requests
-procsi requests --limit 100 --offset 50      # pagination
-procsi requests --json                       # JSON output
+htap requests                              # list recent (default limit 50)
+htap requests --method GET,POST            # filter by method
+htap requests --status 4xx                 # filter by status range
+htap requests --host api.example.com       # filter by host
+htap requests --path /api/v2               # filter by path prefix
+htap requests --search "keyword"           # substring match on URL
+htap requests --search "/users\\/\\d+/"    # regex literal match on URL
+htap requests --regex "users/\\d+$"       # regex pattern match on URL
+htap requests --since 5m                   # last 5 minutes
+htap requests --since yesterday            # since midnight yesterday
+htap requests --since 10am --before 11am   # time window
+htap requests --header "content-type:application/json"  # header filter
+htap requests --intercepted-by mock-users  # interceptor filter
+htap requests --saved                       # only saved/bookmarked requests
+htap requests --limit 100 --offset 50      # pagination
+htap requests --json                       # JSON output
 ```
 
 | Flag                       | Description                                              |
@@ -138,15 +138,15 @@ procsi requests --json                       # JSON output
 | `--offset <n>`             | Skip results (default 0)                                 |
 | `--json`                   | JSON output                                              |
 
-### `procsi requests search <query>`
+### `htap requests search <query>`
 
 Full-text search through body content.
 
 ```bash
-procsi requests search "timeout"                        # search request + response bodies
-procsi requests search "Bearer " --target request      # request body only
-procsi requests search "error_code" --target response  # response body only
-procsi requests search "Alice" --method POST --host api.example.com
+htap requests search "timeout"                        # search request + response bodies
+htap requests search "Bearer " --target request      # request body only
+htap requests search "error_code" --target response  # response body only
+htap requests search "Alice" --method POST --host api.example.com
 ```
 
 | Flag              | Description                                           |
@@ -157,47 +157,47 @@ procsi requests search "Alice" --method POST --host api.example.com
 | `--json`          | JSON output                                           |
 | Common filters    | `--method`, `--status`, `--host`, `--path`, etc.      |
 
-### `procsi requests query <jsonpath>`
+### `htap requests query <jsonpath>`
 
 Query JSON bodies using JSONPath expressions (e.g. `$.data.id`). Supports `--value`, `--target` (request/response/both).
 
-### `procsi requests count`
+### `htap requests count`
 
 Count requests matching the current filters.
 
-### `procsi requests clear`
+### `htap requests clear`
 
 Clear all captured requests. Prompts for confirmation unless `--yes` is passed.
 
-## `procsi request <id>`
+## `htap request <id>`
 
 View a single request in detail. Accepts full UUIDs or abbreviated prefixes (first 7+ characters).
 
 ```bash
-procsi request a1b2c3d              # full detail view
-procsi request a1b2c3d --json       # JSON output
+htap request a1b2c3d              # full detail view
+htap request a1b2c3d --json       # JSON output
 ```
 
-### `procsi request <id> body`
+### `htap request <id> body`
 
 Dump the response body to stdout (raw, pipeable). Use `--request` for the request body instead.
 
 ```bash
-procsi request a1b2c3d body                # response body
-procsi request a1b2c3d body --request      # request body
-procsi request a1b2c3d body | jq .         # pipe to jq
+htap request a1b2c3d body                # response body
+htap request a1b2c3d body --request      # request body
+htap request a1b2c3d body | jq .         # pipe to jq
 ```
 
-### `procsi request <id> export <format>`
+### `htap request <id> export <format>`
 
 Export a request as `curl` or `har`.
 
 ```bash
-procsi request a1b2c3d export curl
-procsi request a1b2c3d export har
+htap request a1b2c3d export curl
+htap request a1b2c3d export har
 ```
 
-## `procsi sessions`
+## `htap sessions`
 
 List active proxy sessions.
 
@@ -205,41 +205,41 @@ List active proxy sessions.
 | -------- | ----------- |
 | `--json` | JSON output |
 
-## `procsi clear`
+## `htap clear`
 
 Clear all captured requests.
 
-## `procsi debug-dump`
+## `htap debug-dump`
 
-Collect diagnostics (system info, daemon status, recent logs) into `.procsi/debug-dump-<timestamp>.json`.
+Collect diagnostics (system info, daemon status, recent logs) into `.htap/debug-dump-<timestamp>.json`.
 
-## `procsi mcp`
+## `htap mcp`
 
 Start the MCP server (stdio transport). See [MCP documentation](mcp.md).
 
-## `procsi interceptors`
+## `htap interceptors`
 
 List loaded interceptors, or manage them with subcommands. See [Interceptors documentation](interceptors.md).
 
-### `procsi interceptors init`
+### `htap interceptors init`
 
-Scaffold an example interceptor in `.procsi/interceptors/`.
+Scaffold an example interceptor in `.htap/interceptors/`.
 
-### `procsi interceptors reload`
+### `htap interceptors reload`
 
 Reload interceptors from disk without restarting the daemon.
 
-### `procsi interceptors logs`
+### `htap interceptors logs`
 
 View the interceptor event log. Events include match results, mock responses, errors, timeouts, and `ctx.log()` output.
 
 ```bash
-procsi interceptors logs                         # recent events
-procsi interceptors logs --name mock-users       # filter by interceptor
-procsi interceptors logs --level error           # filter by level
-procsi interceptors logs --limit 100             # more results
-procsi interceptors logs --follow                # live tail (Ctrl+C to stop)
-procsi interceptors logs --follow --json         # live tail as NDJSON
+htap interceptors logs                         # recent events
+htap interceptors logs --name mock-users       # filter by interceptor
+htap interceptors logs --level error           # filter by level
+htap interceptors logs --limit 100             # more results
+htap interceptors logs --follow                # live tail (Ctrl+C to stop)
+htap interceptors logs --follow --json         # live tail as NDJSON
 ```
 
 | Flag                   | Description                         |
@@ -250,16 +250,16 @@ procsi interceptors logs --follow --json         # live tail as NDJSON
 | `--follow`             | Live tail — poll for new events     |
 | `--json`               | JSON output                         |
 
-### `procsi interceptors logs clear`
+### `htap interceptors logs clear`
 
 Clear the interceptor event log.
 
-## `procsi completions <shell>`
+## `htap completions <shell>`
 
 Generate shell completion scripts. Supports `zsh`, `bash`, and `fish`.
 
 ```bash
-eval "$(procsi completions zsh)"    # add to .zshrc
-eval "$(procsi completions bash)"   # add to .bashrc
-procsi completions fish | source    # add to fish config
+eval "$(htap completions zsh)"    # add to .zshrc
+eval "$(htap completions bash)"   # add to .bashrc
+htap completions fish | source    # add to fish config
 ```

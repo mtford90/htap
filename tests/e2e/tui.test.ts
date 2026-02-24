@@ -1,5 +1,5 @@
 /**
- * End-to-end tests for the procsi TUI.
+ * End-to-end tests for the htap TUI.
  *
  * These tests spawn real CLI processes using cli-testing-library and assert
  * on terminal output. The TUI uses --ci mode which renders once and exits,
@@ -20,7 +20,7 @@ import { generateCACertificate } from "mockttp";
 import { RequestRepository } from "../../src/daemon/storage.js";
 import { createProxy } from "../../src/daemon/proxy.js";
 import { createControlServer } from "../../src/daemon/control.js";
-import { ensureProcsiDir, getProcsiPaths } from "../../src/shared/project.js";
+import { ensureHtapDir, getHtapPaths } from "../../src/shared/project.js";
 
 // Increase default timeout for async operations
 configure({ asyncUtilTimeout: 10000 });
@@ -77,9 +77,9 @@ function getCliBinPath(): string {
   return path.resolve(process.cwd(), "dist/cli/index.js");
 }
 
-describe("procsi tui e2e", () => {
+describe("htap tui e2e", () => {
   let tempDir: string;
-  let paths: ReturnType<typeof getProcsiPaths>;
+  let paths: ReturnType<typeof getHtapPaths>;
   let storage: RequestRepository;
   let testServer: http.Server;
   let testServerPort: number;
@@ -87,13 +87,13 @@ describe("procsi tui e2e", () => {
 
   beforeAll(async () => {
     // Create temp project directory
-    tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "procsi-e2e-"));
-    ensureProcsiDir(tempDir);
-    paths = getProcsiPaths(tempDir);
+    tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "htap-e2e-"));
+    ensureHtapDir(tempDir);
+    paths = getHtapPaths(tempDir);
 
     // Generate CA certificate
     const ca = await generateCACertificate({
-      subject: { commonName: "procsi Test CA" },
+      subject: { commonName: "htap Test CA" },
     });
     fs.writeFileSync(paths.caKeyFile, ca.key);
     fs.writeFileSync(paths.caCertFile, ca.cert);
@@ -252,9 +252,9 @@ describe("procsi tui e2e", () => {
       await findByText(/daemon.*not running|start.*intercept/i);
     });
 
-    it("shows error when not in procsi project", async () => {
-      // Create a temp directory without .procsi
-      const nonProjectDir = fs.mkdtempSync(path.join(os.tmpdir(), "procsi-noproject-"));
+    it("shows error when not in htap project", async () => {
+      // Create a temp directory without .htap
+      const nonProjectDir = fs.mkdtempSync(path.join(os.tmpdir(), "htap-noproject-"));
 
       try {
         const { findByText } = await render("node", [getCliBinPath(), "tui", "--ci"], {

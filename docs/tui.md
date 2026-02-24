@@ -2,7 +2,7 @@
 
 [Back to README](../README.md) | [CLI Reference](cli-reference.md)
 
-Open the interactive TUI with `procsi tui`.
+Open the interactive TUI with `htap tui`.
 
 `j`/`k` to navigate, `Tab` to switch panels, `/` to filter, `e` to export, `Enter` to inspect bodies, `q` to quit.
 
@@ -108,8 +108,8 @@ Press `e` to open the export modal. Select a format:
 | HTTPie   | Copy as HTTPie command to clipboard       |
 | HAR      | Save the selected request as a HAR file   |
 
-Selecting HAR opens a destination picker — `.procsi/exports/`, `~/Downloads/`, or a custom directory path.
+Selecting HAR opens a destination picker — `.htap/exports/`, `~/Downloads/`, or a custom directory path.
 
 ### Export body (`s`)
 
-Press `s` on a body section to open the body export modal — clipboard, `.procsi/exports/`, `~/Downloads/`, custom path, or open in default application.
+Press `s` on a body section to open the body export modal — clipboard, `.htap/exports/`, `~/Downloads/`, custom path, or open in default application.
