@@ -10,7 +10,7 @@ import type {
   RequestFilter,
 } from "../../../shared/types.js";
 import { ControlClient } from "../../../shared/control-client.js";
-import { findProjectRoot, getProcsiPaths } from "../../../shared/project.js";
+import { findProjectRoot, getHtapPaths } from "../../../shared/project.js";
 
 const DEFAULT_QUERY_LIMIT = 1000;
 const DEFAULT_POLL_INTERVAL_MS = 2000;
@@ -271,7 +271,7 @@ export function useRequests(options: UseRequestsOptions = {}): UseRequestsResult
       } catch (err) {
         const message = err instanceof Error ? err.message : "Failed to connect to daemon";
         if (message.includes("ENOENT") || message.includes("ECONNREFUSED")) {
-          setError("Daemon not running. Start with 'eval \"$(procsi on)\"'.");
+          setError("Daemon not running. Start with 'eval \"$(htap on)\"'.");
         } else {
           setError(message);
         }
@@ -319,12 +319,12 @@ export function useRequests(options: UseRequestsOptions = {}): UseRequestsResult
   useEffect(() => {
     const resolvedRoot = projectRoot ?? findProjectRoot();
     if (!resolvedRoot) {
-      setError("Not in a procsi project. Run 'eval \"$(procsi on)\"' first.");
+      setError("Not in a htap project. Run 'eval \"$(htap on)\"' first.");
       setIsLoading(false);
       return;
     }
 
-    const paths = getProcsiPaths(resolvedRoot);
+    const paths = getHtapPaths(resolvedRoot);
     clientRef.current = new ControlClient(paths.controlSocketFile);
 
     return () => {

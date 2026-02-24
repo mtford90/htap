@@ -2,7 +2,7 @@ import { Command } from "commander";
 import {
   findProjectRoot,
   findOrCreateProjectRoot,
-  getProcsiPaths,
+  getHtapPaths,
   setConfigOverride,
   getConfigOverride,
   resolveOverridePath,
@@ -24,18 +24,16 @@ export function getGlobalOptions(command: Command): GlobalOptions {
   const raw = command.optsWithGlobals() as Record<string, unknown>;
   return {
     verbose: typeof raw["verbose"] === "number" ? raw["verbose"] : 0,
-    dir: typeof raw["dir"] === "string" ? raw["dir"] : (process.env["PROCSI_DIR"] ?? undefined),
+    dir: typeof raw["dir"] === "string" ? raw["dir"] : (process.env["HTAP_DIR"] ?? undefined),
     config:
-      typeof raw["config"] === "string"
-        ? raw["config"]
-        : (process.env["PROCSI_CONFIG"] ?? undefined),
+      typeof raw["config"] === "string" ? raw["config"] : (process.env["HTAP_CONFIG"] ?? undefined),
   };
 }
 
 /**
  * Find the project root or exit with a friendly error message.
  * When a config override is active, returns the override path as a
- * stand-in project root (getProcsiDir will ignore it).
+ * stand-in project root (getHtapDir will ignore it).
  */
 export function requireProjectRoot(override?: string): string {
   const configOverride = getConfigOverride();
@@ -46,9 +44,9 @@ export function requireProjectRoot(override?: string): string {
   const projectRoot = findProjectRoot(undefined, override);
   if (!projectRoot) {
     if (override) {
-      console.error(`No .procsi or .git found at ${override} (specified via --dir)`);
+      console.error(`No .htap or .git found at ${override} (specified via --dir)`);
     } else {
-      console.error("Not in a project directory (no .procsi or .git found)");
+      console.error("Not in a project directory (no .htap or .git found)");
     }
     process.exit(1);
   }
@@ -58,7 +56,7 @@ export function requireProjectRoot(override?: string): string {
 /**
  * Set the config override from global options and return an appropriate
  * project root. When --config is provided, the override is set and the
- * resolved config path is returned (getProcsiDir will use the override).
+ * resolved config path is returned (getHtapDir will use the override).
  * Otherwise falls back to findOrCreateProjectRoot with --dir.
  */
 export function resolveProjectContext(globalOpts: GlobalOptions): string {
@@ -93,11 +91,11 @@ export async function connectToDaemon(command: Command): Promise<{
   }
 
   const projectRoot = requireProjectRoot(globalOpts.dir);
-  const paths = getProcsiPaths(projectRoot);
+  const paths = getHtapPaths(projectRoot);
 
   const running = await isDaemonRunning(projectRoot);
   if (!running) {
-    console.error("Daemon is not running. Start it with: procsi on");
+    console.error("Daemon is not running. Start it with: htap on");
     process.exit(1);
   }
 

@@ -7,22 +7,22 @@ import { generateCACertificate } from "mockttp";
 import { RequestRepository } from "../../src/daemon/storage.js";
 import { createProxy } from "../../src/daemon/proxy.js";
 import { createControlServer } from "../../src/daemon/control.js";
-import { ensureProcsiDir, getProcsiPaths } from "../../src/shared/project.js";
+import { ensureHtapDir, getHtapPaths } from "../../src/shared/project.js";
 
 describe("logging integration", () => {
   let tempDir: string;
-  let paths: ReturnType<typeof getProcsiPaths>;
+  let paths: ReturnType<typeof getHtapPaths>;
   let storage: RequestRepository;
   let cleanup: (() => Promise<void>)[] = [];
 
   beforeEach(async () => {
-    tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "procsi-logging-test-"));
-    ensureProcsiDir(tempDir);
-    paths = getProcsiPaths(tempDir);
+    tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "htap-logging-test-"));
+    ensureHtapDir(tempDir);
+    paths = getHtapPaths(tempDir);
 
     // Generate CA certificate
     const ca = await generateCACertificate({
-      subject: { commonName: "procsi Test CA" },
+      subject: { commonName: "htap Test CA" },
     });
     fs.writeFileSync(paths.caKeyFile, ca.key);
     fs.writeFileSync(paths.caCertFile, ca.cert);
@@ -142,7 +142,7 @@ describe("logging integration", () => {
     it("does not log debug messages at info level", async () => {
       // Create storage with info level
       const infoStorage = new RequestRepository(
-        path.join(paths.procsiDir, "info-test.db"),
+        path.join(paths.htapDir, "info-test.db"),
         tempDir,
         "info"
       );

@@ -1,5 +1,5 @@
 /**
- * procsi MCP server — exposes read-only traffic inspection tools
+ * htap MCP server — exposes read-only traffic inspection tools
  * to MCP clients (AI agents, IDE integrations, etc.).
  *
  * Connects to the daemon's existing control socket to query captured traffic.
@@ -11,8 +11,8 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { z } from "zod";
 import { ControlClient } from "../shared/control-client.js";
-import { getProcsiPaths } from "../shared/project.js";
-import { getProcsiVersion } from "../shared/version.js";
+import { getHtapPaths } from "../shared/project.js";
+import { getHtapVersion } from "../shared/version.js";
 import { isTextContentType, isJsonContentType } from "../shared/content-type.js";
 import { normaliseRegexFilterInput } from "../shared/regex-filter.js";
 import { resolveInterceptorPath } from "../shared/interceptors.js";
@@ -449,25 +449,25 @@ export interface McpServerOptions {
 }
 
 /**
- * Create and configure the procsi MCP server.
+ * Create and configure the htap MCP server.
  * Returns the server instance (call `start()` to connect transport).
  */
-export function createProcsiMcpServer(options: McpServerOptions) {
+export function createHtapMcpServer(options: McpServerOptions) {
   const { projectRoot } = options;
-  const paths = getProcsiPaths(projectRoot);
-  const version = getProcsiVersion();
+  const paths = getHtapPaths(projectRoot);
+  const version = getHtapVersion();
 
   const server = new McpServer({
-    name: "procsi",
+    name: "htap",
     version,
   });
 
   const client = new ControlClient(paths.controlSocketFile);
 
-  // --- procsi_get_status ---
+  // --- htap_get_status ---
   server.tool(
-    "procsi_get_status",
-    "Get the current status of the procsi proxy daemon — running state, proxy port, session count, and total captured request count. Use this to check if the daemon is running before calling other tools.",
+    "htap_get_status",
+    "Get the current status of the htap proxy daemon — running state, proxy port, session count, and total captured request count. Use this to check if the daemon is running before calling other tools.",
     {},
     async () => {
       try {
@@ -485,17 +485,17 @@ export function createProcsiMcpServer(options: McpServerOptions) {
         return textResult(lines.join("\n"));
       } catch (err) {
         return textResult(
-          `Failed to connect to procsi daemon. Is it running? Error: ${err instanceof Error ? err.message : "Unknown error"}`,
+          `Failed to connect to htap daemon. Is it running? Error: ${err instanceof Error ? err.message : "Unknown error"}`,
           true
         );
       }
     }
   );
 
-  // --- procsi_list_requests ---
+  // --- htap_list_requests ---
   server.tool(
-    "procsi_list_requests",
-    "Search and filter captured HTTP requests. Returns summaries (method, URL, status, timing). Supports filtering by HTTP method(s), status code (range, exact, or Nxx pattern), host, path prefix, time window, URL substring/regex, and headers. Use procsi_get_request with a request ID to fetch full headers and bodies.",
+    "htap_list_requests",
+    "Search and filter captured HTTP requests. Returns summaries (method, URL, status, timing). Supports filtering by HTTP method(s), status code (range, exact, or Nxx pattern), host, path prefix, time window, URL substring/regex, and headers. Use htap_get_request with a request ID to fetch full headers and bodies.",
     {
       method: z
         .string()
@@ -617,10 +617,10 @@ export function createProcsiMcpServer(options: McpServerOptions) {
     }
   );
 
-  // --- procsi_get_request ---
+  // --- htap_get_request ---
   server.tool(
-    "procsi_get_request",
-    "Fetch full details of captured HTTP request(s) by ID — including all headers, request/response bodies, timing, and status. Supports comma-separated IDs for batch fetching. Get request IDs from procsi_list_requests or procsi_search_bodies.",
+    "htap_get_request",
+    "Fetch full details of captured HTTP request(s) by ID — including all headers, request/response bodies, timing, and status. Supports comma-separated IDs for batch fetching. Get request IDs from htap_list_requests or htap_search_bodies.",
     {
       id: z
         .string()
@@ -677,10 +677,10 @@ export function createProcsiMcpServer(options: McpServerOptions) {
     }
   );
 
-  // --- procsi_search_bodies ---
+  // --- htap_search_bodies ---
   server.tool(
-    "procsi_search_bodies",
-    "Search through request and/or response body content for a text substring. Only searches text-based bodies (JSON, HTML, XML, etc.), skipping binary content. Supports body target selection (request/response/both), plus filtering by method(s), status code, host, path prefix, URL regex, time window, and headers. Returns summaries — use procsi_get_request for full details.",
+    "htap_search_bodies",
+    "Search through request and/or response body content for a text substring. Only searches text-based bodies (JSON, HTML, XML, etc.), skipping binary content. Supports body target selection (request/response/both), plus filtering by method(s), status code, host, path prefix, URL regex, time window, and headers. Returns summaries — use htap_get_request for full details.",
     {
       query: z
         .string()
@@ -804,9 +804,9 @@ export function createProcsiMcpServer(options: McpServerOptions) {
     }
   );
 
-  // --- procsi_count_requests ---
+  // --- htap_count_requests ---
   server.tool(
-    "procsi_count_requests",
+    "htap_count_requests",
     "Count captured HTTP requests, optionally filtered. Useful for checking total traffic volume or verifying how many requests match a filter before paginating through them.",
     {
       method: z
@@ -891,9 +891,9 @@ export function createProcsiMcpServer(options: McpServerOptions) {
     }
   );
 
-  // --- procsi_query_json ---
+  // --- htap_query_json ---
   server.tool(
-    "procsi_query_json",
+    "htap_query_json",
     "Extract values from JSON request/response bodies using JSONPath syntax (SQLite json_extract). Only queries bodies with JSON content types. Use this to find requests where a specific JSON field exists or has a particular value.",
     {
       json_path: z
@@ -1017,9 +1017,9 @@ export function createProcsiMcpServer(options: McpServerOptions) {
     }
   );
 
-  // --- procsi_clear_requests ---
+  // --- htap_clear_requests ---
   server.tool(
-    "procsi_clear_requests",
+    "htap_clear_requests",
     "Clear all captured HTTP requests from storage. This is irreversible.",
     {},
     async () => {
@@ -1035,10 +1035,10 @@ export function createProcsiMcpServer(options: McpServerOptions) {
     }
   );
 
-  // --- procsi_replay_request ---
+  // --- htap_replay_request ---
   server.tool(
-    "procsi_replay_request",
-    "Replay a previously captured HTTP request, optionally overriding method, URL, headers, or body. The replay is captured like normal traffic and can be inspected via procsi_list_requests/procsi_get_request.",
+    "htap_replay_request",
+    "Replay a previously captured HTTP request, optionally overriding method, URL, headers, or body. The replay is captured like normal traffic and can be inspected via htap_list_requests/htap_get_request.",
     {
       id: z.string().describe("The captured request ID to replay."),
       method: z.string().optional().describe("Override HTTP method (e.g. GET, POST, PUT)."),
@@ -1083,7 +1083,7 @@ export function createProcsiMcpServer(options: McpServerOptions) {
         }
 
         return textResult(
-          `Replayed request ${params.id} as ${replayed.requestId}. Use procsi_get_request with the new ID to inspect details.`
+          `Replayed request ${params.id} as ${replayed.requestId}. Use htap_get_request with the new ID to inspect details.`
         );
       } catch (err) {
         return textResult(
@@ -1094,10 +1094,10 @@ export function createProcsiMcpServer(options: McpServerOptions) {
     }
   );
 
-  // --- procsi_save_request ---
+  // --- htap_save_request ---
   server.tool(
-    "procsi_save_request",
-    "Save (bookmark) a captured HTTP request so it persists across clear operations. Saved requests are not deleted by procsi_clear_requests and are not evicted by the storage limit.",
+    "htap_save_request",
+    "Save (bookmark) a captured HTTP request so it persists across clear operations. Saved requests are not deleted by htap_clear_requests and are not evicted by the storage limit.",
     {
       id: z.string().describe("The request ID to save/bookmark."),
     },
@@ -1117,9 +1117,9 @@ export function createProcsiMcpServer(options: McpServerOptions) {
     }
   );
 
-  // --- procsi_unsave_request ---
+  // --- htap_unsave_request ---
   server.tool(
-    "procsi_unsave_request",
+    "htap_unsave_request",
     "Remove the saved/bookmark flag from a captured HTTP request. The request will then be subject to normal clear and eviction behaviour.",
     {
       id: z.string().describe("The request ID to unsave/unbookmark."),
@@ -1140,10 +1140,10 @@ export function createProcsiMcpServer(options: McpServerOptions) {
     }
   );
 
-  // --- procsi_list_sessions ---
+  // --- htap_list_sessions ---
   server.tool(
-    "procsi_list_sessions",
-    'List all active proxy sessions. Each session represents a process that registered with the daemon (e.g. a shell running `eval "$(procsi on)"`).',
+    "htap_list_sessions",
+    'List all active proxy sessions. Each session represents a process that registered with the daemon (e.g. a shell running `eval "$(htap on)"`).',
     {},
     async () => {
       try {
@@ -1165,15 +1165,15 @@ export function createProcsiMcpServer(options: McpServerOptions) {
     }
   );
 
-  // --- procsi_write_interceptor ---
+  // --- htap_write_interceptor ---
   server.tool(
-    "procsi_write_interceptor",
-    "Write or update a TypeScript interceptor file under .procsi/interceptors/, then reload interceptors.",
+    "htap_write_interceptor",
+    "Write or update a TypeScript interceptor file under .htap/interceptors/, then reload interceptors.",
     {
       path: z
         .string()
         .describe(
-          "Relative interceptor path under .procsi/interceptors/ (e.g. 'mock-users.ts' or 'api/mock-auth.ts')."
+          "Relative interceptor path under .htap/interceptors/ (e.g. 'mock-users.ts' or 'api/mock-auth.ts')."
         ),
       content: z.string().describe("Full TypeScript file content to write."),
       overwrite: z
@@ -1229,15 +1229,15 @@ export function createProcsiMcpServer(options: McpServerOptions) {
     }
   );
 
-  // --- procsi_delete_interceptor ---
+  // --- htap_delete_interceptor ---
   server.tool(
-    "procsi_delete_interceptor",
-    "Delete a TypeScript interceptor file under .procsi/interceptors/, then reload interceptors.",
+    "htap_delete_interceptor",
+    "Delete a TypeScript interceptor file under .htap/interceptors/, then reload interceptors.",
     {
       path: z
         .string()
         .describe(
-          "Relative interceptor path under .procsi/interceptors/ (e.g. 'mock-users.ts' or 'api/mock-auth.ts')."
+          "Relative interceptor path under .htap/interceptors/ (e.g. 'mock-users.ts' or 'api/mock-auth.ts')."
         ),
       format: FORMAT_SCHEMA,
     },
@@ -1275,9 +1275,9 @@ export function createProcsiMcpServer(options: McpServerOptions) {
     }
   );
 
-  // --- procsi_list_interceptors ---
+  // --- htap_list_interceptors ---
   server.tool(
-    "procsi_list_interceptors",
+    "htap_list_interceptors",
     "List all loaded interceptors — their names, source files, whether they have a match function, and any load errors. Use this to check which interceptors are active.",
     {
       format: FORMAT_SCHEMA,
@@ -1306,9 +1306,9 @@ export function createProcsiMcpServer(options: McpServerOptions) {
     }
   );
 
-  // --- procsi_reload_interceptors ---
+  // --- htap_reload_interceptors ---
   server.tool(
-    "procsi_reload_interceptors",
+    "htap_reload_interceptors",
     "Reload interceptors from disk. Use after editing interceptor files to apply changes without restarting the daemon.",
     {
       format: FORMAT_SCHEMA,
@@ -1337,9 +1337,9 @@ export function createProcsiMcpServer(options: McpServerOptions) {
     }
   );
 
-  // --- procsi_get_interceptor_events ---
+  // --- htap_get_interceptor_events ---
   server.tool(
-    "procsi_get_interceptor_events",
+    "htap_get_interceptor_events",
     "Get interceptor runtime events — matches, errors, timeouts, and ctx.log() messages. Use this to debug interceptor behaviour. Typical workflow: list_interceptors → get_interceptor_events level=error → fix code → reload_interceptors → check events again.",
     {
       limit: z.number().optional().describe("Maximum number of events to return (default 100)."),

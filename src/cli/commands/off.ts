@@ -7,8 +7,8 @@ import {
   formatPhpIniScanDirRestore,
 } from "./on.js";
 
-// Environment variables managed by procsi
-const PROCSI_ENV_VARS = [
+// Environment variables managed by htap
+const HTAP_ENV_VARS = [
   "HTTP_PROXY",
   "HTTPS_PROXY",
   "http_proxy",
@@ -25,9 +25,9 @@ const PROCSI_ENV_VARS = [
   "GLOBAL_AGENT_HTTP_PROXY",
   "GLOBAL_AGENT_HTTPS_PROXY",
   "NODE_USE_ENV_PROXY",
-  "PROCSI_SESSION_ID",
-  "PROCSI_SESSION_TOKEN",
-  "PROCSI_LABEL",
+  "HTAP_SESSION_ID",
+  "HTAP_SESSION_TOKEN",
+  "HTAP_LABEL",
 ];
 
 export const offCommand = new Command("off")
@@ -37,7 +37,7 @@ export const offCommand = new Command("off")
     if (process.stdout.isTTY) {
       console.log("To stop intercepting HTTP traffic, run:");
       console.log("");
-      console.log('  eval "$(procsi off)"');
+      console.log('  eval "$(htap off)"');
       return;
     }
 
@@ -48,8 +48,8 @@ export const offCommand = new Command("off")
     console.log(formatPhpIniScanDirRestore());
 
     // Output unset statements for eval
-    console.log(formatUnsetVars(PROCSI_ENV_VARS));
+    console.log(formatUnsetVars(HTAP_ENV_VARS));
 
     // Output confirmation as a comment (shown but not executed)
-    console.log("# procsi: interception stopped");
+    console.log("# htap: interception stopped");
   });

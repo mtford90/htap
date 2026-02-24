@@ -2,13 +2,13 @@ import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
 
-const PROCSI_DIR = ".procsi";
+const HTAP_DIR = ".htap";
 const HOME_DIR_PREFIX = "~";
 
 /**
- * Module-level override for the procsi data directory.
- * When set, getProcsiDir returns this path directly instead of
- * appending .procsi to the project root.
+ * Module-level override for the htap data directory.
+ * When set, getHtapDir returns this path directly instead of
+ * appending .htap to the project root.
  */
 let _configOverride: string | undefined;
 
@@ -36,12 +36,12 @@ export function resolveOverridePath(override: string): string {
 }
 
 /**
- * Find the project root by looking for .procsi directory or .git directory.
+ * Find the project root by looking for .htap directory or .git directory.
  * Walks up the directory tree from the current working directory.
  * Returns undefined if no project root is found.
  *
  * When override is provided, returns the resolved override path only if
- * it contains an .procsi or .git directory; otherwise returns undefined.
+ * it contains an .htap or .git directory; otherwise returns undefined.
  *
  * @param startDir - Directory to start searching from. Pass `undefined` to
  *   use `process.cwd()` (common when only providing an override).
@@ -55,7 +55,7 @@ export function findProjectRoot(
   if (override !== undefined) {
     const resolved = resolveOverridePath(override);
     if (
-      fs.existsSync(path.join(resolved, PROCSI_DIR)) ||
+      fs.existsSync(path.join(resolved, HTAP_DIR)) ||
       fs.existsSync(path.join(resolved, ".git"))
     ) {
       return resolved;
@@ -67,8 +67,8 @@ export function findProjectRoot(
   const root = path.parse(currentDir).root;
 
   while (currentDir !== root) {
-    // Check for .procsi directory first
-    if (fs.existsSync(path.join(currentDir, PROCSI_DIR))) {
+    // Check for .htap directory first
+    if (fs.existsSync(path.join(currentDir, HTAP_DIR))) {
       return currentDir;
     }
 
@@ -84,12 +84,12 @@ export function findProjectRoot(
 }
 
 /**
- * Determine the project root, creating .procsi if needed.
+ * Determine the project root, creating .htap if needed.
  * Delegates to findProjectRoot for consistent traversal, then falls back
  * to the user's home directory (global instance) when no root is found.
  *
  * When override is provided, returns the resolved override path directly
- * (the caller is responsible for creating .procsi as needed).
+ * (the caller is responsible for creating .htap as needed).
  */
 export function findOrCreateProjectRoot(
   startDir: string = process.cwd(),
@@ -103,59 +103,59 @@ export function findOrCreateProjectRoot(
 }
 
 /**
- * Get the .procsi directory path for a project root.
+ * Get the .htap directory path for a project root.
  * Returns the config override when set (ignoring projectRoot).
  */
-export function getProcsiDir(projectRoot: string): string {
-  return _configOverride ?? path.join(projectRoot, PROCSI_DIR);
+export function getHtapDir(projectRoot: string): string {
+  return _configOverride ?? path.join(projectRoot, HTAP_DIR);
 }
 
 /**
- * Ensure the .procsi directory exists, creating it if necessary.
- * Returns the path to the .procsi directory.
+ * Ensure the .htap directory exists, creating it if necessary.
+ * Returns the path to the .htap directory.
  */
-export function ensureProcsiDir(projectRoot: string): string {
-  const procsiDir = getProcsiDir(projectRoot);
+export function ensureHtapDir(projectRoot: string): string {
+  const htapDir = getHtapDir(projectRoot);
 
-  if (!fs.existsSync(procsiDir)) {
-    fs.mkdirSync(procsiDir, { recursive: true });
+  if (!fs.existsSync(htapDir)) {
+    fs.mkdirSync(htapDir, { recursive: true });
   }
 
-  return procsiDir;
+  return htapDir;
 }
 
 /**
- * Get paths to various files within the .procsi directory.
+ * Get paths to various files within the .htap directory.
  */
-export function getProcsiPaths(projectRoot: string) {
-  const procsiDir = getProcsiDir(projectRoot);
+export function getHtapPaths(projectRoot: string) {
+  const htapDir = getHtapDir(projectRoot);
 
   return {
-    procsiDir,
-    proxyPortFile: path.join(procsiDir, "proxy.port"),
-    preferredPortFile: path.join(procsiDir, "preferred.port"),
-    controlSocketFile: path.join(procsiDir, "control.sock"),
-    databaseFile: path.join(procsiDir, "requests.db"),
-    caKeyFile: path.join(procsiDir, "ca-key.pem"),
-    caCertFile: path.join(procsiDir, "ca.pem"),
-    pidFile: path.join(procsiDir, "daemon.pid"),
-    logFile: path.join(procsiDir, "procsi.log"),
-    configFile: path.join(procsiDir, "config.json"),
-    interceptorsDir: path.join(procsiDir, "interceptors"),
-    browserProfilesDir: path.join(procsiDir, "browser-profiles"),
-    proxyPreloadFile: path.join(procsiDir, "proxy-preload.cjs"),
-    pythonOverrideDir: path.join(procsiDir, "overrides", "python"),
-    rubyOverrideFile: path.join(procsiDir, "overrides", "ruby", "procsi_intercept.rb"),
-    phpOverrideDir: path.join(procsiDir, "overrides", "php"),
+    htapDir,
+    proxyPortFile: path.join(htapDir, "proxy.port"),
+    preferredPortFile: path.join(htapDir, "preferred.port"),
+    controlSocketFile: path.join(htapDir, "control.sock"),
+    databaseFile: path.join(htapDir, "requests.db"),
+    caKeyFile: path.join(htapDir, "ca-key.pem"),
+    caCertFile: path.join(htapDir, "ca.pem"),
+    pidFile: path.join(htapDir, "daemon.pid"),
+    logFile: path.join(htapDir, "htap.log"),
+    configFile: path.join(htapDir, "config.json"),
+    interceptorsDir: path.join(htapDir, "interceptors"),
+    browserProfilesDir: path.join(htapDir, "browser-profiles"),
+    proxyPreloadFile: path.join(htapDir, "proxy-preload.cjs"),
+    pythonOverrideDir: path.join(htapDir, "overrides", "python"),
+    rubyOverrideFile: path.join(htapDir, "overrides", "ruby", "htap_intercept.rb"),
+    phpOverrideDir: path.join(htapDir, "overrides", "php"),
   };
 }
 
 /**
- * Read the proxy port from the .procsi directory.
+ * Read the proxy port from the .htap directory.
  * Returns undefined if the file doesn't exist.
  */
 export function readProxyPort(projectRoot: string): number | undefined {
-  const { proxyPortFile } = getProcsiPaths(projectRoot);
+  const { proxyPortFile } = getHtapPaths(projectRoot);
 
   if (!fs.existsSync(proxyPortFile)) {
     return undefined;
@@ -168,19 +168,19 @@ export function readProxyPort(projectRoot: string): number | undefined {
 }
 
 /**
- * Write the proxy port to the .procsi directory.
+ * Write the proxy port to the .htap directory.
  */
 export function writeProxyPort(projectRoot: string, port: number): void {
-  const { proxyPortFile } = getProcsiPaths(projectRoot);
+  const { proxyPortFile } = getHtapPaths(projectRoot);
   fs.writeFileSync(proxyPortFile, port.toString(), "utf-8");
 }
 
 /**
- * Read the daemon PID from the .procsi directory.
+ * Read the daemon PID from the .htap directory.
  * Returns undefined if the file doesn't exist.
  */
 export function readDaemonPid(projectRoot: string): number | undefined {
-  const { pidFile } = getProcsiPaths(projectRoot);
+  const { pidFile } = getHtapPaths(projectRoot);
 
   if (!fs.existsSync(pidFile)) {
     return undefined;
@@ -193,10 +193,10 @@ export function readDaemonPid(projectRoot: string): number | undefined {
 }
 
 /**
- * Write the daemon PID to the .procsi directory.
+ * Write the daemon PID to the .htap directory.
  */
 export function writeDaemonPid(projectRoot: string, pid: number): void {
-  const { pidFile } = getProcsiPaths(projectRoot);
+  const { pidFile } = getHtapPaths(projectRoot);
   fs.writeFileSync(pidFile, pid.toString(), "utf-8");
 }
 
@@ -204,7 +204,7 @@ export function writeDaemonPid(projectRoot: string, pid: number): void {
  * Remove the daemon PID file.
  */
 export function removeDaemonPid(projectRoot: string): void {
-  const { pidFile } = getProcsiPaths(projectRoot);
+  const { pidFile } = getHtapPaths(projectRoot);
 
   if (fs.existsSync(pidFile)) {
     fs.unlinkSync(pidFile);

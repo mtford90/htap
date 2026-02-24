@@ -9,7 +9,7 @@ import * as path from "node:path";
 import * as os from "node:os";
 import { spawn } from "node:child_process";
 
-const TEMP_DIR_NAME = "procsi-exports";
+const TEMP_DIR_NAME = "htap-exports";
 
 interface OpenResult {
   success: boolean;

@@ -2,7 +2,7 @@
 
 [Back to README](../README.md)
 
-Create `.procsi/config.json` to override defaults. All fields are optional:
+Create `.htap/config.json` to override defaults. All fields are optional:
 
 ```json
 {

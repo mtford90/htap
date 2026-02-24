@@ -10,8 +10,8 @@ import { createControlServer } from "../../src/daemon/control.js";
 import { createReplayTracker } from "../../src/daemon/replay-tracker.js";
 import { ControlClient } from "../../src/shared/control-client.js";
 import {
-  ensureProcsiDir,
-  getProcsiPaths,
+  ensureHtapDir,
+  getHtapPaths,
   setConfigOverride,
   getConfigOverride,
 } from "../../src/shared/project.js";
@@ -24,9 +24,9 @@ describe("config override integration", () => {
   let cleanup: (() => Promise<void>)[] = [];
 
   beforeEach(() => {
-    tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "procsi-config-test-"));
-    // The config dir is a standalone directory — no .procsi appended
-    configDir = path.join(tempDir, "my-procsi-data");
+    tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "htap-config-test-"));
+    // The config dir is a standalone directory — no .htap appended
+    configDir = path.join(tempDir, "my-htap-data");
     cleanup = [];
   });
 
@@ -44,16 +44,16 @@ describe("config override integration", () => {
   it("daemon components use config dir when override is set", async () => {
     setConfigOverride(configDir);
 
-    // ensureProcsiDir should create configDir directly
-    ensureProcsiDir("/ignored-project-root");
+    // ensureHtapDir should create configDir directly
+    ensureHtapDir("/ignored-project-root");
     expect(fs.existsSync(configDir)).toBe(true);
 
-    const paths = getProcsiPaths("/ignored-project-root");
-    expect(paths.procsiDir).toBe(configDir);
+    const paths = getHtapPaths("/ignored-project-root");
+    expect(paths.htapDir).toBe(configDir);
 
     // Generate CA certificate inside config dir
     const ca = await generateCACertificate({
-      subject: { commonName: "procsi Config Override Test CA" },
+      subject: { commonName: "htap Config Override Test CA" },
     });
     fs.writeFileSync(paths.caKeyFile, ca.key);
     fs.writeFileSync(paths.caCertFile, ca.cert);
@@ -124,14 +124,14 @@ describe("config override integration", () => {
 
   it("config override takes precedence over project root", () => {
     const projectRoot = path.join(tempDir, "project");
-    fs.mkdirSync(path.join(projectRoot, ".procsi"), { recursive: true });
+    fs.mkdirSync(path.join(projectRoot, ".htap"), { recursive: true });
 
     setConfigOverride(configDir);
     fs.mkdirSync(configDir, { recursive: true });
 
-    const paths = getProcsiPaths(projectRoot);
-    // Should use configDir, not projectRoot/.procsi
-    expect(paths.procsiDir).toBe(configDir);
+    const paths = getHtapPaths(projectRoot);
+    // Should use configDir, not projectRoot/.htap
+    expect(paths.htapDir).toBe(configDir);
     expect(paths.databaseFile).toBe(path.join(configDir, "requests.db"));
   });
 
@@ -143,7 +143,7 @@ describe("config override integration", () => {
     logger.debug("test message");
     logger.close();
 
-    const logFile = path.join(configDir, "procsi.log");
+    const logFile = path.join(configDir, "htap.log");
     expect(fs.existsSync(logFile)).toBe(true);
     const content = fs.readFileSync(logFile, "utf-8");
     expect(content).toContain("test message");

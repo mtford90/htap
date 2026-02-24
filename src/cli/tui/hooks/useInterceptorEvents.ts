@@ -6,7 +6,7 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import type { InterceptorEvent } from "../../../shared/types.js";
 import { ControlClient } from "../../../shared/control-client.js";
-import { findProjectRoot, getProcsiPaths } from "../../../shared/project.js";
+import { findProjectRoot, getHtapPaths } from "../../../shared/project.js";
 
 const DEFAULT_POLL_INTERVAL_MS = 2000;
 
@@ -58,7 +58,7 @@ export function useInterceptorEvents(
     if (!resolvedRoot) {
       return;
     }
-    const paths = getProcsiPaths(resolvedRoot);
+    const paths = getHtapPaths(resolvedRoot);
     clientRef.current = new ControlClient(paths.controlSocketFile);
 
     return () => {

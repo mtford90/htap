@@ -2,7 +2,7 @@
  * Two-phase export modal for captured requests.
  *
  * Phase 1 — Format selection: cURL, Fetch, Python, HTTPie (clipboard), or HAR (file).
- * Phase 2 — HAR destination picker: .procsi/exports/, ~/Downloads/, or custom path.
+ * Phase 2 — HAR destination picker: .htap/exports/, ~/Downloads/, or custom path.
  */
 
 import React, { useState } from "react";
@@ -43,7 +43,7 @@ interface DestinationOption {
 }
 
 const DESTINATION_OPTIONS: DestinationOption[] = [
-  { key: "1", label: ".procsi/exports/", description: "Project exports folder" },
+  { key: "1", label: ".htap/exports/", description: "Project exports folder" },
   { key: "2", label: "~/Downloads/", description: "Downloads folder" },
   { key: "3", label: "Custom path...", description: "Enter a custom directory" },
 ];

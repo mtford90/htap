@@ -16,12 +16,12 @@ import { requestCommand } from "./commands/request.js";
 import { sessionsCommand } from "./commands/sessions.js";
 import { browserCommand } from "./commands/browser.js";
 import { completionsCommand } from "./commands/completions.js";
-import { getProcsiVersion } from "../shared/version.js";
+import { getHtapVersion } from "../shared/version.js";
 
 program
-  .name("procsi")
+  .name("htap")
   .description("Terminal HTTP interception toolkit")
-  .version(getProcsiVersion())
+  .version(getHtapVersion())
   .option(
     "-v, --verbose",
     "increase verbosity (use -vv or -vvv for more)",
@@ -29,7 +29,7 @@ program
     0
   )
   .option("-d, --dir <path>", "override project root directory")
-  .option("-c, --config <path>", "override procsi data directory (no .procsi appended)");
+  .option("-c, --config <path>", "override htap data directory (no .htap appended)");
 
 program.addCommand(browserCommand);
 program.addCommand(clearCommand);
@@ -51,11 +51,11 @@ program.addHelpText(
   "after",
   `
 Quick start:
-  procsi on         Start intercepting HTTP traffic
-  procsi tui        Browse captured requests
-  procsi browser    Launch a proxied browser session
+  htap on         Start intercepting HTTP traffic
+  htap tui        Browse captured requests
+  htap browser    Launch a proxied browser session
 
-Docs: https://github.com/mtford90/procsi`
+Docs: https://github.com/mtford90/htap`
 );
 
 program.parse();

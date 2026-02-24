@@ -3,15 +3,15 @@ import * as path from "node:path";
 import { spawn } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import {
-  getProcsiPaths,
+  getHtapPaths,
   readDaemonPid,
   isProcessRunning,
-  ensureProcsiDir,
+  ensureHtapDir,
   getConfigOverride,
 } from "./project.js";
 import { ControlClient } from "./control-client.js";
 import type { LogLevel } from "./logger.js";
-import { getProcsiVersion } from "./version.js";
+import { getHtapVersion } from "./version.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -35,7 +35,7 @@ export interface StartDaemonOptions {
  * Check if the daemon is running for a project.
  */
 export async function isDaemonRunning(projectRoot: string): Promise<boolean> {
-  const paths = getProcsiPaths(projectRoot);
+  const paths = getHtapPaths(projectRoot);
 
   // Check PID file first
   const pid = readDaemonPid(projectRoot);
@@ -63,7 +63,7 @@ export async function getDaemonVersion(projectRoot: string): Promise<string | nu
     return null;
   }
 
-  const paths = getProcsiPaths(projectRoot);
+  const paths = getHtapPaths(projectRoot);
   const client = new ControlClient(paths.controlSocketFile);
 
   try {
@@ -106,11 +106,11 @@ export async function startDaemon(
 
   // Check if already running
   if (await isDaemonRunning(projectRoot)) {
-    const paths = getProcsiPaths(projectRoot);
+    const paths = getHtapPaths(projectRoot);
 
     // Check version
     const daemonVersion = await getDaemonVersion(projectRoot);
-    const cliVersion = getProcsiVersion();
+    const cliVersion = getHtapVersion();
 
     if (daemonVersion && daemonVersion !== cliVersion) {
       // Version mismatch detected
@@ -135,15 +135,15 @@ export async function startDaemon(
  * Internal function used by startDaemon and restartDaemon.
  */
 async function spawnDaemon(projectRoot: string, logLevel: LogLevel): Promise<number> {
-  // Ensure .procsi directory exists
-  ensureProcsiDir(projectRoot);
+  // Ensure .htap directory exists
+  ensureHtapDir(projectRoot);
 
   const daemonPath = getDaemonPath();
-  const paths = getProcsiPaths(projectRoot);
+  const paths = getHtapPaths(projectRoot);
 
   // Spawn daemon as detached background process
   // Clear the log file first so we only see errors from this attempt
-  const logFile = path.join(paths.procsiDir, "daemon.log");
+  const logFile = path.join(paths.htapDir, "daemon.log");
   fs.writeFileSync(logFile, "");
   const out = fs.openSync(logFile, "a");
   const err = fs.openSync(logFile, "a");
@@ -153,7 +153,7 @@ async function spawnDaemon(projectRoot: string, logLevel: LogLevel): Promise<num
   // guard variable so they don't leak into the child.
   const {
     NODE_OPTIONS: _nodeOpts,
-    PROCSI_ORIG_NODE_OPTIONS: _origNodeOpts,
+    HTAP_ORIG_NODE_OPTIONS: _origNodeOpts,
     ...cleanEnv
   } = process.env;
 
@@ -163,8 +163,8 @@ async function spawnDaemon(projectRoot: string, logLevel: LogLevel): Promise<num
     env: {
       ...cleanEnv,
       PROJECT_ROOT: projectRoot,
-      PROCSI_LOG_LEVEL: logLevel,
-      ...(configOverride ? { PROCSI_CONFIG: configOverride } : {}),
+      HTAP_LOG_LEVEL: logLevel,
+      ...(configOverride ? { HTAP_CONFIG: configOverride } : {}),
     },
     detached: true,
     stdio: ["ignore", out, err],
@@ -191,7 +191,7 @@ export async function stopDaemon(projectRoot: string): Promise<void> {
 
   if (!isProcessRunning(pid)) {
     // PID file exists but process is dead - clean up
-    const paths = getProcsiPaths(projectRoot);
+    const paths = getHtapPaths(projectRoot);
     cleanupDaemonFiles(paths);
     return;
   }
@@ -203,7 +203,7 @@ export async function stopDaemon(projectRoot: string): Promise<void> {
   await waitForDaemonStop(pid, 5000);
 
   // Clean up any remaining files
-  const paths = getProcsiPaths(projectRoot);
+  const paths = getHtapPaths(projectRoot);
   cleanupDaemonFiles(paths);
 }
 
@@ -211,7 +211,7 @@ export async function stopDaemon(projectRoot: string): Promise<void> {
  * Wait for the daemon to start and return the proxy port.
  */
 async function waitForDaemon(projectRoot: string, timeoutMs: number): Promise<number> {
-  const paths = getProcsiPaths(projectRoot);
+  const paths = getHtapPaths(projectRoot);
   const startTime = Date.now();
 
   while (Date.now() - startTime < timeoutMs) {
@@ -238,7 +238,7 @@ async function waitForDaemon(projectRoot: string, timeoutMs: number): Promise<nu
   }
 
   // On timeout, check daemon.log for errors to surface to the user
-  const logPath = path.join(paths.procsiDir, "daemon.log");
+  const logPath = path.join(paths.htapDir, "daemon.log");
   let logTail = "";
   if (fs.existsSync(logPath)) {
     const content = fs.readFileSync(logPath, "utf-8");
@@ -277,7 +277,7 @@ async function waitForDaemonStop(pid: number, timeoutMs: number): Promise<void> 
  * Clean up daemon files (socket, port file, pid file).
  * Note: preferredPortFile is intentionally not deleted so it persists across restarts.
  */
-function cleanupDaemonFiles(paths: ReturnType<typeof getProcsiPaths>): void {
+function cleanupDaemonFiles(paths: ReturnType<typeof getHtapPaths>): void {
   const files = [paths.controlSocketFile, paths.proxyPortFile, paths.pidFile];
 
   for (const file of files) {

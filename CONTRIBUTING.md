@@ -1,10 +1,10 @@
-# Contributing to procsi
+# Contributing to htap
 
-Thanks for your interest in contributing to procsi! This document covers the basics you need to know.
+Thanks for your interest in contributing to htap! This document covers the basics you need to know.
 
 ## Licence
 
-procsi is licensed under the [MIT License](LICENSE).
+htap is licensed under the [MIT License](LICENSE).
 
 ## Getting Started
 
@@ -40,4 +40,4 @@ See the testing section in [CLAUDE.md](CLAUDE.md) for detailed guidance on test 
 
 ## Reporting Issues
 
-Open an issue at [github.com/mtford90/procsi/issues](https://github.com/mtford90/procsi/issues). Include steps to reproduce, expected behaviour, and actual behaviour.
+Open an issue at [github.com/mtford90/htap/issues](https://github.com/mtford90/htap/issues). Include steps to reproduce, expected behaviour, and actual behaviour.
