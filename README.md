@@ -84,7 +84,7 @@ procsi --config /tmp/my-procsi-data on
 
 See [CLI Reference](docs/cli-reference.md) for the full resolution order (`--config` > `--dir` > auto-detect).
 
-#### MCP Integration
+## MCP Integration
 
 procsi has a built-in [MCP](https://modelcontextprotocol.io/) server that gives AI agents full access to your captured traffic and interceptor system.
 
