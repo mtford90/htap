@@ -4,7 +4,7 @@
 [![CI](https://github.com/mtford90/procsi/actions/workflows/ci.yml/badge.svg)](https://github.com/mtford90/procsi/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-Procsi is a terminal-based, project-scoped HTTP proxy with a powerful CLI & MCP server. Quickly intercept, inspect & rewrite HTTP traffic from the comfort of your terminal or favourite AI agent.
+Procsi is a terminal-based, project-scoped HTTP proxy with a powerful CLI, TUI & MCP server. Quickly intercept, inspect & rewrite HTTP traffic from the comfort of your terminal or favourite AI agent.
 
 ![procsi demo](demo.gif)
 
