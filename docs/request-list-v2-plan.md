@@ -1,7 +1,7 @@
 # Request List V2 Rebuild Plan (TUI)
 
 **Date:** 2026-02-24  
-**Status:** Draft for annotation  
+**Status:** Milestone 1 complete; Milestone 2 pending  
 **Primary goal:** Fix request-list jitter, flicker, and sluggish interaction under high traffic.
 
 ---
@@ -12,9 +12,8 @@ This effort is explicitly about **stabilising and speeding up the request list**
 
 We will include adjacent architectural work **only when it materially supports request-list correctness/performance**, specifically:
 
-1. Declarative keybinding registry (to reduce input handling contention/complexity)
-2. Global state management via Zustand (selector-driven updates)
-3. UI decomposition (list/detail/chrome split) with explicit caching strategy
+1. Global state management via Zustand (selector-driven updates)
+2. UI decomposition (list/detail/chrome split) with explicit caching strategy
 
 ### Non-goals (for this project)
 
@@ -71,8 +70,7 @@ We will include adjacent architectural work **only when it materially supports r
 5. **Explicit mode semantics**
    - Follow mode: auto-track newest
    - Browse mode: viewport frozen, show pending new-count indicator
-6. **Command-driven input layer** (declarative registry, context gates)
-7. **Cache explicitly where it matters** (detail cache + stale guards)
+6. **Cache explicitly where it matters** (detail cache + stale guards)
 
 ---
 
@@ -100,33 +98,13 @@ Actions:
 - `setTopVisibleId(...)`
 - `acknowledgePendingNew()`
 
-## B. Input Command Registry
-
-Declarative command map replacing large imperative if/else chain:
-
-```ts
-interface Command {
-  id: string;
-  keys: KeyChord[];
-  when: (ctx: InputContext) => boolean;
-  run: (ctx: InputContext, api: CommandApi) => void | Promise<void>;
-  priority?: number;
-}
-```
-
-Benefits tied to this project:
-
-- fewer accidental interactions between list commands and modal states
-- easier profiling/testing of list navigation commands
-- deterministic precedence under heavy input
-
-## C. Data Sync Engine (list)
+## B. Data Sync Engine (list)
 
 - Single-flight polling loop (or scheduled tick that skips when in-flight)
 - Generation token per request cycle; stale generations discarded
 - Delta-first protocol (cursor/afterSeq), snapshot fallback
 
-## D. UI decomposition
+## C. UI decomposition
 
 Split request-list path out of `App.tsx`:
 
@@ -135,7 +113,7 @@ Split request-list path out of `App.tsx`:
 - `RequestDetailPane` (selected request detail)
 - `Status/Info bars` remain separate chrome layer
 
-## E. Detail cache & stale guards
+## D. Detail cache & stale guards
 
 - LRU cache for full request payloads by ID
 - in-flight request dedupe map
@@ -180,13 +158,12 @@ This better reflects how the work actually overlaps in practice while keeping cl
 
 ---
 
-## Milestone 2 — Architecture alignment (registry, Zustand, UI split, windowing)
+## Milestone 2 — Architecture alignment (state, UI split, windowing)
 
 **Goal:** make request-list performance predictable and maintainable.
 
 ### Deliverables
 
-- Introduce declarative keybinding registry and route list commands through it
 - Finalise request-list-focused Zustand slice with selector-driven subscriptions
 - Split `App.tsx` into shell + request-list boundaries
 - Extract `RequestListPane` and stabilise row props to minimise rerenders
@@ -194,8 +171,6 @@ This better reflects how the work actually overlaps in practice while keeping cl
 
 ### File-level changes (expected)
 
-- `src/cli/tui/input/commands.ts` (new)
-- `src/cli/tui/input/registry.ts` (new)
 - `src/cli/tui/state/request-list-store.ts` (selector/action expansion)
 - `src/cli/tui/App.tsx` (reduced)
 - `src/cli/tui/components/RequestListPane.tsx` (new)
@@ -205,7 +180,6 @@ This better reflects how the work actually overlaps in practice while keeping cl
 ### Exit criteria
 
 - No behaviour regressions in keyboard/mouse navigation
-- List commands resolved via registry rather than a monolithic branch chain
 - List-related rerenders are scoped to affected components/rows
 
 ---
@@ -223,7 +197,7 @@ This better reflects how the work actually overlaps in practice while keeping cl
 - Burst-load component tests for list stability and command responsiveness
 - Integration test that simulates sustained ingest while user navigates
 - Perf harness script and baseline comparison doc
-- Feature flag (`requestListV2`) for staged rollout, then default-on and cleanup
+- Direct rollout of V2 with immediate removal of superseded V1 request-list path
 
 ### File-level changes (expected)
 
@@ -239,7 +213,7 @@ This better reflects how the work actually overlaps in practice while keeping cl
 - Rapid navigation cannot display stale request details
 - No flicker/jump artifacts in stress runs
 - Acceptable input responsiveness under load
-- V1 path removed after confidence window
+- Superseded V1 request-list path removed in the same rollout
 
 ---
 
@@ -260,7 +234,6 @@ This better reflects how the work actually overlaps in practice while keeping cl
 
 - Follow-mode burst prepend behavior
 - Browse-mode viewport freeze with `pendingNewCount`
-- Command registry precedence/gating (modal open vs list commands)
 - Windowing correctness (selection visibility, overscan edges)
 
 ## B. Integration tests
@@ -281,8 +254,7 @@ This better reflects how the work actually overlaps in practice while keeping cl
 1. **Delta API shape:** explicit `listRequestsDelta(afterSeq)` vs extending `listRequestsSummary` with cursor params
 2. **Windowing strategy:** custom lightweight windowing vs adopting helper utility
 3. **Detail cache size policy:** fixed N entries vs memory-budget-based
-4. **Feature flag duration:** how long V1 and V2 should coexist
-5. **Input latency target:** define numeric p95/p99 acceptance thresholds
+4. **Input latency target:** define numeric p95/p99 acceptance thresholds
 
 ---
 
@@ -290,8 +262,6 @@ This better reflects how the work actually overlaps in practice while keeping cl
 
 - **Risk:** state duplication during migration (old local state + new store)
   - **Mitigation:** milestone-based migration by ownership (list first), remove old state immediately after cutover
-- **Risk:** command registry changes behavior precedence unexpectedly
-  - **Mitigation:** command precedence tests + explicit priority field
 - **Risk:** DB migration complexity for order key
   - **Mitigation:** additive migration with fallback path and compatibility tests
 
@@ -300,7 +270,7 @@ This better reflects how the work actually overlaps in practice while keeping cl
 ## 9) Implementation Notes
 
 - This document is intentionally request-list centric.
-- Key registry + Zustand + UI split are included because they are enabling architecture for list stability/perf.
+- Zustand + UI split are included because they are enabling architecture for list stability/perf.
 - React cache API is not the primary mechanism here; explicit domain caches and selector discipline are the main strategy.
 
 ---
@@ -308,7 +278,7 @@ This better reflects how the work actually overlaps in practice while keeping cl
 ## 10) Proposed execution order (concrete)
 
 1. **Milestone 1 PR series** — core stability first (ordering + sync + ID-anchored behavior)
-2. **Milestone 2 PR series** — architecture alignment (registry + Zustand + split + windowing)
+2. **Milestone 2 PR series** — architecture alignment (Zustand + split + windowing)
 3. **Milestone 3 PR series** — detail consistency + stress validation + rollout
 
 This order should deliver user-visible stability improvements in Milestone 1, with maintainability and long-term performance confidence completed by Milestone 3.
