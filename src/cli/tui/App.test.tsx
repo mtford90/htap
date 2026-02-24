@@ -2035,12 +2035,18 @@ describe("App keyboard interactions", () => {
       const { stdin, rerender } = render(<App __testEnableInput />);
       await tick();
 
-      // Navigate to req-c (index 2) and exit follow mode
+      // Navigate to req-c (index 2) and exit follow mode.
+      // Use waitFor between presses so the first j's re-render is fully
+      // committed before the second j reads selectedIndexRef.
       stdin.write("j");
-      await tick();
+      await vi.waitFor(() => {
+        expect(mockGetFull).toHaveBeenCalledWith("req-b");
+      });
+
       stdin.write("j");
-      await tick();
-      expect(mockGetFull).toHaveBeenCalledWith("req-c");
+      await vi.waitFor(() => {
+        expect(mockGetFull).toHaveBeenCalledWith("req-c");
+      });
 
       // Update list without req-b or req-c — selection index 2 is now out of bounds
       const updatedSummaries = [
