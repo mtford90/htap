@@ -7,6 +7,7 @@ import { Box, Text, useInput, useApp, useStdin } from "ink";
 import { MouseProvider, useOnClick, useOnWheel, useOnMouseEnter, useOnMouseLeave } from "@ink-tools/ink-mouse";
 import { useStdoutDimensions } from "./hooks/useStdoutDimensions.js";
 import { useRequests } from "./hooks/useRequests.js";
+import { useRequestListState } from "./hooks/useRequestListState.js";
 import { useSpinner } from "./hooks/useSpinner.js";
 import { useBodyExport, generateFilename } from "./hooks/useBodyExport.js";
 import { formatSize } from "./utils/formatters.js";
@@ -99,16 +100,10 @@ function AppContent({ __testEnableInput, projectRoot }: AppProps): React.ReactEl
   const { saveBody } = useBodyExport();
   const spinnerFrame = useSpinner(isLoading && requests.length === 0);
 
-  const [selectedRequestId, setSelectedRequestId] = useState<string | null>(null);
-  const [topVisibleRequestId, setTopVisibleRequestId] = useState<string | null>(null);
-  const [pendingNewCount, setPendingNewCount] = useState(0);
   const [activePanel, setActivePanel] = useState<Panel>("list");
   const [statusMessage, setStatusMessage] = useState<string | undefined>();
   const [showFullUrl, setShowFullUrl] = useState(false);
   const [hoveredPanel, setHoveredPanel] = useState<Panel | null>(null);
-
-  // Follow mode — when true, cursor tracks the newest request (index 0)
-  const [following, setFollowing] = useState(true);
 
   // Accordion state — independent expand/collapse per section
   const [focusedSection, setFocusedSection] = useState(SECTION_REQUEST);
@@ -183,8 +178,24 @@ function AppContent({ __testEnableInput, projectRoot }: AppProps): React.ReactEl
   const infoBarHeight = 1;
   const contentHeight = rows - 2 - infoBarHeight - filterBarHeight;
 
-  // Refs for wheel handler to avoid stale closures
-  // (useOnWheel may not update its stored callback on every render)
+  const visibleListHeight = Math.max(1, contentHeight - 2);
+
+  const {
+    selectedRequestId,
+    setSelectedRequestId,
+    setTopVisibleRequestId,
+    pendingNewCount,
+    setPendingNewCount,
+    following,
+    setFollowing,
+    selectedIndex,
+    effectiveListScrollOffset,
+    selectedSummary,
+    resetToFollowMode,
+  } = useRequestListState({ requests, visibleListHeight });
+
+  // Refs for wheel/input handlers to avoid stale closures.
+  // (Ink input handlers may keep callback identity between renders.)
   const contentHeightRef = useRef(contentHeight);
   contentHeightRef.current = contentHeight;
   const requestsLengthRef = useRef(requests.length);
@@ -193,55 +204,11 @@ function AppContent({ __testEnableInput, projectRoot }: AppProps): React.ReactEl
   followingRef.current = following;
   const requestsRef = useRef(requests);
   requestsRef.current = requests;
-  const visibleListHeight = Math.max(1, contentHeight - 2);
-  const maxListOffset = Math.max(0, requests.length - visibleListHeight);
-
-  const selectedIndex = useMemo(() => {
-    if (requests.length === 0) {
-      return -1;
-    }
-
-    if (selectedRequestId) {
-      const matchedIndex = requests.findIndex((request) => request.id === selectedRequestId);
-      if (matchedIndex !== -1) {
-        return matchedIndex;
-      }
-    }
-
-    if (following) {
-      return 0;
-    }
-
-    return 0;
-  }, [following, requests, selectedRequestId]);
-
-  const effectiveListScrollOffset = useMemo(() => {
-    if (following) {
-      return 0;
-    }
-
-    if (topVisibleRequestId) {
-      const topIndex = requests.findIndex((request) => request.id === topVisibleRequestId);
-      if (topIndex !== -1) {
-        return Math.min(topIndex, maxListOffset);
-      }
-    }
-
-    if (selectedIndex <= 0) {
-      return 0;
-    }
-
-    return Math.min(selectedIndex, maxListOffset);
-  }, [following, topVisibleRequestId, requests, selectedIndex, maxListOffset]);
-
   const effectiveListScrollOffsetRef = useRef(0);
   effectiveListScrollOffsetRef.current = effectiveListScrollOffset;
 
   const selectedIndexRef = useRef(selectedIndex);
   selectedIndexRef.current = selectedIndex;
-
-  // Get the summary for the currently selected request
-  const selectedSummary = selectedIndex >= 0 ? requests[selectedIndex] : undefined;
 
   // Stores the filter state at the moment the filter bar opens, so Escape can revert
   const preOpenFilterRef = useRef<RequestFilter>({});
@@ -250,30 +217,21 @@ function AppContent({ __testEnableInput, projectRoot }: AppProps): React.ReactEl
   // Handle filter change from the filter bar
   const handleFilterChange = useCallback((newFilter: RequestFilter) => {
     setFilter(newFilter);
-    setSelectedRequestId(null);
-    setTopVisibleRequestId(null);
-    setPendingNewCount(0);
-    setFollowing(true);
-  }, []);
+    resetToFollowMode();
+  }, [resetToFollowMode]);
 
   const handleBodySearchChange = useCallback((nextBodySearch: BodySearchOptions | undefined) => {
     setBodySearch(nextBodySearch);
-    setSelectedRequestId(null);
-    setTopVisibleRequestId(null);
-    setPendingNewCount(0);
-    setFollowing(true);
-  }, []);
+    resetToFollowMode();
+  }, [resetToFollowMode]);
 
   // Handle filter cancel — revert to pre-open state
   const handleFilterCancel = useCallback(() => {
     setFilter(preOpenFilterRef.current);
     setBodySearch(preOpenBodySearchRef.current);
-    setSelectedRequestId(null);
-    setTopVisibleRequestId(null);
-    setPendingNewCount(0);
-    setFollowing(true);
+    resetToFollowMode();
     setShowFilter(false);
-  }, []);
+  }, [resetToFollowMode]);
 
   // Handle item click from the request list
   const handleItemClick = useCallback((index: number) => {
@@ -325,78 +283,6 @@ function AppContent({ __testEnableInput, projectRoot }: AppProps): React.ReactEl
       setExpandedSections(new Set(ALL_SECTIONS_EXPANDED));
     }
   }, [selectedSummary?.id]);
-
-  // Keep browse-mode selection valid when the selected request disappears.
-  useEffect(() => {
-    if (following) {
-      return;
-    }
-
-    if (requests.length === 0) {
-      if (selectedRequestId !== null) {
-        setSelectedRequestId(null);
-      }
-      return;
-    }
-
-    if (!selectedRequestId) {
-      return;
-    }
-
-    if (!requests.some((request) => request.id === selectedRequestId)) {
-      const fallbackIndex = Math.min(effectiveListScrollOffsetRef.current, requests.length - 1);
-      setSelectedRequestId(requests[fallbackIndex]?.id ?? requests[0]?.id ?? null);
-    }
-  }, [following, requests, selectedRequestId]);
-
-  // Track how many new requests arrived while browsing.
-  const previousRequestIdsRef = useRef<string[]>([]);
-  useEffect(() => {
-    const previousIds = previousRequestIdsRef.current;
-
-    if (following) {
-      setPendingNewCount(0);
-      previousRequestIdsRef.current = requests.map((request) => request.id);
-      return;
-    }
-
-    if (previousIds.length > 0 && requests.length > 0) {
-      const previousIdSet = new Set(previousIds);
-      let prependedCount = 0;
-
-      for (const request of requests) {
-        if (previousIdSet.has(request.id)) {
-          break;
-        }
-        prependedCount += 1;
-      }
-
-      if (prependedCount > 0) {
-        setPendingNewCount((prev) => prev + prependedCount);
-      }
-    }
-
-    previousRequestIdsRef.current = requests.map((request) => request.id);
-  }, [requests, following]);
-
-  // Keep selected row visible in browse mode.
-  useEffect(() => {
-    if (following || selectedIndex < 0) {
-      return;
-    }
-
-    const currentOffset = effectiveListScrollOffset;
-
-    if (selectedIndex < currentOffset) {
-      setTopVisibleRequestId(requests[selectedIndex]?.id ?? null);
-      return;
-    }
-
-    if (selectedIndex >= currentOffset + visibleListHeight) {
-      const nextOffset = selectedIndex - visibleListHeight + 1;
-      setTopVisibleRequestId(requests[nextOffset]?.id ?? null);
-    }
-  }, [following, selectedIndex, effectiveListScrollOffset, visibleListHeight, requests]);
 
   // Handle scroll wheel on list panel - scrolls the view, not the selection
   useOnWheel(listPanelRef, (event) => {
@@ -580,10 +466,7 @@ function AppContent({ __testEnableInput, projectRoot }: AppProps): React.ReactEl
       if (pendingClear) {
         setPendingClear(false);
         if (input === "y") {
-          setSelectedRequestId(null);
-          setTopVisibleRequestId(null);
-          setPendingNewCount(0);
-          setFollowing(true);
+          resetToFollowMode();
           void clearRequests().then((success) => {
             showStatus(success ? "Requests cleared (bookmarks preserved)" : "Failed to clear requests");
           });
@@ -629,10 +512,7 @@ function AppContent({ __testEnableInput, projectRoot }: AppProps): React.ReactEl
       } else if (input === "g" && !key.shift) {
         // Jump to first item/section — re-enters follow mode in list
         if (activePanel === "list") {
-          setFollowing(true);
-          setSelectedRequestId(null);
-          setTopVisibleRequestId(null);
-          setPendingNewCount(0);
+          resetToFollowMode();
         } else {
           setFocusedSection(SECTION_REQUEST);
         }

@@ -107,6 +107,7 @@ Each feature should be considered across all four surfaces where applicable:
     - [x] Add a monotonic request order key in storage and control responses; sort deterministically (not timestamp-only)
     - [x] Replace `countRequests + listRequestsSummary` polling with single-flight delta sync (`afterSeq`/cursor) and stale-response dropping
     - [ ] Introduce a request-list reducer (`selectedId`, `topVisibleId`, follow state) so selection/scroll anchoring updates atomically
+    - [x] Extract request-list state logic into dedicated TUI modules (`hooks/useRequestListState.ts` + `state/request-list-state.ts`) as a precursor to the reducer/store cutover
     - [ ] Add full-request detail cache + stale-response guard so rapid selection changes cannot paint old request details
     - [x] Browse mode viewport freeze + "new items" indicator; follow mode remains explicit and auto-scrolls to newest
     - [ ] Fetch/render only viewport + overscan window, with paged loading for older rows

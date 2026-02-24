@@ -1,7 +1,7 @@
 # Request List V2 Rebuild Plan (TUI)
 
 **Date:** 2026-02-24  
-**Status:** Milestone 1 complete; Milestone 2 pending  
+**Status:** Milestone 1 complete; Milestone 2 in progress  
 **Primary goal:** Fix request-list jitter, flicker, and sluggish interaction under high traffic.
 
 ---
