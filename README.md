@@ -27,6 +27,9 @@ curl https://api.example.com/users
 
 # Open UI
 procsi tui
+
+# Add MCP server to your AI tool
+claude mcp add procsi -- procsi mcp
 ```
 
 ## Browser Interception
@@ -87,7 +90,32 @@ procsi has a built-in [MCP](https://modelcontextprotocol.io/) server that gives 
 
 ### Setup
 
-Add procsi to your MCP client config:
+**Claude Code:**
+
+```bash
+claude mcp add procsi -- procsi mcp
+```
+
+**Codex:**
+
+```bash
+codex mcp add procsi -- procsi mcp
+```
+
+**Cursor** — add to `.cursor/mcp.json`:
+
+```json
+{
+  "mcpServers": {
+    "procsi": {
+      "command": "procsi",
+      "args": ["mcp"]
+    }
+  }
+}
+```
+
+**Other MCP clients** (Windsurf, etc.) — add to your client's MCP config:
 
 ```json
 {
