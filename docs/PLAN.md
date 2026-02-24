@@ -101,6 +101,19 @@ Each feature should be considered across all four surfaces where applicable:
 
 ---
 
+- [ ] **TUI request list v2 (high-throughput stability rebuild)** — eliminate flicker/jank under heavy traffic while preserving follow + manual focus workflows ([detailed plan](request-list-v2-plan.md))
+  - **Current pain points:** full-list polling with array replacement, index-based re-anchoring in post-render effects, timestamp-only sort instability under same-ms bursts, overlapping poll requests, and uncancelled full-request fetches during fast navigation
+  - **Implementation checklist:**
+    - [x] Add a monotonic request order key in storage and control responses; sort deterministically (not timestamp-only)
+    - [x] Replace `countRequests + listRequestsSummary` polling with single-flight delta sync (`afterSeq`/cursor) and stale-response dropping
+    - [ ] Introduce a request-list reducer (`selectedId`, `topVisibleId`, follow state) so selection/scroll anchoring updates atomically
+    - [ ] Add full-request detail cache + stale-response guard so rapid selection changes cannot paint old request details
+    - [x] Browse mode viewport freeze + "new items" indicator; follow mode remains explicit and auto-scrolls to newest
+    - [ ] Fetch/render only viewport + overscan window, with paged loading for older rows
+    - [ ] Split list state/rendering out of `App.tsx` and minimise per-row prop churn
+    - [ ] Add burst-load tests (component + integration) for selection stability, ordering stability, and input responsiveness
+  - **Validation target:** no visible row jitter/reorder artifacts and responsive key navigation during sustained high request throughput
+
 - [x] **Saved requests (bookmarks)** — save/bookmark individual requests for later reference, persisting them beyond `clear` operations
   - **Storage:** new `saved_requests` table in SQLite (or a `saved` flag on the requests table); saved requests excluded from `clear` by default
   - **TUI:** keybinding (e.g. `b`) to toggle bookmark on selected request, visual indicator on bookmarked rows, filter to show only saved requests

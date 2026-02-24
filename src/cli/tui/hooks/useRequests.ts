@@ -14,6 +14,9 @@ import { findProjectRoot, getProcsiPaths } from "../../../shared/project.js";
 
 const DEFAULT_QUERY_LIMIT = 1000;
 const DEFAULT_POLL_INTERVAL_MS = 2000;
+const DEFAULT_DELTA_LIMIT = 500;
+const MAX_DELTA_BATCHES_PER_SYNC = 8;
+const MAX_SNAPSHOT_BATCHES = 200;
 
 interface UseRequestsOptions {
   pollInterval?: number;
@@ -40,6 +43,13 @@ interface UseRequestsResult {
   clearRequests: () => Promise<boolean>;
 }
 
+interface SnapshotState {
+  requests: CapturedRequestSummary[];
+  summaryById: Map<string, CapturedRequestSummary>;
+  orderSeqById: Map<string, number>;
+  cursor: number;
+}
+
 /**
  * Hook to fetch and poll for captured requests.
  */
@@ -51,10 +61,259 @@ export function useRequests(options: UseRequestsOptions = {}): UseRequestsResult
   const [error, setError] = useState<string | null>(null);
 
   const clientRef = useRef<ControlClient | null>(null);
-  const lastCountRef = useRef<number>(0);
-  const requestsLengthRef = useRef<number>(0);
   const filterRef = useRef<RequestFilter | undefined>(filter);
   const bodySearchRef = useRef<BodySearchOptions | undefined>(bodySearch);
+
+  const summaryByIdRef = useRef<Map<string, CapturedRequestSummary>>(new Map());
+  const orderSeqByIdRef = useRef<Map<string, number>>(new Map());
+  const cursorRef = useRef(0);
+
+  const syncGenerationRef = useRef(0);
+  const inFlightRef = useRef(false);
+  const rerunRequestedRef = useRef(false);
+  const snapshotRequestedRef = useRef(true);
+  const activeSyncPromiseRef = useRef<Promise<void> | null>(null);
+
+  const resetDeltaState = useCallback(() => {
+    summaryByIdRef.current = new Map();
+    orderSeqByIdRef.current = new Map();
+    cursorRef.current = 0;
+  }, []);
+
+  const buildOrderedList = useCallback(
+    (
+      summaryById: Map<string, CapturedRequestSummary>,
+      orderSeqById: Map<string, number>
+    ): CapturedRequestSummary[] => {
+      const ids = Array.from(summaryById.keys());
+      ids.sort((a, b) => {
+        const seqDiff = (orderSeqById.get(b) ?? 0) - (orderSeqById.get(a) ?? 0);
+        if (seqDiff !== 0) {
+          return seqDiff;
+        }
+
+        const aTs = summaryById.get(a)?.timestamp ?? 0;
+        const bTs = summaryById.get(b)?.timestamp ?? 0;
+        if (aTs !== bTs) {
+          return bTs - aTs;
+        }
+
+        return b.localeCompare(a);
+      });
+
+      const limitedIds = ids.slice(0, DEFAULT_QUERY_LIMIT);
+      const limitedIdSet = new Set(limitedIds);
+
+      // Keep in-memory maps bounded to the list limit.
+      for (const id of ids) {
+        if (!limitedIdSet.has(id)) {
+          summaryById.delete(id);
+          orderSeqById.delete(id);
+        }
+      }
+
+      return limitedIds
+        .map((id) => summaryById.get(id))
+        .filter((entry): entry is CapturedRequestSummary => entry !== undefined);
+    },
+    []
+  );
+
+  const loadSnapshotFromDelta = useCallback(
+    async (
+      client: ControlClient,
+      currentFilter: RequestFilter | undefined,
+      generation: number
+    ): Promise<SnapshotState | null> => {
+      let afterChangeSeq = 0;
+      let hasMore = true;
+      let batches = 0;
+
+      const summaryById = new Map<string, CapturedRequestSummary>();
+      const orderSeqById = new Map<string, number>();
+
+      while (hasMore && batches < MAX_SNAPSHOT_BATCHES) {
+        const delta = await client.listRequestsSummaryDelta({
+          afterChangeSeq,
+          limit: DEFAULT_DELTA_LIMIT,
+          filter: currentFilter,
+        });
+
+        if (generation !== syncGenerationRef.current) {
+          return null;
+        }
+
+        if (delta.entries.length === 0) {
+          afterChangeSeq = delta.cursor;
+          hasMore = false;
+          break;
+        }
+
+        for (const entry of delta.entries) {
+          summaryById.set(entry.summary.id, entry.summary);
+          orderSeqById.set(entry.summary.id, entry.orderSeq);
+        }
+
+        afterChangeSeq = delta.cursor;
+        hasMore = delta.hasMore;
+        batches += 1;
+      }
+
+      const ordered = buildOrderedList(summaryById, orderSeqById);
+
+      return {
+        requests: ordered,
+        summaryById,
+        orderSeqById,
+        cursor: afterChangeSeq,
+      };
+    },
+    [buildOrderedList]
+  );
+
+  const syncOnce = useCallback(
+    async (generation: number) => {
+      const client = clientRef.current;
+      if (!client) {
+        return;
+      }
+
+      const currentFilter = filterRef.current;
+      const currentBodySearch = bodySearchRef.current;
+
+      try {
+        if (currentBodySearch) {
+          const bodySearchResults = await client.searchBodies({
+            query: currentBodySearch.query,
+            target: currentBodySearch.target,
+            limit: DEFAULT_QUERY_LIMIT,
+            filter: currentFilter,
+          });
+
+          if (generation !== syncGenerationRef.current) {
+            return;
+          }
+
+          setRequests(bodySearchResults);
+          setError(null);
+          return;
+        }
+
+        let summaryById = new Map(summaryByIdRef.current);
+        let orderSeqById = new Map(orderSeqByIdRef.current);
+        let cursor = cursorRef.current;
+
+        const requiresSnapshot = snapshotRequestedRef.current || summaryById.size === 0;
+
+        if (requiresSnapshot) {
+          const snapshot = await loadSnapshotFromDelta(client, currentFilter, generation);
+          if (!snapshot || generation !== syncGenerationRef.current) {
+            return;
+          }
+
+          summaryById = snapshot.summaryById;
+          orderSeqById = snapshot.orderSeqById;
+          cursor = snapshot.cursor;
+          snapshotRequestedRef.current = false;
+
+          summaryByIdRef.current = summaryById;
+          orderSeqByIdRef.current = orderSeqById;
+          cursorRef.current = cursor;
+
+          setRequests(snapshot.requests);
+          setError(null);
+          return;
+        }
+
+        let batches = 0;
+        let appliedAnyChanges = false;
+
+        while (batches < MAX_DELTA_BATCHES_PER_SYNC) {
+          const delta = await client.listRequestsSummaryDelta({
+            afterChangeSeq: cursor,
+            limit: DEFAULT_DELTA_LIMIT,
+            filter: currentFilter,
+          });
+
+          if (generation !== syncGenerationRef.current) {
+            return;
+          }
+
+          if (delta.entries.length === 0) {
+            cursor = delta.cursor;
+            break;
+          }
+
+          for (const entry of delta.entries) {
+            summaryById.set(entry.summary.id, entry.summary);
+            orderSeqById.set(entry.summary.id, entry.orderSeq);
+          }
+
+          cursor = delta.cursor;
+          appliedAnyChanges = true;
+          batches += 1;
+
+          if (!delta.hasMore) {
+            break;
+          }
+        }
+
+        summaryByIdRef.current = summaryById;
+        orderSeqByIdRef.current = orderSeqById;
+        cursorRef.current = cursor;
+
+        if (appliedAnyChanges) {
+          const updated = buildOrderedList(summaryById, orderSeqById);
+          setRequests(updated);
+        }
+
+        setError(null);
+      } catch (err) {
+        const message = err instanceof Error ? err.message : "Failed to connect to daemon";
+        if (message.includes("ENOENT") || message.includes("ECONNREFUSED")) {
+          setError("Daemon not running. Start with 'eval \"$(procsi on)\"'.");
+        } else {
+          setError(message);
+        }
+      } finally {
+        setIsLoading(false);
+      }
+    },
+    [buildOrderedList, loadSnapshotFromDelta]
+  );
+
+  const runSync = useCallback(
+    (forceSnapshot = false): Promise<void> => {
+      if (forceSnapshot) {
+        snapshotRequestedRef.current = true;
+      }
+
+      rerunRequestedRef.current = true;
+
+      if (inFlightRef.current && activeSyncPromiseRef.current) {
+        return activeSyncPromiseRef.current;
+      }
+
+      const syncPromise = (async () => {
+        inFlightRef.current = true;
+
+        try {
+          while (rerunRequestedRef.current) {
+            rerunRequestedRef.current = false;
+            const generation = syncGenerationRef.current;
+            await syncOnce(generation);
+          }
+        } finally {
+          inFlightRef.current = false;
+          activeSyncPromiseRef.current = null;
+        }
+      })();
+
+      activeSyncPromiseRef.current = syncPromise;
+      return syncPromise;
+    },
+    [syncOnce]
+  );
 
   // Initialise control client
   useEffect(() => {
@@ -64,6 +323,7 @@ export function useRequests(options: UseRequestsOptions = {}): UseRequestsResult
       setIsLoading(false);
       return;
     }
+
     const paths = getProcsiPaths(resolvedRoot);
     clientRef.current = new ControlClient(paths.controlSocketFile);
 
@@ -72,73 +332,25 @@ export function useRequests(options: UseRequestsOptions = {}): UseRequestsResult
     };
   }, [projectRoot]);
 
-  // Keep ref in sync with requests length
-  useEffect(() => {
-    requestsLengthRef.current = requests.length;
-  }, [requests.length]);
-
-  // Fetch request summaries from daemon
-  const fetchRequests = useCallback(async () => {
-    const client = clientRef.current;
-    if (!client) {
-      return;
-    }
-
-    const currentFilter = filterRef.current;
-    const currentBodySearch = bodySearchRef.current;
-
-    try {
-      if (currentBodySearch) {
-        const newRequests = await client.searchBodies({
-          query: currentBodySearch.query,
-          target: currentBodySearch.target,
-          limit: DEFAULT_QUERY_LIMIT,
-          filter: currentFilter,
-        });
-        setRequests(newRequests);
-        lastCountRef.current = newRequests.length;
-      } else {
-        // First check the count to avoid unnecessary data transfer
-        const count = await client.countRequests({ filter: currentFilter });
-
-        // Only fetch list if count changed or we have no requests yet
-        if (count !== lastCountRef.current || requestsLengthRef.current === 0) {
-          const newRequests = await client.listRequestsSummary({
-            limit: DEFAULT_QUERY_LIMIT,
-            filter: currentFilter,
-          });
-          setRequests(newRequests);
-          lastCountRef.current = count;
-        }
-      }
-
-      setError(null);
-    } catch (err) {
-      const message = err instanceof Error ? err.message : "Failed to connect to daemon";
-      if (message.includes("ENOENT") || message.includes("ECONNREFUSED")) {
-        setError("Daemon not running. Start with 'eval \"$(procsi on)\"'.");
-      } else {
-        setError(message);
-      }
-    } finally {
-      setIsLoading(false);
-    }
-  }, []);
-
-  // Keep refs in sync and fetch immediately when search/filter changes
+  // Keep refs in sync and trigger an immediate sync when search/filter changes.
   useEffect(() => {
     filterRef.current = filter;
     bodySearchRef.current = bodySearch;
-    lastCountRef.current = 0;
-    void fetchRequests();
-  }, [filter, bodySearch, fetchRequests]);
+
+    syncGenerationRef.current += 1;
+    resetDeltaState();
+    snapshotRequestedRef.current = true;
+
+    void runSync(true);
+  }, [filter, bodySearch, resetDeltaState, runSync]);
 
   // Manual refresh function
   const refresh = useCallback(async () => {
     setIsLoading(true);
-    lastCountRef.current = 0; // Force full refresh
-    await fetchRequests();
-  }, [fetchRequests]);
+    syncGenerationRef.current += 1;
+    resetDeltaState();
+    await runSync(true);
+  }, [resetDeltaState, runSync]);
 
   // Fetch full request data by ID
   const getFullRequest = useCallback(async (id: string): Promise<CapturedRequest | null> => {
@@ -175,11 +387,12 @@ export function useRequests(options: UseRequestsOptions = {}): UseRequestsResult
       }
 
       const replayed = await client.replayRequest({ id, initiator: "tui" });
-      lastCountRef.current = 0;
-      await fetchRequests();
+      syncGenerationRef.current += 1;
+      resetDeltaState();
+      await runSync(true);
       return replayed.requestId;
     },
-    [fetchRequests]
+    [resetDeltaState, runSync]
   );
 
   // Toggle saved/bookmark state and force refresh
@@ -192,15 +405,15 @@ export function useRequests(options: UseRequestsOptions = {}): UseRequestsResult
           ? await client.unsaveRequest(id)
           : await client.saveRequest(id);
         if (result.success) {
-          lastCountRef.current = 0; // Force full refresh
-          await fetchRequests();
+          syncGenerationRef.current += 1;
+          await runSync(false);
         }
         return result.success;
       } catch {
         return false;
       }
     },
-    [fetchRequests]
+    [runSync]
   );
 
   // Clear all unsaved requests
@@ -209,27 +422,28 @@ export function useRequests(options: UseRequestsOptions = {}): UseRequestsResult
     if (!client) return false;
     try {
       await client.clearRequests();
-      lastCountRef.current = 0;
-      await fetchRequests();
+      syncGenerationRef.current += 1;
+      resetDeltaState();
+      await runSync(true);
       return true;
     } catch {
       return false;
     }
-  }, [fetchRequests]);
+  }, [resetDeltaState, runSync]);
 
   // Initial fetch
   useEffect(() => {
-    void fetchRequests();
-  }, [fetchRequests]);
+    void runSync(true);
+  }, [runSync]);
 
   // Polling
   useEffect(() => {
     const interval = setInterval(() => {
-      void fetchRequests();
+      void runSync(false);
     }, pollInterval);
 
     return () => clearInterval(interval);
-  }, [fetchRequests, pollInterval]);
+  }, [pollInterval, runSync]);
 
   return {
     requests,

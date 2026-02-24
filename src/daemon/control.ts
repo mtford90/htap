@@ -19,6 +19,7 @@ import type {
   Session,
   BodySearchTarget,
   ReplayInitiator,
+  RequestListDeltaResult,
 } from "../shared/types.js";
 import type { InterceptorEventLog, EventCounts } from "./interceptor-event-log.js";
 import {
@@ -62,6 +63,7 @@ interface ControlHandlers {
   listSessions: ControlHandler;
   listRequests: ControlHandler;
   listRequestsSummary: ControlHandler;
+  listRequestsSummaryDelta: ControlHandler;
   getRequest: ControlHandler;
   countRequests: ControlHandler;
   searchBodies: ControlHandler;
@@ -106,6 +108,14 @@ function requireString(params: Record<string, unknown>, key: string): string {
   const value = params[key];
   if (typeof value !== "string") {
     throw new Error(`Missing required string parameter: ${key}`);
+  }
+  return value;
+}
+
+function requireNonNegativeNumber(params: Record<string, unknown>, key: string): number {
+  const value = params[key];
+  if (typeof value !== "number" || !Number.isFinite(value) || value < 0) {
+    throw new Error(`Missing required non-negative number parameter: ${key}`);
   }
   return value;
 }
@@ -424,6 +434,15 @@ export function createControlServer(options: ControlServerOptions): ControlServe
         label: optionalString(params, "label"),
         limit: optionalNumber(params, "limit"),
         offset: optionalNumber(params, "offset"),
+        filter: optionalFilter(params),
+      });
+    },
+
+    listRequestsSummaryDelta: (params): RequestListDeltaResult => {
+      const afterChangeSeq = requireNonNegativeNumber(params, "afterChangeSeq");
+      return storage.listRequestsSummaryDelta({
+        afterChangeSeq,
+        limit: optionalNumber(params, "limit"),
         filter: optionalFilter(params),
       });
     },

@@ -343,9 +343,9 @@ describe("App keyboard interactions", () => {
       stdin.write("k");
       await tick();
 
-      // Should remain at first item (test-0) - no call to getFullRequest
-      // because selection didn't change
-      expect(mockGetFullRequest).not.toHaveBeenCalled();
+      // Should remain at first item (test-0)
+      const calledIds = mockGetFullRequest.mock.calls.map((call) => call[0]);
+      expect(calledIds.every((id) => id === "test-0")).toBe(true);
     });
 
     it("selection stops at upper bound (cannot go past length-1)", async () => {
@@ -1745,8 +1745,11 @@ describe("App keyboard interactions", () => {
       rerender(<App __testEnableInput />);
       await tick();
 
-      // Selection should re-anchor to req-b (now at index 2)
-      expect(mockGetFull).toHaveBeenCalledWith("req-b");
+      // Selection should remain anchored to req-b (now at index 2).
+      // Press j once and verify we move to req-c (not to req-a from a reset/newest selection).
+      stdin.write("j");
+      await tick();
+      expect(mockGetFull).toHaveBeenCalledWith("req-c");
     });
 
     it("F key toggles follow mode on and jumps to index 0", async () => {
@@ -1920,10 +1923,14 @@ describe("App keyboard interactions", () => {
         mockGetFull.mockClear();
         rerender(<App __testEnableInput />);
         await tick();
-
-        // Selection should still be anchored to req-b
-        expect(mockGetFull).toHaveBeenCalledWith("req-b");
       }
+
+      // After multiple prepends, selection should still be anchored to req-b.
+      // Press j once and verify we move to req-c.
+      mockGetFull.mockClear();
+      stdin.write("j");
+      await tick();
+      expect(mockGetFull).toHaveBeenCalledWith("req-c");
     });
 
     it("G (go to bottom) exits follow mode", async () => {

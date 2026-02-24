@@ -11,6 +11,8 @@ import type {
   Session,
   BodySearchTarget,
   ReplayInitiator,
+  RequestListDeltaEntry,
+  RequestListDeltaResult,
 } from "../shared/types.js";
 import { createLogger, type LogLevel, type Logger } from "../shared/logger.js";
 import {
@@ -26,6 +28,9 @@ const EVICTION_CHECK_INTERVAL = 100;
 const SESSION_TOKEN_BYTES = 16;
 const REGEXP_SQL_FUNCTION = "REGEXP";
 const REGEX_CACHE_MAX_ENTRIES = 100;
+const DEFAULT_DELTA_LIMIT = 500;
+const ORDER_SEQ_COLUMN = "order_seq";
+const CHANGE_SEQ_COLUMN = "change_seq";
 
 const SCHEMA = `
 CREATE TABLE IF NOT EXISTS sessions (
@@ -62,6 +67,8 @@ CREATE TABLE IF NOT EXISTS requests (
     replay_initiator TEXT CHECK(replay_initiator IN ('mcp', 'tui')),
     source TEXT,
     saved INTEGER DEFAULT 0,
+    order_seq INTEGER,
+    change_seq INTEGER,
     created_at INTEGER DEFAULT (unixepoch()),
     FOREIGN KEY (session_id) REFERENCES sessions(id)
 );
@@ -155,6 +162,22 @@ const MIGRATIONS: Migration[] = [
     sql: `
       CREATE INDEX IF NOT EXISTS idx_requests_req_content_type ON requests(request_content_type);
       CREATE INDEX IF NOT EXISTS idx_requests_res_content_type ON requests(response_content_type);
+    `,
+  },
+  {
+    version: 12,
+    description: "Add deterministic list ordering and delta cursor columns",
+    sql: `
+      ALTER TABLE requests ADD COLUMN order_seq INTEGER;
+      ALTER TABLE requests ADD COLUMN change_seq INTEGER;
+      UPDATE requests
+      SET order_seq = rowid
+      WHERE order_seq IS NULL;
+      UPDATE requests
+      SET change_seq = order_seq
+      WHERE change_seq IS NULL;
+      CREATE INDEX IF NOT EXISTS idx_requests_order_seq ON requests(order_seq DESC);
+      CREATE INDEX IF NOT EXISTS idx_requests_change_seq ON requests(change_seq DESC);
     `,
   },
 ];
@@ -349,6 +372,8 @@ export class RequestRepository {
   private logger: Logger | undefined;
   private maxStoredRequests: number;
   private insertsSinceLastEvictionCheck = 0;
+  private nextOrderSeq = 0;
+  private nextChangeSeq = 0;
 
   constructor(
     dbPath: string,
@@ -377,6 +402,9 @@ export class RequestRepository {
     }
 
     this.applyMigrations();
+    this.ensureSequenceIndexes();
+    this.nextOrderSeq = this.readMaxSequence(ORDER_SEQ_COLUMN);
+    this.nextChangeSeq = this.readMaxSequence(CHANGE_SEQ_COLUMN);
 
     if (projectRoot) {
       this.logger = createLogger("storage", projectRoot, logLevel);
@@ -400,6 +428,37 @@ export class RequestRepository {
     });
 
     applyAll();
+  }
+
+  private ensureSequenceIndexes(): void {
+    const columns = this.db.prepare("PRAGMA table_info(requests)").all() as DbTableInfoRow[];
+    const columnNames = new Set(columns.map((column) => column.name));
+
+    if (columnNames.has(ORDER_SEQ_COLUMN)) {
+      this.db.exec("CREATE INDEX IF NOT EXISTS idx_requests_order_seq ON requests(order_seq DESC)");
+    }
+
+    if (columnNames.has(CHANGE_SEQ_COLUMN)) {
+      this.db.exec(
+        "CREATE INDEX IF NOT EXISTS idx_requests_change_seq ON requests(change_seq DESC)"
+      );
+    }
+  }
+
+  private readMaxSequence(column: "order_seq" | "change_seq"): number {
+    const stmt = this.db.prepare(`SELECT COALESCE(MAX(${column}), 0) as maxSeq FROM requests`);
+    const row = stmt.get() as DbMaxSequenceRow;
+    return row.maxSeq;
+  }
+
+  private takeNextOrderSeq(): number {
+    this.nextOrderSeq += 1;
+    return this.nextOrderSeq;
+  }
+
+  private takeNextChangeSeq(): number {
+    this.nextChangeSeq += 1;
+    return this.nextChangeSeq;
   }
 
   /**
@@ -573,14 +632,17 @@ export class RequestRepository {
     const requestContentType = request.requestHeaders
       ? normaliseContentType(request.requestHeaders["content-type"])
       : null;
+    const orderSeq = this.takeNextOrderSeq();
+    const changeSeq = this.takeNextChangeSeq();
 
     const stmt = this.db.prepare(`
       INSERT INTO requests (
         id, session_id, label, timestamp, method, url, host, path,
         request_headers, request_body, request_body_truncated, response_status, response_headers,
-        response_body, response_body_truncated, duration_ms, request_content_type, source
+        response_body, response_body_truncated, duration_ms, request_content_type, source,
+        order_seq, change_seq
       )
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `);
 
     stmt.run(
@@ -601,7 +663,9 @@ export class RequestRepository {
       request.responseBodyTruncated ? 1 : 0,
       request.durationMs ?? null,
       requestContentType,
-      request.source ?? null
+      request.source ?? null,
+      orderSeq,
+      changeSeq
     );
 
     this.logger?.debug("Request saved", {
@@ -630,10 +694,11 @@ export class RequestRepository {
     }
   ): void {
     const responseContentType = normaliseContentType(response.headers["content-type"]);
+    const changeSeq = this.takeNextChangeSeq();
 
     const stmt = this.db.prepare(`
       UPDATE requests
-      SET response_status = ?, response_headers = ?, response_body = ?, response_body_truncated = ?, duration_ms = ?, response_content_type = ?
+      SET response_status = ?, response_headers = ?, response_body = ?, response_body_truncated = ?, duration_ms = ?, response_content_type = ?, change_seq = ?
       WHERE id = ?
     `);
 
@@ -644,6 +709,7 @@ export class RequestRepository {
       response.responseBodyTruncated ? 1 : 0,
       response.durationMs,
       responseContentType,
+      changeSeq,
       id
     );
   }
@@ -656,24 +722,26 @@ export class RequestRepository {
     interceptedBy: string,
     interceptionType?: InterceptionType
   ): void {
+    const changeSeq = this.takeNextChangeSeq();
     const stmt = this.db.prepare(`
       UPDATE requests
-      SET intercepted_by = ?, interception_type = ?
+      SET intercepted_by = ?, interception_type = ?, change_seq = ?
       WHERE id = ?
     `);
-    stmt.run(interceptedBy, interceptionType ?? null, id);
+    stmt.run(interceptedBy, interceptionType ?? null, changeSeq, id);
   }
 
   /**
    * Mark a request as replayed, including lineage metadata.
    */
   updateRequestReplay(id: string, replayedFromId: string, replayInitiator: ReplayInitiator): void {
+    const changeSeq = this.takeNextChangeSeq();
     const stmt = this.db.prepare(`
       UPDATE requests
-      SET replayed_from_id = ?, replay_initiator = ?
+      SET replayed_from_id = ?, replay_initiator = ?, change_seq = ?
       WHERE id = ?
     `);
-    stmt.run(replayedFromId, replayInitiator, id);
+    stmt.run(replayedFromId, replayInitiator, changeSeq, id);
   }
 
   /**
@@ -723,7 +791,7 @@ export class RequestRepository {
     const stmt = this.db.prepare(`
       SELECT * FROM requests
       ${whereClause}
-      ORDER BY timestamp DESC
+      ORDER BY COALESCE(order_seq, 0) DESC, timestamp DESC, id DESC
       LIMIT ? OFFSET ?
     `);
 
@@ -788,7 +856,7 @@ export class RequestRepository {
         saved
       FROM requests
       ${whereClause}
-      ORDER BY timestamp DESC
+      ORDER BY COALESCE(order_seq, 0) DESC, timestamp DESC, id DESC
       LIMIT ? OFFSET ?
     `);
 
@@ -797,6 +865,79 @@ export class RequestRepository {
     const rows = stmt.all(...params) as DbRequestSummaryRow[];
 
     return rows.map((row) => this.rowToSummary(row));
+  }
+
+  /**
+   * Stream request list updates incrementally using a monotonic change cursor.
+   * Returns rows ordered by change sequence ascending, so cursors can advance without gaps.
+   */
+  listRequestsSummaryDelta(options: {
+    afterChangeSeq: number;
+    limit?: number;
+    filter?: RequestFilter;
+  }): RequestListDeltaResult {
+    const baseConditions: string[] = [];
+    const baseParams: (string | number)[] = [];
+
+    applyFilterConditions(baseConditions, baseParams, options.filter);
+
+    const deltaConditions = [...baseConditions, "COALESCE(change_seq, 0) > ?"];
+    const deltaParams: (string | number)[] = [...baseParams, options.afterChangeSeq];
+    const deltaWhere = `WHERE ${deltaConditions.join(" AND ")}`;
+    const limit = options.limit ?? DEFAULT_DELTA_LIMIT;
+
+    const stmt = this.db.prepare(`
+      SELECT
+        id,
+        session_id,
+        label,
+        source,
+        timestamp,
+        method,
+        url,
+        host,
+        path,
+        response_status,
+        duration_ms,
+        COALESCE(LENGTH(request_body), 0) as request_body_size,
+        COALESCE(LENGTH(response_body), 0) as response_body_size,
+        intercepted_by,
+        interception_type,
+        replayed_from_id,
+        replay_initiator,
+        saved,
+        COALESCE(order_seq, 0) as order_seq,
+        COALESCE(change_seq, 0) as change_seq
+      FROM requests
+      ${deltaWhere}
+      ORDER BY COALESCE(change_seq, 0) ASC, COALESCE(order_seq, 0) ASC
+      LIMIT ?
+    `);
+
+    const rows = stmt.all(...deltaParams, limit) as DbRequestSummaryRow[];
+
+    const entries: RequestListDeltaEntry[] = rows.map((row) => ({
+      summary: this.rowToSummary(row),
+      orderSeq: row.order_seq ?? 0,
+      changeSeq: row.change_seq ?? 0,
+    }));
+
+    const cursor =
+      entries.length > 0
+        ? (entries[entries.length - 1]?.changeSeq ?? options.afterChangeSeq)
+        : options.afterChangeSeq;
+
+    let hasMore = false;
+    if (entries.length === limit) {
+      const moreConditions = [...baseConditions, "COALESCE(change_seq, 0) > ?"];
+      const moreParams: (string | number)[] = [...baseParams, cursor];
+      const moreWhere = `WHERE ${moreConditions.join(" AND ")}`;
+      const moreStmt = this.db.prepare(`SELECT 1 as has_more FROM requests ${moreWhere} LIMIT 1`);
+      const moreRow = moreStmt.get(...moreParams) as DbHasMoreRow | undefined;
+      hasMore = moreRow !== undefined;
+    }
+
+    return { entries, cursor, hasMore };
   }
 
   /**
@@ -894,7 +1035,7 @@ export class RequestRepository {
         saved
       FROM requests
       ${whereClause}
-      ORDER BY timestamp DESC
+      ORDER BY COALESCE(order_seq, 0) DESC, timestamp DESC, id DESC
       LIMIT ? OFFSET ?
     `);
 
@@ -1003,7 +1144,7 @@ export class RequestRepository {
           ${whereClause}
         ) sub
         WHERE extracted_value = ?
-        ORDER BY timestamp DESC
+        ORDER BY timestamp DESC, id DESC
         LIMIT ? OFFSET ?
       `;
       allParams.push(...extractSelectParams, ...params, options.value, limit, offset);
@@ -1028,7 +1169,7 @@ export class RequestRepository {
           ${whereClause}
         ) sub
         WHERE extracted_value IS NOT NULL
-        ORDER BY timestamp DESC
+        ORDER BY timestamp DESC, id DESC
         LIMIT ? OFFSET ?
       `;
       allParams.push(...extractSelectParams, ...params, limit, offset);
@@ -1058,7 +1199,10 @@ export class RequestRepository {
    * Mark a request as saved (bookmarked). Returns whether a row was affected.
    */
   bookmarkRequest(id: string): boolean {
-    const result = this.db.prepare("UPDATE requests SET saved = 1 WHERE id = ?").run(id);
+    const changeSeq = this.takeNextChangeSeq();
+    const result = this.db
+      .prepare("UPDATE requests SET saved = 1, change_seq = ? WHERE id = ?")
+      .run(changeSeq, id);
     return result.changes > 0;
   }
 
@@ -1066,7 +1210,10 @@ export class RequestRepository {
    * Remove the saved (bookmark) flag from a request. Returns whether a row was affected.
    */
   unbookmarkRequest(id: string): boolean {
-    const result = this.db.prepare("UPDATE requests SET saved = 0 WHERE id = ?").run(id);
+    const changeSeq = this.takeNextChangeSeq();
+    const result = this.db
+      .prepare("UPDATE requests SET saved = 0, change_seq = ? WHERE id = ?")
+      .run(changeSeq, id);
     return result.changes > 0;
   }
 
@@ -1227,6 +1374,8 @@ interface DbRequestRow {
   replayed_from_id: string | null;
   replay_initiator: string | null;
   saved: number;
+  order_seq: number | null;
+  change_seq: number | null;
   created_at: number;
 }
 
@@ -1249,6 +1398,8 @@ interface DbRequestSummaryRow {
   replayed_from_id: string | null;
   replay_initiator: string | null;
   saved: number;
+  order_seq?: number;
+  change_seq?: number;
 }
 
 interface DbSessionRow {
@@ -1281,4 +1432,21 @@ interface DbJsonQueryRow {
 
 interface DbCountRow {
   count: number;
+}
+
+interface DbHasMoreRow {
+  has_more: number;
+}
+
+interface DbMaxSequenceRow {
+  maxSeq: number;
+}
+
+interface DbTableInfoRow {
+  cid: number;
+  name: string;
+  type: string;
+  notnull: number;
+  dflt_value: unknown;
+  pk: number;
 }

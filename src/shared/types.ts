@@ -63,6 +63,25 @@ export interface CapturedRequestSummary {
   saved?: boolean;
 }
 
+/**
+ * Delta stream entry for request list updates.
+ * orderSeq defines list ordering (newest first), while changeSeq defines update cursor ordering.
+ */
+export interface RequestListDeltaEntry {
+  summary: CapturedRequestSummary;
+  orderSeq: number;
+  changeSeq: number;
+}
+
+/**
+ * Cursor-based incremental request list update payload.
+ */
+export interface RequestListDeltaResult {
+  entries: RequestListDeltaEntry[];
+  cursor: number;
+  hasMore: boolean;
+}
+
 export interface Session {
   id: string;
   label?: string;
