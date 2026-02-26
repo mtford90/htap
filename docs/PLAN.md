@@ -203,7 +203,7 @@ Each feature should be considered across all four surfaces where applicable:
   - When no request is selected, the request list should expand to fill the entire screen (no empty detail pane)
   - Resizable panels (zellij-style): allow dragging or keybinding-based resizing of the request list / detail pane split
 
-- [ ] **Programmatic Node.js API** — `npm install htap` and use from a script; fourth surface alongside TUI/CLI/MCP
+- [ ] **Programmatic Node.js API** — `npm install @mtford/htap` and use from a script; fourth surface alongside TUI/CLI/MCP
   - **Why:** htap will be composed with other packages (SQL proxy, logger, OTEL tool) into a larger toolkit; needs to be embeddable, not just a standalone CLI
   - Public API exported from `htap` package entry point (e.g. `import { createProxy, ... } from 'htap'`)
   - Start/stop daemon programmatically, configure proxy settings, register interceptors

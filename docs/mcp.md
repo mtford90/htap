@@ -39,7 +39,7 @@ htap also ships an agent skill that teaches AI assistants how to use the MCP too
 
 ```bash
 /plugin marketplace add mtford90/htap
-/plugin install htap
+/plugin install @mtford/htap
 ```
 
 **npm-agentskills** (works with Cursor, Copilot, Codex, etc.):

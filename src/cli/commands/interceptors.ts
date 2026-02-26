@@ -16,7 +16,7 @@ const EXAMPLE_INTERCEPTOR_CONTENT = `// Example htap interceptor
 //
 // Run \`htap interceptors reload\` after editing, or run \`htap daemon restart\`.
 
-import type { Interceptor } from "htap/interceptors";
+import type { Interceptor } from "@mtford/htap/interceptors";
 
 // --- Mock pattern: return a canned response without hitting the real server ---
 //

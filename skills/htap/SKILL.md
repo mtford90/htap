@@ -6,7 +6,7 @@ Use htap to inspect, filter, and intercept HTTP traffic. Activate when htap MCP 
 
 If htap is not installed or the daemon is not running, you can set it up:
 
-1. **Install**: `npm install -g htap`
+1. **Install**: `npm install -g @mtford/htap`
 2. **Start intercepting**: `eval "$(htap on)"` in the project directory
 4. **MCP config**: Add htap to the MCP configuration:
    ```json
@@ -118,7 +118,7 @@ Interceptor files are TypeScript files placed in `.htap/interceptors/`. Each fil
 ### Mock -- Return a Canned Response
 
 ```typescript
-import type { Interceptor } from "htap/interceptors";
+import type { Interceptor } from "@mtford/htap/interceptors";
 
 export default {
   name: "mock-users",
@@ -136,7 +136,7 @@ Do not call `ctx.forward()` -- the request never reaches upstream. This is recor
 ### Modify -- Forward, Then Alter the Response
 
 ```typescript
-import type { Interceptor } from "htap/interceptors";
+import type { Interceptor } from "@mtford/htap/interceptors";
 
 export default {
   name: "inject-header",
@@ -153,7 +153,7 @@ Calls `ctx.forward()` but returns a modified response. Recorded as `interception
 ### Observe -- Log Without Altering
 
 ```typescript
-import type { Interceptor } from "htap/interceptors";
+import type { Interceptor } from "@mtford/htap/interceptors";
 
 export default {
   name: "log-api",

@@ -17,7 +17,7 @@ Htap is a terminal-based, project-scoped HTTP proxy with a powerful CLI, TUI & M
 ## Quick Start
 
 ```bash
-npm install -g htap
+npm install -g @mtford/htap
 
 # Configure environment e.g. HTTP_PROXY
 eval "$(htap on)"
@@ -152,7 +152,7 @@ See [full MCP documentation](docs/mcp.md) for filtering, output formats, and exa
 TypeScript files in `.htap/interceptors/` that intercept HTTP traffic as it passes through the proxy. They can return mock responses, modify upstream responses, or just observe.
 
 ```typescript
-import type { Interceptor } from "htap/interceptors";
+import type { Interceptor } from "@mtford/htap/interceptors";
 
 export default {
   name: "mock-users",

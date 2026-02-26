@@ -1,5 +1,5 @@
 {
-  "name": "htap",
+  "name": "@mtford/htap",
   "version": "0.9.0",
   "description": "Terminal HTTP interception toolkit",
   "type": "module",
