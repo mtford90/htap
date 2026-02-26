@@ -14,7 +14,7 @@ htap interceptors reload  # reload after editing
 Return a response without hitting upstream:
 
 ```typescript
-import type { Interceptor } from "htap/interceptors";
+import type { Interceptor } from "@mtford/htap/interceptors";
 
 export default {
   name: "mock-users",
@@ -32,7 +32,7 @@ export default {
 Interceptors can mock completely non-existent domains too — no upstream DNS/host is required, as long as your request goes through the htap proxy.
 
 ```typescript
-import type { Interceptor } from "htap/interceptors";
+import type { Interceptor } from "@mtford/htap/interceptors";
 
 export default {
   name: "fake-api",
@@ -59,7 +59,7 @@ For HTTPS clients, trust the htap CA (`.htap/ca.pem`) so TLS validation succeeds
 Forward to upstream, then alter the response:
 
 ```typescript
-import type { Interceptor } from "htap/interceptors";
+import type { Interceptor } from "@mtford/htap/interceptors";
 
 export default {
   name: "inject-header",
@@ -76,7 +76,7 @@ export default {
 Log traffic without altering it:
 
 ```typescript
-import type { Interceptor } from "htap/interceptors";
+import type { Interceptor } from "@mtford/htap/interceptors";
 
 export default {
   name: "log-api",
@@ -95,7 +95,7 @@ export default {
 Interceptors can query the traffic database via `ctx.htap`. This lets you build mocks that react to what's already happened — rate limiting, conditional failures, responses based on prior requests:
 
 ```typescript
-import type { Interceptor } from "htap/interceptors";
+import type { Interceptor } from "@mtford/htap/interceptors";
 
 export default {
   name: "rate-limit",
