@@ -4,15 +4,15 @@
 [![CI](https://github.com/mtford90/httap/actions/workflows/ci.yml/badge.svg)](https://github.com/mtford90/httap/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-httap is a terminal-based, project-scoped HTTP proxy with a powerful CLI, TUI & MCP server. Quickly intercept, inspect & rewrite HTTP traffic from the comfort of your terminal or favourite AI agent.
+httap is a powerful HTTP proxy for your terminal. Intercept, inspect & rewrite HTTP traffic — from your shell or your AI agent.
 
 ![httap demo](demo.gif)
 
 ## Feature Highlights
 
-- **Project-scoped** — each project gets its own `.httap/` directory with a separate daemon, database, CA cert and interceptors
-- **MCP server** — AI agents get full access to your captured traffic and can search, filter, inspect, mock — all via tool calls.
-- **Interceptors** — mock, modify or observe traffic by writing typescript. Agent can do this over MCP meaning you can express complex scenarios in natural language!
+- **Project-scoped** — each project gets its own `.httap/` directory with isolated daemon, database, CA cert and interceptors. No cross-project bleed.
+- **Multiple surfaces** — powerful CLI for scripting, a lazygit-style TUI for browsing traffic, an MCP server for AI agents, and a Node.js API for programmatic access.
+- **Interceptors** — mock, modify or observe traffic by writing TypeScript. Your AI agent can write these for you, so you can express complex scenarios in natural language.
 
 ## Quick Start
 
