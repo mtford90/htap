@@ -1,6 +1,6 @@
 # httap
 
-[![npm version](https://img.shields.io/npm/v/httap.svg)](https://www.npmjs.com/package/@mtford/httap)
+[![npm version](https://img.shields.io/npm/v/@mtford/httap.svg)](https://www.npmjs.com/package/@mtford/httap)
 [![CI](https://github.com/mtford90/httap/actions/workflows/ci.yml/badge.svg)](https://github.com/mtford90/httap/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
