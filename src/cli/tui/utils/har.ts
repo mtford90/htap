@@ -3,7 +3,7 @@
  */
 
 import type { CapturedRequest } from "../../../shared/types.js";
-import { getHtapVersion } from "../../../shared/version.js";
+import { getHttapVersion } from "../../../shared/version.js";
 import { getStatusText } from "./formatters.js";
 
 /**
@@ -168,8 +168,8 @@ export function generateHar(requests: CapturedRequest[]): Har {
     log: {
       version: "1.2",
       creator: {
-        name: "htap",
-        version: getHtapVersion(),
+        name: "httap",
+        version: getHttapVersion(),
       },
       entries: requests.map(requestToHarEntry),
     },

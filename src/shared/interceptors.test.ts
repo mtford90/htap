@@ -2,7 +2,7 @@ import * as path from "node:path";
 import { describe, expect, it } from "vitest";
 import { resolveInterceptorPath } from "./interceptors.js";
 
-const BASE_DIR = "/home/user/project/.htap/interceptors";
+const BASE_DIR = "/home/user/project/.httap/interceptors";
 
 describe("resolveInterceptorPath", () => {
   it("resolves a simple filename inside the directory", () => {
@@ -17,13 +17,13 @@ describe("resolveInterceptorPath", () => {
 
   it("throws on path traversal attempt", () => {
     expect(() => resolveInterceptorPath(BASE_DIR, "../evil.ts")).toThrow(
-      "Interceptor path must stay inside .htap/interceptors/"
+      "Interceptor path must stay inside .httap/interceptors/"
     );
   });
 
   it("throws on absolute path attempt", () => {
     expect(() => resolveInterceptorPath(BASE_DIR, "/etc/passwd")).toThrow(
-      "Interceptor path must stay inside .htap/interceptors/"
+      "Interceptor path must stay inside .httap/interceptors/"
     );
   });
 

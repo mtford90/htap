@@ -8,7 +8,7 @@ import { promisify } from "node:util";
 import { generateCACertificate } from "mockttp";
 import { RequestRepository } from "../../src/daemon/storage.js";
 import { createProxy } from "../../src/daemon/proxy.js";
-import { ensureHtapDir, getHtapPaths } from "../../src/shared/project.js";
+import { ensureHttapDir, getHttapPaths } from "../../src/shared/project.js";
 import { writePythonOverride } from "../../src/overrides/python.js";
 import { writeRubyOverride } from "../../src/overrides/ruby.js";
 import { writePhpOverride } from "../../src/overrides/php.js";
@@ -37,34 +37,34 @@ function hasRuntime(cmd: string): boolean {
 
 /**
  * Shared test harness for verifying that different runtimes route HTTP
- * traffic through the htap proxy. Each describe block spins up an
+ * traffic through the httap proxy. Each describe block spins up an
  * upstream HTTP server + proxy, spawns a child process with the correct
  * env vars, and asserts the request was captured in storage.
  */
 function setupTestHarness() {
   let tempDir: string;
-  let paths: ReturnType<typeof getHtapPaths>;
+  let paths: ReturnType<typeof getHttapPaths>;
   let storage: RequestRepository;
   let cleanup: (() => Promise<void>)[] = [];
 
   /** Port of the upstream test server */
   let upstreamPort: number;
-  /** Port of the htap proxy */
+  /** Port of the httap proxy */
   let proxyPort: number;
   /** Proxy URL for env vars */
   let proxyUrl: string;
-  /** Session credentials injected by htap on */
-  let htapSessionId: string;
-  let htapSessionToken: string;
+  /** Session credentials injected by httap on */
+  let httapSessionId: string;
+  let httapSessionToken: string;
 
   beforeEach(async () => {
-    tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "htap-runtime-overrides-test-"));
-    ensureHtapDir(tempDir);
-    paths = getHtapPaths(tempDir);
+    tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "httap-runtime-overrides-test-"));
+    ensureHttapDir(tempDir);
+    paths = getHttapPaths(tempDir);
 
     // Generate CA certificate
     const ca = await generateCACertificate({
-      subject: { commonName: "htap Test CA" },
+      subject: { commonName: "httap Test CA" },
     });
     fs.writeFileSync(paths.caKeyFile, ca.key);
     fs.writeFileSync(paths.caCertFile, ca.cert);
@@ -72,8 +72,8 @@ function setupTestHarness() {
     // Create storage
     storage = new RequestRepository(paths.databaseFile);
     const session = storage.registerSession("test", process.pid, "shell");
-    htapSessionId = session.id;
-    htapSessionToken = session.token;
+    httapSessionId = session.id;
+    httapSessionToken = session.token;
 
     // Start upstream test server
     const testServer = http.createServer((req, res) => {
@@ -116,7 +116,7 @@ function setupTestHarness() {
 
   /**
    * Build the env block for a child process with all proxy and CA env vars.
-   * Covers the standard proxy vars, runtime-specific CA vars, and htap
+   * Covers the standard proxy vars, runtime-specific CA vars, and httap
    * session credentials.
    */
   function buildChildEnv(extra?: Record<string, string>): Record<string, string> {
@@ -139,9 +139,9 @@ function setupTestHarness() {
       AWS_CA_BUNDLE: paths.caCertFile,
       // CGI-specific proxy var (some runtimes honour this)
       CGI_HTTP_PROXY: proxyUrl,
-      // htap session credentials
-      HTAP_SESSION_ID: htapSessionId,
-      HTAP_SESSION_TOKEN: htapSessionToken,
+      // httap session credentials
+      HTTAP_SESSION_ID: httapSessionId,
+      HTTAP_SESSION_TOKEN: httapSessionToken,
       ...extra,
     };
   }

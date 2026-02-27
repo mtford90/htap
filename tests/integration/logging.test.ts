@@ -7,22 +7,22 @@ import { generateCACertificate } from "mockttp";
 import { RequestRepository } from "../../src/daemon/storage.js";
 import { createProxy } from "../../src/daemon/proxy.js";
 import { createControlServer } from "../../src/daemon/control.js";
-import { ensureHtapDir, getHtapPaths } from "../../src/shared/project.js";
+import { ensureHttapDir, getHttapPaths } from "../../src/shared/project.js";
 
 describe("logging integration", () => {
   let tempDir: string;
-  let paths: ReturnType<typeof getHtapPaths>;
+  let paths: ReturnType<typeof getHttapPaths>;
   let storage: RequestRepository;
   let cleanup: (() => Promise<void>)[] = [];
 
   beforeEach(async () => {
-    tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "htap-logging-test-"));
-    ensureHtapDir(tempDir);
-    paths = getHtapPaths(tempDir);
+    tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "httap-logging-test-"));
+    ensureHttapDir(tempDir);
+    paths = getHttapPaths(tempDir);
 
     // Generate CA certificate
     const ca = await generateCACertificate({
-      subject: { commonName: "htap Test CA" },
+      subject: { commonName: "httap Test CA" },
     });
     fs.writeFileSync(paths.caKeyFile, ca.key);
     fs.writeFileSync(paths.caCertFile, ca.cert);
@@ -142,7 +142,7 @@ describe("logging integration", () => {
     it("does not log debug messages at info level", async () => {
       // Create storage with info level
       const infoStorage = new RequestRepository(
-        path.join(paths.htapDir, "info-test.db"),
+        path.join(paths.httapDir, "info-test.db"),
         tempDir,
         "info"
       );

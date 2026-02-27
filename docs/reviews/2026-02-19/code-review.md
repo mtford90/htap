@@ -1,4 +1,4 @@
-# htap Code Review -- 2026-02-19
+# httap Code Review -- 2026-02-19
 
 Review of features added since commit `dec0143` (last code review, 2026-02-14): bookmarks, overrides (multi-language: PHP, Python, Ruby + enhanced Node), request source, persist preferred port, filter bar AND, regexp filtering, body search from within the TUI, and replay requests.
 
@@ -298,7 +298,7 @@ Review of features added since commit `dec0143` (last code review, 2026-02-14): 
 
 ---
 
-- [ ] **TS.2.4: `as` cast on `type` in MCP `htap_get_interceptor_events` tool**
+- [ ] **TS.2.4: `as` cast on `type` in MCP `httap_get_interceptor_events` tool**
 
   **Severity:** Low
 
@@ -469,7 +469,7 @@ Review of features added since commit `dec0143` (last code review, 2026-02-14): 
 
   **Issue:** If dependencies fail to load, the user would see no proxy interception but no error message either, making debugging very difficult.
 
-  **Fix:** Write errors to stderr: `"} catch (e) { process.stderr.write('htap: global-agent bootstrap failed: ' + e.message + '\\n'); }"`
+  **Fix:** Write errors to stderr: `"} catch (e) { process.stderr.write('httap: global-agent bootstrap failed: ' + e.message + '\\n'); }"`
 
   **Quick win:** Yes
 
@@ -625,7 +625,7 @@ Review of features added since commit `dec0143` (last code review, 2026-02-14): 
   "                        parsed.port or 8080,",
   ```
 
-  **Issue:** The htap proxy never runs on 8080. The fallback should be 80 (HTTP default) or removed entirely.
+  **Issue:** The httap proxy never runs on 8080. The fallback should be 80 (HTTP default) or removed entirely.
 
   **Fix:** Change to `80` or remove the fallback.
 
@@ -804,7 +804,7 @@ Review of features added since commit `dec0143` (last code review, 2026-02-14): 
 
 ---
 
-- [ ] **TEST.4.7: MCP integration test does not cover `htap_save_request` or `htap_unsave_request`**
+- [ ] **TEST.4.7: MCP integration test does not cover `httap_save_request` or `httap_unsave_request`**
 
   **Severity:** Medium
 
@@ -921,7 +921,7 @@ Review of features added since commit `dec0143` (last code review, 2026-02-14): 
 
   **File:** `src/mcp/server.ts:521-598, 716-788, 829-893, 937-993`
 
-  **Issue:** Filter-related Zod schemas are defined identically in `htap_list_requests`, `htap_search_bodies`, `htap_count_requests`, and `htap_query_json`. Any change must be replicated in 4 places.
+  **Issue:** Filter-related Zod schemas are defined identically in `httap_list_requests`, `httap_search_bodies`, `httap_count_requests`, and `httap_query_json`. Any change must be replicated in 4 places.
 
   **Fix:** Extract common filter parameters into a reusable object and spread into each tool definition.
 
@@ -963,7 +963,7 @@ Review of features added since commit `dec0143` (last code review, 2026-02-14): 
 
   **File:** `src/cli/commands/on.ts:216-243`, `src/cli/commands/off.ts:11-31`, `src/shared/proxy-info.ts:13-24`
 
-  **Issue:** Adding a new variable requires updating all three lists. If any is missed, the variable won't be unset on `htap off` or won't appear in the info display.
+  **Issue:** Adding a new variable requires updating all three lists. If any is missed, the variable won't be unset on `httap off` or won't appear in the info display.
 
   **Fix:** Define the canonical list in `src/shared/constants.ts`. Each consumer imports and applies its own formatting.
 
@@ -1129,7 +1129,7 @@ Review of features added since commit `dec0143` (last code review, 2026-02-14): 
 
   **File:** `src/daemon/control.ts:434` and `src/daemon/replay.ts:118-157`
 
-  **Issue:** The replay allows overriding the URL to any arbitrary URL. An MCP agent can replay to `http://169.254.169.254/latest/meta-data/` (AWS metadata), `http://localhost:6379/` (Redis), etc. Since htap is a local dev tool and MCP is already trusted, this is not critical, but worth noting.
+  **Issue:** The replay allows overriding the URL to any arbitrary URL. An MCP agent can replay to `http://169.254.169.254/latest/meta-data/` (AWS metadata), `http://localhost:6379/` (Redis), etc. Since httap is a local dev tool and MCP is already trusted, this is not critical, but worth noting.
 
   **Fix:** Consider restricting URL overrides to the same host as the original request, or add an allowlist/denylist in config. At minimum, document this trust boundary.
 
@@ -1191,7 +1191,7 @@ Review of features added since commit `dec0143` (last code review, 2026-02-14): 
 - **CLI hint chain is complete.** Detail view hints at `body`, `export`, `save|unsave`.
 - **Port persistence is invisible and correct.**
 - **Binary body warning is user-friendly.** Pipe suggestion instead of terminal dump.
-- **`htap on` TTY detection is smart.**
+- **`httap on` TTY detection is smart.**
 - **Clear confirmation preserves bookmarks** and tells the user so.
 - **Interception and replay indicators** consistent in both TUI and CLI.
 
@@ -1253,7 +1253,7 @@ Review of features added since commit `dec0143` (last code review, 2026-02-14): 
 
 ---
 
-- [ ] **UX.7.5: `htap request <id>` detail view does not show bookmark state**
+- [ ] **UX.7.5: `httap request <id>` detail view does not show bookmark state**
 
   **Severity:** Low
 
@@ -1281,15 +1281,15 @@ Review of features added since commit `dec0143` (last code review, 2026-02-14): 
 
 ---
 
-- [ ] **UX.7.7: `htap on` does not hint at `htap tui` or `htap requests`**
+- [ ] **UX.7.7: `httap on` does not hint at `httap tui` or `httap requests`**
 
   **Severity:** Medium
 
   **File:** `src/cli/commands/on.ts:276-280`
 
-  **Issue:** After `eval "$(htap on)"`, no hint about what to do next. This is the most critical discovery gap because `htap on` is the first command every user runs.
+  **Issue:** After `eval "$(httap on)"`, no hint about what to do next. This is the most critical discovery gap because `httap on` is the first command every user runs.
 
-  **Fix:** Add: `console.log("# Run 'htap tui' for the interactive viewer, or 'htap requests' to list traffic");`
+  **Fix:** Add: `console.log("# Run 'httap tui' for the interactive viewer, or 'httap requests' to list traffic");`
 
   **Quick win:** Yes
 
@@ -1309,13 +1309,13 @@ Review of features added since commit `dec0143` (last code review, 2026-02-14): 
 
 ---
 
-- [ ] **UX.7.9: `htap request <id> save` and `unsave` lack discovery hints**
+- [ ] **UX.7.9: `httap request <id> save` and `unsave` lack discovery hints**
 
   **Severity:** Low
 
   **File:** `src/cli/commands/request.ts:154-157,183-186`
 
-  **Issue:** After saving, no hint about `htap requests --saved` or `unsave`. Dead-ends in the discovery chain.
+  **Issue:** After saving, no hint about `httap requests --saved` or `unsave`. Dead-ends in the discovery chain.
 
   **Fix:** Add hints after save/unsave output.
 
@@ -1329,7 +1329,7 @@ Review of features added since commit `dec0143` (last code review, 2026-02-14): 
 
   **File:** `src/cli/commands/request.ts`
 
-  **Issue:** Replay is available from TUI and MCP, but no `htap request <id> replay` CLI command. Breaks the principle that all TUI actions should have CLI equivalents.
+  **Issue:** Replay is available from TUI and MCP, but no `httap request <id> replay` CLI command. Breaks the principle that all TUI actions should have CLI equivalents.
 
   **Fix:** Add a `replay` subcommand.
 
@@ -1379,7 +1379,7 @@ Review of features added since commit `dec0143` (last code review, 2026-02-14): 
 
 ---
 
-- [ ] **UX.7.14: `htap requests search` does not show total count or pagination hint**
+- [ ] **UX.7.14: `httap requests search` does not show total count or pagination hint**
 
   **Severity:** Low
 

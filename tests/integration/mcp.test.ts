@@ -10,12 +10,12 @@ import { RequestRepository } from "../../src/daemon/storage.js";
 import { createProxy } from "../../src/daemon/proxy.js";
 import { createControlServer } from "../../src/daemon/control.js";
 import { createReplayTracker } from "../../src/daemon/replay-tracker.js";
-import { ensureHtapDir, getHtapPaths } from "../../src/shared/project.js";
-import { createHtapMcpServer } from "../../src/mcp/server.js";
+import { ensureHttapDir, getHttapPaths } from "../../src/shared/project.js";
+import { createHttapMcpServer } from "../../src/mcp/server.js";
 import { createInterceptorLoader } from "../../src/daemon/interceptor-loader.js";
 import { createInterceptorRunner } from "../../src/daemon/interceptor-runner.js";
 import { createInterceptorEventLog } from "../../src/daemon/interceptor-event-log.js";
-import { createHtapClient } from "../../src/daemon/htap-client.js";
+import { createHttapClient } from "../../src/daemon/httap-client.js";
 
 /**
  * Helper to extract text content from an MCP tool call result.
@@ -30,18 +30,18 @@ function getTextContent(result: { content: { type: string; text?: string }[] }):
 
 describe("MCP integration", () => {
   let tempDir: string;
-  let paths: ReturnType<typeof getHtapPaths>;
+  let paths: ReturnType<typeof getHttapPaths>;
   let storage: RequestRepository;
   let cleanup: (() => Promise<void>)[] = [];
 
   beforeEach(async () => {
-    tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "htap-mcp-"));
-    ensureHtapDir(tempDir);
-    paths = getHtapPaths(tempDir);
+    tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "httap-mcp-"));
+    ensureHttapDir(tempDir);
+    paths = getHttapPaths(tempDir);
 
     // Generate CA certificate
     const ca = await generateCACertificate({
-      subject: { commonName: "htap Test CA" },
+      subject: { commonName: "httap Test CA" },
     });
     fs.writeFileSync(paths.caKeyFile, ca.key);
     fs.writeFileSync(paths.caCertFile, ca.cert);
@@ -69,7 +69,7 @@ describe("MCP integration", () => {
 
   /**
    * Set up a full daemon (proxy + control server) and connect an MCP client
-   * to the htap MCP server via in-memory transport.
+   * to the httap MCP server via in-memory transport.
    */
   async function setupMcpStack() {
     const replayTracker = createReplayTracker();
@@ -99,7 +99,7 @@ describe("MCP integration", () => {
     cleanup.push(controlServer.close);
 
     // Create the MCP server, then connect via in-memory transport
-    const mcp = createHtapMcpServer({ projectRoot: tempDir });
+    const mcp = createHttapMcpServer({ projectRoot: tempDir });
     cleanup.push(async () => mcp.client.close());
 
     const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();
@@ -178,10 +178,10 @@ describe("MCP integration", () => {
     });
   }
 
-  it("htap_get_status returns daemon status", async () => {
+  it("httap_get_status returns daemon status", async () => {
     const { mcpClient } = await setupMcpStack();
 
-    const result = await mcpClient.callTool({ name: "htap_get_status", arguments: {} });
+    const result = await mcpClient.callTool({ name: "httap_get_status", arguments: {} });
     const text = getTextContent(result);
 
     expect(text).toContain("**Running:** true");
@@ -189,7 +189,7 @@ describe("MCP integration", () => {
     expect(text).toContain("**Version:** 1.0.0-test");
   });
 
-  it("htap_list_requests returns captured traffic", async () => {
+  it("httap_list_requests returns captured traffic", async () => {
     const { proxy, mcpClient } = await setupMcpStack();
 
     // Create a test server and make a request through the proxy
@@ -207,7 +207,7 @@ describe("MCP integration", () => {
     await makeProxiedRequest(proxy.port, `http://127.0.0.1:${testAddr.port}/api/users`);
     await new Promise((resolve) => setTimeout(resolve, 150));
 
-    const result = await mcpClient.callTool({ name: "htap_list_requests", arguments: {} });
+    const result = await mcpClient.callTool({ name: "httap_list_requests", arguments: {} });
     const text = getTextContent(result);
 
     expect(text).toContain("Showing 1 of 1 request(s):");
@@ -215,7 +215,7 @@ describe("MCP integration", () => {
     expect(text).toContain("GET");
   });
 
-  it("htap_list_requests filters by method", async () => {
+  it("httap_list_requests filters by method", async () => {
     const { proxy, mcpClient } = await setupMcpStack();
 
     const testServer = http.createServer((req, res) => {
@@ -241,7 +241,7 @@ describe("MCP integration", () => {
     await new Promise((resolve) => setTimeout(resolve, 150));
 
     const result = await mcpClient.callTool({
-      name: "htap_list_requests",
+      name: "httap_list_requests",
       arguments: { method: "POST" },
     });
     const text = getTextContent(result);
@@ -251,7 +251,7 @@ describe("MCP integration", () => {
     expect(text).not.toContain("get-endpoint");
   });
 
-  it("htap_get_request returns full request details", async () => {
+  it("httap_get_request returns full request details", async () => {
     const { proxy, mcpClient } = await setupMcpStack();
 
     const testServer = http.createServer((req, res) => {
@@ -279,7 +279,7 @@ describe("MCP integration", () => {
 
     // First list to get the ID
     const listResult = await mcpClient.callTool({
-      name: "htap_list_requests",
+      name: "httap_list_requests",
       arguments: {},
     });
     const listText = getTextContent(listResult);
@@ -291,7 +291,7 @@ describe("MCP integration", () => {
 
     // Now get full details
     const result = await mcpClient.callTool({
-      name: "htap_get_request",
+      name: "httap_get_request",
       arguments: { id: requestId },
     });
     const text = getTextContent(result);
@@ -307,11 +307,11 @@ describe("MCP integration", () => {
     expect(text).toContain("**Status:** 201");
   });
 
-  it("htap_get_request returns error for non-existent ID", async () => {
+  it("httap_get_request returns error for non-existent ID", async () => {
     const { mcpClient } = await setupMcpStack();
 
     const result = await mcpClient.callTool({
-      name: "htap_get_request",
+      name: "httap_get_request",
       arguments: { id: "non-existent-id" },
     });
     const text = getTextContent(result);
@@ -319,7 +319,7 @@ describe("MCP integration", () => {
     expect(text).toContain("No request(s) found with ID(s): non-existent-id");
   });
 
-  it("htap_search_bodies finds matching content", async () => {
+  it("httap_search_bodies finds matching content", async () => {
     const { proxy, mcpClient } = await setupMcpStack();
 
     const testServer = http.createServer((req, res) => {
@@ -341,7 +341,7 @@ describe("MCP integration", () => {
     await new Promise((resolve) => setTimeout(resolve, 150));
 
     const result = await mcpClient.callTool({
-      name: "htap_search_bodies",
+      name: "httap_search_bodies",
       arguments: { query: "unicorn-rainbow" },
     });
     const text = getTextContent(result);
@@ -351,7 +351,7 @@ describe("MCP integration", () => {
     expect(text).toContain("/api/secret");
   });
 
-  it("htap_search_bodies supports target=request and target=response", async () => {
+  it("httap_search_bodies supports target=request and target=response", async () => {
     const { proxy, mcpClient } = await setupMcpStack();
 
     const testServer = http.createServer((req, res) => {
@@ -397,7 +397,7 @@ describe("MCP integration", () => {
     await new Promise((resolve) => setTimeout(resolve, 150));
 
     const requestOnly = await mcpClient.callTool({
-      name: "htap_search_bodies",
+      name: "httap_search_bodies",
       arguments: { query: "request-only-needle", target: "request" },
     });
     const requestText = getTextContent(requestOnly);
@@ -406,7 +406,7 @@ describe("MCP integration", () => {
     expect(requestText).not.toContain("/res-only");
 
     const responseOnly = await mcpClient.callTool({
-      name: "htap_search_bodies",
+      name: "httap_search_bodies",
       arguments: { query: "response-only-needle", target: "response" },
     });
     const responseText = getTextContent(responseOnly);
@@ -415,7 +415,7 @@ describe("MCP integration", () => {
     expect(responseText).not.toContain("/req-only");
   });
 
-  it("htap_search_bodies supports regex URL filter", async () => {
+  it("httap_search_bodies supports regex URL filter", async () => {
     const { proxy, mcpClient } = await setupMcpStack();
 
     const testServer = http.createServer((req, res) => {
@@ -435,7 +435,7 @@ describe("MCP integration", () => {
     await new Promise((resolve) => setTimeout(resolve, 150));
 
     const result = await mcpClient.callTool({
-      name: "htap_search_bodies",
+      name: "httap_search_bodies",
       arguments: { query: "needle", regex: "users/\\d+$" },
     });
     const text = getTextContent(result);
@@ -445,7 +445,7 @@ describe("MCP integration", () => {
     expect(text).not.toContain("/api/products");
   });
 
-  it("htap_search_bodies returns empty for no match", async () => {
+  it("httap_search_bodies returns empty for no match", async () => {
     const { proxy, mcpClient } = await setupMcpStack();
 
     const testServer = http.createServer((req, res) => {
@@ -463,7 +463,7 @@ describe("MCP integration", () => {
     await new Promise((resolve) => setTimeout(resolve, 150));
 
     const result = await mcpClient.callTool({
-      name: "htap_search_bodies",
+      name: "httap_search_bodies",
       arguments: { query: "nonexistent-term-xyz" },
     });
     const text = getTextContent(result);
@@ -471,20 +471,20 @@ describe("MCP integration", () => {
     expect(text).toContain("No requests found");
   });
 
-  it("htap_list_requests returns empty message when no traffic", async () => {
+  it("httap_list_requests returns empty message when no traffic", async () => {
     const { mcpClient } = await setupMcpStack();
 
-    const result = await mcpClient.callTool({ name: "htap_list_requests", arguments: {} });
+    const result = await mcpClient.callTool({ name: "httap_list_requests", arguments: {} });
     const text = getTextContent(result);
 
     expect(text).toBe("No requests found.");
   });
 
-  it("htap_list_requests returns error for invalid status_range", async () => {
+  it("httap_list_requests returns error for invalid status_range", async () => {
     const { mcpClient } = await setupMcpStack();
 
     const result = await mcpClient.callTool({
-      name: "htap_list_requests",
+      name: "httap_list_requests",
       arguments: { status_range: "invalid" },
     });
     const text = getTextContent(result);
@@ -494,7 +494,7 @@ describe("MCP integration", () => {
     expect(text).toContain("Expected format: Nxx");
   });
 
-  it("htap_list_requests supports pagination", async () => {
+  it("httap_list_requests supports pagination", async () => {
     const { proxy, mcpClient } = await setupMcpStack();
 
     const testServer = http.createServer((req, res) => {
@@ -515,11 +515,11 @@ describe("MCP integration", () => {
     await new Promise((resolve) => setTimeout(resolve, 150));
 
     const page1 = await mcpClient.callTool({
-      name: "htap_list_requests",
+      name: "httap_list_requests",
       arguments: { limit: 1, offset: 0 },
     });
     const page2 = await mcpClient.callTool({
-      name: "htap_list_requests",
+      name: "httap_list_requests",
       arguments: { limit: 1, offset: 1 },
     });
     const text1 = getTextContent(page1);
@@ -531,7 +531,7 @@ describe("MCP integration", () => {
     expect(text1).not.toBe(text2);
   });
 
-  it("htap_list_requests filters by search", async () => {
+  it("httap_list_requests filters by search", async () => {
     const { proxy, mcpClient } = await setupMcpStack();
 
     const testServer = http.createServer((req, res) => {
@@ -551,7 +551,7 @@ describe("MCP integration", () => {
     await new Promise((resolve) => setTimeout(resolve, 150));
 
     const result = await mcpClient.callTool({
-      name: "htap_list_requests",
+      name: "httap_list_requests",
       arguments: { search: "products" },
     });
     const text = getTextContent(result);
@@ -561,7 +561,7 @@ describe("MCP integration", () => {
     expect(text).not.toContain("/api/users");
   });
 
-  it("htap_list_requests filters by regex", async () => {
+  it("httap_list_requests filters by regex", async () => {
     const { proxy, mcpClient } = await setupMcpStack();
 
     const testServer = http.createServer((req, res) => {
@@ -581,7 +581,7 @@ describe("MCP integration", () => {
     await new Promise((resolve) => setTimeout(resolve, 150));
 
     const result = await mcpClient.callTool({
-      name: "htap_list_requests",
+      name: "httap_list_requests",
       arguments: { regex: "users/\\d+$" },
     });
     const text = getTextContent(result);
@@ -591,7 +591,7 @@ describe("MCP integration", () => {
     expect(text).not.toContain("/api/products");
   });
 
-  it("htap_list_requests filters by status_range", async () => {
+  it("httap_list_requests filters by status_range", async () => {
     const { proxy, mcpClient } = await setupMcpStack();
 
     const testServer = http.createServer((req, res) => {
@@ -616,7 +616,7 @@ describe("MCP integration", () => {
     await new Promise((resolve) => setTimeout(resolve, 150));
 
     const result = await mcpClient.callTool({
-      name: "htap_list_requests",
+      name: "httap_list_requests",
       arguments: { status_range: "4xx" },
     });
     const text = getTextContent(result);
@@ -626,7 +626,7 @@ describe("MCP integration", () => {
     expect(text).not.toContain("/ok");
   });
 
-  it("htap_list_requests filters by host", async () => {
+  it("httap_list_requests filters by host", async () => {
     const { proxy, mcpClient } = await setupMcpStack();
 
     // Create two test servers on different ports to simulate different hosts
@@ -658,7 +658,7 @@ describe("MCP integration", () => {
 
     // Filter by the first server's host:port
     const result = await mcpClient.callTool({
-      name: "htap_list_requests",
+      name: "httap_list_requests",
       arguments: { host: `127.0.0.1:${addr1.port}` },
     });
     const text = getTextContent(result);
@@ -668,7 +668,7 @@ describe("MCP integration", () => {
     expect(text).not.toContain("/api/two");
   });
 
-  it("htap_list_requests filters by since timestamp", async () => {
+  it("httap_list_requests filters by since timestamp", async () => {
     const { mcpClient } = await setupMcpStack();
 
     // Insert requests directly via storage with controlled timestamps
@@ -701,7 +701,7 @@ describe("MCP integration", () => {
     // Use since to only get the newer request
     const sinceIso = new Date(newTime - 1).toISOString();
     const result = await mcpClient.callTool({
-      name: "htap_list_requests",
+      name: "httap_list_requests",
       arguments: { since: sinceIso },
     });
     const text = getTextContent(result);
@@ -711,7 +711,7 @@ describe("MCP integration", () => {
     expect(text).not.toContain("/old");
   });
 
-  it("htap_list_requests filters by comma-separated methods", async () => {
+  it("httap_list_requests filters by comma-separated methods", async () => {
     const { proxy, mcpClient } = await setupMcpStack();
 
     const testServer = http.createServer((req, res) => {
@@ -738,7 +738,7 @@ describe("MCP integration", () => {
 
     // Comma-separated: "GET,POST" should return both
     const result = await mcpClient.callTool({
-      name: "htap_list_requests",
+      name: "httap_list_requests",
       arguments: { method: "GET,POST" },
     });
     const text = getTextContent(result);
@@ -748,7 +748,7 @@ describe("MCP integration", () => {
     expect(text).toContain("POST");
   });
 
-  it("htap_count_requests returns total count", async () => {
+  it("httap_count_requests returns total count", async () => {
     const { proxy, mcpClient } = await setupMcpStack();
 
     const testServer = http.createServer((req, res) => {
@@ -767,13 +767,13 @@ describe("MCP integration", () => {
     await makeProxiedRequest(proxy.port, `${baseUrl}/two`);
     await new Promise((resolve) => setTimeout(resolve, 150));
 
-    const result = await mcpClient.callTool({ name: "htap_count_requests", arguments: {} });
+    const result = await mcpClient.callTool({ name: "httap_count_requests", arguments: {} });
     const text = getTextContent(result);
 
     expect(text).toBe("2 request(s)");
   });
 
-  it("htap_count_requests supports filtering", async () => {
+  it("httap_count_requests supports filtering", async () => {
     const { proxy, mcpClient } = await setupMcpStack();
 
     const testServer = http.createServer((req, res) => {
@@ -799,7 +799,7 @@ describe("MCP integration", () => {
     await new Promise((resolve) => setTimeout(resolve, 150));
 
     const result = await mcpClient.callTool({
-      name: "htap_count_requests",
+      name: "httap_count_requests",
       arguments: { method: "POST" },
     });
     const text = getTextContent(result);
@@ -807,7 +807,7 @@ describe("MCP integration", () => {
     expect(text).toBe("1 request(s)");
   });
 
-  it("htap_clear_requests clears all requests", async () => {
+  it("httap_clear_requests clears all requests", async () => {
     const { proxy, mcpClient } = await setupMcpStack();
 
     const testServer = http.createServer((req, res) => {
@@ -825,22 +825,22 @@ describe("MCP integration", () => {
     await new Promise((resolve) => setTimeout(resolve, 150));
 
     // Verify there are requests
-    const countBefore = await mcpClient.callTool({ name: "htap_count_requests", arguments: {} });
+    const countBefore = await mcpClient.callTool({ name: "httap_count_requests", arguments: {} });
     expect(getTextContent(countBefore)).toBe("1 request(s)");
 
     // Clear
-    const clearResult = await mcpClient.callTool({ name: "htap_clear_requests", arguments: {} });
+    const clearResult = await mcpClient.callTool({ name: "httap_clear_requests", arguments: {} });
     expect(getTextContent(clearResult)).toBe("All requests cleared.");
 
     // Verify empty
-    const countAfter = await mcpClient.callTool({ name: "htap_count_requests", arguments: {} });
+    const countAfter = await mcpClient.callTool({ name: "httap_count_requests", arguments: {} });
     expect(getTextContent(countAfter)).toBe("0 request(s)");
   });
 
-  it("htap_list_sessions shows session info", async () => {
+  it("httap_list_sessions shows session info", async () => {
     const { mcpClient } = await setupMcpStack();
 
-    const result = await mcpClient.callTool({ name: "htap_list_sessions", arguments: {} });
+    const result = await mcpClient.callTool({ name: "httap_list_sessions", arguments: {} });
     const text = getTextContent(result);
 
     expect(text).toContain("1 session(s):");
@@ -849,7 +849,7 @@ describe("MCP integration", () => {
     expect(text).toContain("started");
   });
 
-  it("htap_get_request batch fetches multiple requests", async () => {
+  it("httap_get_request batch fetches multiple requests", async () => {
     const { proxy, mcpClient } = await setupMcpStack();
 
     const testServer = http.createServer((req, res) => {
@@ -869,7 +869,7 @@ describe("MCP integration", () => {
     await new Promise((resolve) => setTimeout(resolve, 150));
 
     // Get IDs from list
-    const listResult = await mcpClient.callTool({ name: "htap_list_requests", arguments: {} });
+    const listResult = await mcpClient.callTool({ name: "httap_list_requests", arguments: {} });
     const listText = getTextContent(listResult);
     // Match IDs at start of lines — skip body size brackets like [^0B v128B]
     const ids = [...listText.matchAll(/^\[([^\]]+)\]/gm)].map((m) => m[1]);
@@ -877,7 +877,7 @@ describe("MCP integration", () => {
 
     // Batch fetch
     const result = await mcpClient.callTool({
-      name: "htap_get_request",
+      name: "httap_get_request",
       arguments: { id: ids.join(",") },
     });
     const text = getTextContent(result);
@@ -887,7 +887,7 @@ describe("MCP integration", () => {
     expect(text).toContain("---");
   });
 
-  it("htap_get_request batch reports missing IDs", async () => {
+  it("httap_get_request batch reports missing IDs", async () => {
     const { proxy, mcpClient } = await setupMcpStack();
 
     const testServer = http.createServer((req, res) => {
@@ -905,14 +905,14 @@ describe("MCP integration", () => {
     await new Promise((resolve) => setTimeout(resolve, 150));
 
     // Get the real ID
-    const listResult = await mcpClient.callTool({ name: "htap_list_requests", arguments: {} });
+    const listResult = await mcpClient.callTool({ name: "httap_list_requests", arguments: {} });
     const listText = getTextContent(listResult);
     const idMatch = listText.match(/\[([^\]]+)\]/);
     const realId = idMatch?.[1] ?? "";
 
     // Batch with one valid and one invalid
     const result = await mcpClient.callTool({
-      name: "htap_get_request",
+      name: "httap_get_request",
       arguments: { id: `${realId},nonexistent-id` },
     });
     const text = getTextContent(result);
@@ -921,7 +921,7 @@ describe("MCP integration", () => {
     expect(text).toContain("Not found: nonexistent-id");
   });
 
-  it("htap_list_requests total count with pagination", async () => {
+  it("httap_list_requests total count with pagination", async () => {
     const { proxy, mcpClient } = await setupMcpStack();
 
     const testServer = http.createServer((req, res) => {
@@ -942,7 +942,7 @@ describe("MCP integration", () => {
     await new Promise((resolve) => setTimeout(resolve, 150));
 
     const result = await mcpClient.callTool({
-      name: "htap_list_requests",
+      name: "httap_list_requests",
       arguments: { limit: 1 },
     });
     const text = getTextContent(result);
@@ -950,7 +950,7 @@ describe("MCP integration", () => {
     expect(text).toContain("Showing 1 of 3 request(s):");
   });
 
-  it("htap_get_request format=json returns structured output", async () => {
+  it("httap_get_request format=json returns structured output", async () => {
     const { proxy, mcpClient } = await setupMcpStack();
 
     const testServer = http.createServer((req, res) => {
@@ -977,13 +977,13 @@ describe("MCP integration", () => {
     await new Promise((resolve) => setTimeout(resolve, 150));
 
     // Get ID
-    const listResult = await mcpClient.callTool({ name: "htap_list_requests", arguments: {} });
+    const listResult = await mcpClient.callTool({ name: "httap_list_requests", arguments: {} });
     const listText = getTextContent(listResult);
     const idMatch = listText.match(/\[([^\]]+)\]/);
     const requestId = idMatch?.[1] ?? "";
 
     const result = await mcpClient.callTool({
-      name: "htap_get_request",
+      name: "httap_get_request",
       arguments: { id: requestId, format: "json" },
     });
     const text = getTextContent(result);
@@ -1001,7 +1001,7 @@ describe("MCP integration", () => {
     expect(req.timestamp).toMatch(/^\d{4}-\d{2}-\d{2}T/);
   });
 
-  it("htap_list_requests format=json returns structured output", async () => {
+  it("httap_list_requests format=json returns structured output", async () => {
     const { proxy, mcpClient } = await setupMcpStack();
 
     const testServer = http.createServer((req, res) => {
@@ -1019,7 +1019,7 @@ describe("MCP integration", () => {
     await new Promise((resolve) => setTimeout(resolve, 150));
 
     const result = await mcpClient.callTool({
-      name: "htap_list_requests",
+      name: "httap_list_requests",
       arguments: { format: "json" },
     });
     const text = getTextContent(result);
@@ -1033,7 +1033,7 @@ describe("MCP integration", () => {
     expect(parsed.requests[0].timestamp).toMatch(/^\d{4}-\d{2}-\d{2}T/);
   });
 
-  it("htap_count_requests format=json returns structured output", async () => {
+  it("httap_count_requests format=json returns structured output", async () => {
     const { proxy, mcpClient } = await setupMcpStack();
 
     const testServer = http.createServer((req, res) => {
@@ -1052,7 +1052,7 @@ describe("MCP integration", () => {
     await new Promise((resolve) => setTimeout(resolve, 150));
 
     const result = await mcpClient.callTool({
-      name: "htap_count_requests",
+      name: "httap_count_requests",
       arguments: { format: "json" },
     });
     const text = getTextContent(result);
@@ -1061,7 +1061,7 @@ describe("MCP integration", () => {
     expect(parsed).toEqual({ count: 2 });
   });
 
-  it("htap_get_request pretty-prints JSON bodies in text format", async () => {
+  it("httap_get_request pretty-prints JSON bodies in text format", async () => {
     const { proxy, mcpClient } = await setupMcpStack();
 
     const testServer = http.createServer((req, res) => {
@@ -1088,13 +1088,13 @@ describe("MCP integration", () => {
     await new Promise((resolve) => setTimeout(resolve, 150));
 
     // Get ID
-    const listResult = await mcpClient.callTool({ name: "htap_list_requests", arguments: {} });
+    const listResult = await mcpClient.callTool({ name: "httap_list_requests", arguments: {} });
     const listText = getTextContent(listResult);
     const idMatch = listText.match(/\[([^\]]+)\]/);
     const requestId = idMatch?.[1] ?? "";
 
     const result = await mcpClient.callTool({
-      name: "htap_get_request",
+      name: "httap_get_request",
       arguments: { id: requestId },
     });
     const text = getTextContent(result);
@@ -1105,7 +1105,7 @@ describe("MCP integration", () => {
     expect(text).toContain('"count": 42');
   });
 
-  it("htap_get_request shows binary placeholder for non-text responses", async () => {
+  it("httap_get_request shows binary placeholder for non-text responses", async () => {
     const { proxy, mcpClient } = await setupMcpStack();
 
     // Server that returns binary content (image/png)
@@ -1128,13 +1128,13 @@ describe("MCP integration", () => {
     await new Promise((resolve) => setTimeout(resolve, 150));
 
     // Get ID
-    const listResult = await mcpClient.callTool({ name: "htap_list_requests", arguments: {} });
+    const listResult = await mcpClient.callTool({ name: "httap_list_requests", arguments: {} });
     const listText = getTextContent(listResult);
     const idMatch = listText.match(/\[([^\]]+)\]/);
     const requestId = idMatch?.[1] ?? "";
 
     const result = await mcpClient.callTool({
-      name: "htap_get_request",
+      name: "httap_get_request",
       arguments: { id: requestId },
     });
     const text = getTextContent(result);
@@ -1142,7 +1142,7 @@ describe("MCP integration", () => {
     expect(text).toContain("[binary data,");
   });
 
-  it("htap_list_requests filters by header_name", async () => {
+  it("httap_list_requests filters by header_name", async () => {
     const { mcpClient } = await setupMcpStack();
 
     const sessions = storage.listSessions();
@@ -1183,7 +1183,7 @@ describe("MCP integration", () => {
     });
 
     const result = await mcpClient.callTool({
-      name: "htap_list_requests",
+      name: "httap_list_requests",
       arguments: { header_name: "x-api-key" },
     });
     const text = getTextContent(result);
@@ -1193,7 +1193,7 @@ describe("MCP integration", () => {
     expect(text).not.toContain("/public");
   });
 
-  it("htap_list_requests filters by header_name + header_value", async () => {
+  it("httap_list_requests filters by header_name + header_value", async () => {
     const { mcpClient } = await setupMcpStack();
 
     const sessions = storage.listSessions();
@@ -1234,7 +1234,7 @@ describe("MCP integration", () => {
     });
 
     const result = await mcpClient.callTool({
-      name: "htap_list_requests",
+      name: "httap_list_requests",
       arguments: { header_name: "content-type", header_value: "application/json" },
     });
     const text = getTextContent(result);
@@ -1244,7 +1244,7 @@ describe("MCP integration", () => {
     expect(text).not.toContain("/form");
   });
 
-  it("htap_list_requests filters by header_target=response", async () => {
+  it("httap_list_requests filters by header_target=response", async () => {
     const { mcpClient } = await setupMcpStack();
 
     const sessions = storage.listSessions();
@@ -1283,7 +1283,7 @@ describe("MCP integration", () => {
     });
 
     const result = await mcpClient.callTool({
-      name: "htap_list_requests",
+      name: "httap_list_requests",
       arguments: { header_name: "x-cache", header_target: "response" },
     });
     const text = getTextContent(result);
@@ -1293,7 +1293,7 @@ describe("MCP integration", () => {
     expect(text).not.toContain("/uncached");
   });
 
-  it("htap_query_json extracts value from JSON body", async () => {
+  it("httap_query_json extracts value from JSON body", async () => {
     const { mcpClient } = await setupMcpStack();
 
     const sessions = storage.listSessions();
@@ -1317,7 +1317,7 @@ describe("MCP integration", () => {
     });
 
     const result = await mcpClient.callTool({
-      name: "htap_query_json",
+      name: "httap_query_json",
       arguments: { json_path: "$.name", target: "request" },
     });
     const text = getTextContent(result);
@@ -1326,7 +1326,7 @@ describe("MCP integration", () => {
     expect(text).toContain("$.name=Alice");
   });
 
-  it("htap_query_json with value filter", async () => {
+  it("httap_query_json with value filter", async () => {
     const { mcpClient } = await setupMcpStack();
 
     const sessions = storage.listSessions();
@@ -1355,7 +1355,7 @@ describe("MCP integration", () => {
     });
 
     const result = await mcpClient.callTool({
-      name: "htap_query_json",
+      name: "httap_query_json",
       arguments: { json_path: "$.name", value: "Alice", target: "request" },
     });
     const text = getTextContent(result);
@@ -1364,7 +1364,7 @@ describe("MCP integration", () => {
     expect(text).toContain("$.name=Alice");
   });
 
-  it("htap_query_json format=json returns structured output", async () => {
+  it("httap_query_json format=json returns structured output", async () => {
     const { mcpClient } = await setupMcpStack();
 
     const sessions = storage.listSessions();
@@ -1388,7 +1388,7 @@ describe("MCP integration", () => {
     });
 
     const result = await mcpClient.callTool({
-      name: "htap_query_json",
+      name: "httap_query_json",
       arguments: { json_path: "$.status", target: "request", format: "json" },
     });
     const text = getTextContent(result);
@@ -1401,7 +1401,7 @@ describe("MCP integration", () => {
     expect(parsed.results[0].timestamp).toMatch(/^\d{4}-\d{2}-\d{2}T/);
   });
 
-  it("htap_list_requests enriched format shows timestamp and body sizes", async () => {
+  it("httap_list_requests enriched format shows timestamp and body sizes", async () => {
     const { proxy, mcpClient } = await setupMcpStack();
 
     const testServer = http.createServer((req, res) => {
@@ -1427,7 +1427,7 @@ describe("MCP integration", () => {
     );
     await new Promise((resolve) => setTimeout(resolve, 150));
 
-    const result = await mcpClient.callTool({ name: "htap_list_requests", arguments: {} });
+    const result = await mcpClient.callTool({ name: "httap_list_requests", arguments: {} });
     const text = getTextContent(result);
 
     // Should contain ISO timestamp
@@ -1437,7 +1437,7 @@ describe("MCP integration", () => {
     expect(text).toContain("v");
   });
 
-  it("htap_replay_request replays a request and returns replay lineage metadata", async () => {
+  it("httap_replay_request replays a request and returns replay lineage metadata", async () => {
     const { proxy, mcpClient } = await setupMcpStack();
 
     const testServer = http.createServer((_req, res) => {
@@ -1455,7 +1455,7 @@ describe("MCP integration", () => {
     await new Promise((resolve) => setTimeout(resolve, 150));
 
     const listBefore = await mcpClient.callTool({
-      name: "htap_list_requests",
+      name: "httap_list_requests",
       arguments: { format: "json" },
     });
     const parsedBefore = JSON.parse(getTextContent(listBefore)) as {
@@ -1465,7 +1465,7 @@ describe("MCP integration", () => {
     expect(original).toBeDefined();
 
     const replayResult = await mcpClient.callTool({
-      name: "htap_replay_request",
+      name: "httap_replay_request",
       arguments: { id: original?.id ?? "", format: "json" },
     });
     expect(replayResult.isError).toBeFalsy();
@@ -1475,7 +1475,7 @@ describe("MCP integration", () => {
     await new Promise((resolve) => setTimeout(resolve, 200));
 
     const replayedDetail = await mcpClient.callTool({
-      name: "htap_get_request",
+      name: "httap_get_request",
       arguments: { id: parsedReplay.requestId, format: "json" },
     });
     const parsedDetail = JSON.parse(getTextContent(replayedDetail)) as {
@@ -1489,11 +1489,11 @@ describe("MCP integration", () => {
     expect(parsedDetail.requests[0]?.replayInitiator).toBe("mcp");
   });
 
-  it("htap_replay_request returns an error for an unknown request id", async () => {
+  it("httap_replay_request returns an error for an unknown request id", async () => {
     const { mcpClient } = await setupMcpStack();
 
     const result = await mcpClient.callTool({
-      name: "htap_replay_request",
+      name: "httap_replay_request",
       arguments: { id: "non-existent-id" },
     });
 
@@ -1503,12 +1503,12 @@ describe("MCP integration", () => {
     );
   });
 
-  it("htap_replay_request schema rejects missing id", async () => {
+  it("httap_replay_request schema rejects missing id", async () => {
     const { mcpClient } = await setupMcpStack();
 
     try {
       const result = await mcpClient.callTool({
-        name: "htap_replay_request",
+        name: "httap_replay_request",
         arguments: {},
       });
       expect(result.isError).toBe(true);
@@ -1522,21 +1522,21 @@ describe("MCP integration", () => {
 
 describe("MCP interceptor events", { timeout: 30_000 }, () => {
   let tempDir: string;
-  let paths: ReturnType<typeof getHtapPaths>;
+  let paths: ReturnType<typeof getHttapPaths>;
   let storage: RequestRepository;
   let cleanup: (() => Promise<void>)[] = [];
 
   beforeEach(async () => {
-    tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "htap-mcp-iev-"));
-    ensureHtapDir(tempDir);
-    paths = getHtapPaths(tempDir);
+    tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "httap-mcp-iev-"));
+    ensureHttapDir(tempDir);
+    paths = getHttapPaths(tempDir);
 
     // Create interceptors directory
     fs.mkdirSync(paths.interceptorsDir, { recursive: true });
 
     // Generate CA certificate
     const ca = await generateCACertificate({
-      subject: { commonName: "htap Test CA" },
+      subject: { commonName: "httap Test CA" },
     });
     fs.writeFileSync(paths.caKeyFile, ca.key);
     fs.writeFileSync(paths.caCertFile, ca.cert);
@@ -1569,7 +1569,7 @@ describe("MCP interceptor events", { timeout: 30_000 }, () => {
    */
   async function setupMcpInterceptorStack() {
     const eventLog = createInterceptorEventLog();
-    const htapClient = createHtapClient(storage);
+    const httapClient = createHttapClient(storage);
 
     const loader = await createInterceptorLoader({
       interceptorsDir: paths.interceptorsDir,
@@ -1581,7 +1581,7 @@ describe("MCP interceptor events", { timeout: 30_000 }, () => {
 
     const runner = createInterceptorRunner({
       loader,
-      htapClient,
+      httapClient,
       projectRoot: tempDir,
       logLevel: "silent",
       eventLog,
@@ -1625,7 +1625,7 @@ describe("MCP interceptor events", { timeout: 30_000 }, () => {
     cleanup.push(controlServer.close);
 
     // MCP server connected via in-memory transport
-    const mcp = createHtapMcpServer({ projectRoot: tempDir });
+    const mcp = createHttapMcpServer({ projectRoot: tempDir });
     cleanup.push(async () => mcp.client.close());
 
     const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();
@@ -1664,7 +1664,7 @@ describe("MCP interceptor events", { timeout: 30_000 }, () => {
     });
   }
 
-  it("htap_get_interceptor_events returns events in text format", async () => {
+  it("httap_get_interceptor_events returns events in text format", async () => {
     fs.writeFileSync(
       path.join(paths.interceptorsDir, "event-mcp.ts"),
       `export default {
@@ -1682,7 +1682,7 @@ describe("MCP interceptor events", { timeout: 30_000 }, () => {
     await new Promise((resolve) => setTimeout(resolve, 250));
 
     const result = await mcpClient.callTool({
-      name: "htap_get_interceptor_events",
+      name: "httap_get_interceptor_events",
       arguments: {},
     });
     const text = getTextContent(result);
@@ -1697,7 +1697,7 @@ describe("MCP interceptor events", { timeout: 30_000 }, () => {
     expect(text).toContain("[INFO]");
   });
 
-  it("htap_get_interceptor_events returns empty when no events", async () => {
+  it("httap_get_interceptor_events returns empty when no events", async () => {
     // No interceptor file written -- the loader finds no files, so
     // there are no load events beyond the empty directory scan.
     // We also make no request, so no match/mock events.
@@ -1706,7 +1706,7 @@ describe("MCP interceptor events", { timeout: 30_000 }, () => {
     const { mcpClient } = await setupMcpInterceptorStack();
 
     const result = await mcpClient.callTool({
-      name: "htap_get_interceptor_events",
+      name: "httap_get_interceptor_events",
       arguments: {},
     });
     const text = getTextContent(result);
@@ -1714,7 +1714,7 @@ describe("MCP interceptor events", { timeout: 30_000 }, () => {
     expect(text).toBe("No interceptor events.");
   });
 
-  it("htap_get_interceptor_events with format=json", async () => {
+  it("httap_get_interceptor_events with format=json", async () => {
     fs.writeFileSync(
       path.join(paths.interceptorsDir, "json-mcp.ts"),
       `export default {
@@ -1732,7 +1732,7 @@ describe("MCP interceptor events", { timeout: 30_000 }, () => {
     await new Promise((resolve) => setTimeout(resolve, 250));
 
     const result = await mcpClient.callTool({
-      name: "htap_get_interceptor_events",
+      name: "httap_get_interceptor_events",
       arguments: { format: "json" },
     });
     const text = getTextContent(result);
@@ -1762,11 +1762,11 @@ describe("MCP interceptor events", { timeout: 30_000 }, () => {
     expect(userLogEvent.message).toBe("json format test");
   });
 
-  it("htap_write_interceptor and htap_delete_interceptor manage interceptor files", async () => {
+  it("httap_write_interceptor and httap_delete_interceptor manage interceptor files", async () => {
     const { mcpClient } = await setupMcpInterceptorStack();
 
     const writeResult = await mcpClient.callTool({
-      name: "htap_write_interceptor",
+      name: "httap_write_interceptor",
       arguments: {
         path: "mcp-generated.ts",
         content: `export default {
@@ -1777,30 +1777,30 @@ describe("MCP interceptor events", { timeout: 30_000 }, () => {
     });
 
     expect(writeResult.isError).toBeFalsy();
-    expect(getTextContent(writeResult)).toContain("Wrote .htap/interceptors/mcp-generated.ts");
+    expect(getTextContent(writeResult)).toContain("Wrote .httap/interceptors/mcp-generated.ts");
     expect(fs.existsSync(path.join(paths.interceptorsDir, "mcp-generated.ts"))).toBe(true);
 
     const listed = await mcpClient.callTool({
-      name: "htap_list_interceptors",
+      name: "httap_list_interceptors",
       arguments: {},
     });
     expect(getTextContent(listed)).toContain("mcp-generated");
 
     const deleteResult = await mcpClient.callTool({
-      name: "htap_delete_interceptor",
+      name: "httap_delete_interceptor",
       arguments: { path: "mcp-generated.ts" },
     });
 
     expect(deleteResult.isError).toBeFalsy();
-    expect(getTextContent(deleteResult)).toContain("Deleted .htap/interceptors/mcp-generated.ts");
+    expect(getTextContent(deleteResult)).toContain("Deleted .httap/interceptors/mcp-generated.ts");
     expect(fs.existsSync(path.join(paths.interceptorsDir, "mcp-generated.ts"))).toBe(false);
   });
 
-  it("htap_write_interceptor returns an error when overwrite=false and file exists", async () => {
+  it("httap_write_interceptor returns an error when overwrite=false and file exists", async () => {
     const { mcpClient } = await setupMcpInterceptorStack();
 
     await mcpClient.callTool({
-      name: "htap_write_interceptor",
+      name: "httap_write_interceptor",
       arguments: {
         path: "existing.ts",
         content: "export default { name: 'existing', handler: async () => ({ status: 200 }) };",
@@ -1808,7 +1808,7 @@ describe("MCP interceptor events", { timeout: 30_000 }, () => {
     });
 
     const secondWrite = await mcpClient.callTool({
-      name: "htap_write_interceptor",
+      name: "httap_write_interceptor",
       arguments: {
         path: "existing.ts",
         content: "export default { name: 'existing', handler: async () => ({ status: 201 }) };",
@@ -1819,21 +1819,21 @@ describe("MCP interceptor events", { timeout: 30_000 }, () => {
     expect(getTextContent(secondWrite)).toContain("already exists");
   });
 
-  it("htap_write_interceptor rejects traversal and wrong-extension paths", async () => {
+  it("httap_write_interceptor rejects traversal and wrong-extension paths", async () => {
     const { mcpClient } = await setupMcpInterceptorStack();
 
     const traversal = await mcpClient.callTool({
-      name: "htap_write_interceptor",
+      name: "httap_write_interceptor",
       arguments: {
         path: "../outside.ts",
         content: "export default {}",
       },
     });
     expect(traversal.isError).toBe(true);
-    expect(getTextContent(traversal)).toContain("must stay inside .htap/interceptors");
+    expect(getTextContent(traversal)).toContain("must stay inside .httap/interceptors");
 
     const wrongExt = await mcpClient.callTool({
-      name: "htap_write_interceptor",
+      name: "httap_write_interceptor",
       arguments: {
         path: "bad.js",
         content: "export default {}",
@@ -1843,21 +1843,21 @@ describe("MCP interceptor events", { timeout: 30_000 }, () => {
     expect(getTextContent(wrongExt)).toContain("must end with .ts");
   });
 
-  it("htap_delete_interceptor rejects invalid and traversal paths", async () => {
+  it("httap_delete_interceptor rejects invalid and traversal paths", async () => {
     const { mcpClient } = await setupMcpInterceptorStack();
 
     const emptyPath = await mcpClient.callTool({
-      name: "htap_delete_interceptor",
+      name: "httap_delete_interceptor",
       arguments: { path: "   " },
     });
     expect(emptyPath.isError).toBe(true);
     expect(getTextContent(emptyPath)).toContain("Path is required");
 
     const traversal = await mcpClient.callTool({
-      name: "htap_delete_interceptor",
+      name: "httap_delete_interceptor",
       arguments: { path: "../../escape.ts" },
     });
     expect(traversal.isError).toBe(true);
-    expect(getTextContent(traversal)).toContain("must stay inside .htap/interceptors");
+    expect(getTextContent(traversal)).toContain("must stay inside .httap/interceptors");
   });
 });

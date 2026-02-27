@@ -12,24 +12,24 @@ vi.mock("node:child_process", () => ({
 }));
 
 describe("openInExternalApp", () => {
-  const TEMP_DIR_NAME = "htap-exports";
-  let htapExportDir: string;
+  const TEMP_DIR_NAME = "httap-exports";
+  let httapExportDir: string;
 
   beforeEach(() => {
-    // The function uses os.tmpdir()/htap-exports, so we'll work with that real directory
-    htapExportDir = path.join(os.tmpdir(), TEMP_DIR_NAME);
+    // The function uses os.tmpdir()/httap-exports, so we'll work with that real directory
+    httapExportDir = path.join(os.tmpdir(), TEMP_DIR_NAME);
     vi.clearAllMocks();
   });
 
   afterEach(() => {
-    // Clean up any test files created in the htap-exports directory
-    if (fs.existsSync(htapExportDir)) {
-      const files = fs.readdirSync(htapExportDir);
+    // Clean up any test files created in the httap-exports directory
+    if (fs.existsSync(httapExportDir)) {
+      const files = fs.readdirSync(httapExportDir);
       for (const file of files) {
         // Only delete test files (those starting with "test" or "empty.txt")
         if (file.startsWith("test") || file === "empty.txt") {
           try {
-            const filePath = path.join(htapExportDir, file);
+            const filePath = path.join(httapExportDir, file);
             fs.unlinkSync(filePath);
           } catch {
             // Ignore cleanup errors (e.g. file already deleted)
@@ -50,7 +50,7 @@ describe("openInExternalApp", () => {
     expect(result.filePath).toBeDefined();
 
     // Verify file was written
-    const expectedPath = path.join(htapExportDir, filename);
+    const expectedPath = path.join(httapExportDir, filename);
     expect(fs.existsSync(expectedPath)).toBe(true);
     expect(fs.readFileSync(expectedPath, "utf8")).toBe("test content");
   });
@@ -60,21 +60,21 @@ describe("openInExternalApp", () => {
     const filename = "test-create-dir.txt";
 
     // Remove directory if it exists
-    if (fs.existsSync(htapExportDir)) {
-      fs.rmSync(htapExportDir, { recursive: true, force: true });
+    if (fs.existsSync(httapExportDir)) {
+      fs.rmSync(httapExportDir, { recursive: true, force: true });
     }
 
-    expect(fs.existsSync(htapExportDir)).toBe(false);
+    expect(fs.existsSync(httapExportDir)).toBe(false);
 
     const result = await openInExternalApp(body, filename);
 
     expect(result.success).toBe(true);
-    expect(fs.existsSync(htapExportDir)).toBe(true);
-    expect(fs.existsSync(path.join(htapExportDir, filename))).toBe(true);
+    expect(fs.existsSync(httapExportDir)).toBe(true);
+    expect(fs.existsSync(path.join(httapExportDir, filename))).toBe(true);
   });
 
   it("should reuse temp directory if it already exists", async () => {
-    fs.mkdirSync(htapExportDir, { recursive: true });
+    fs.mkdirSync(httapExportDir, { recursive: true });
 
     const body = Buffer.from("test content");
     const filename = "test-reuse.txt";
@@ -82,7 +82,7 @@ describe("openInExternalApp", () => {
     const result = await openInExternalApp(body, filename);
 
     expect(result.success).toBe(true);
-    expect(fs.existsSync(path.join(htapExportDir, filename))).toBe(true);
+    expect(fs.existsSync(path.join(httapExportDir, filename))).toBe(true);
   });
 
   it("should call spawn with correct platform command on darwin", async () => {
@@ -99,7 +99,7 @@ describe("openInExternalApp", () => {
 
     await openInExternalApp(body, filename);
 
-    const expectedPath = path.join(htapExportDir, filename);
+    const expectedPath = path.join(httapExportDir, filename);
     expect(spawn).toHaveBeenCalledWith("open", [expectedPath], {
       detached: true,
       stdio: "ignore",
@@ -127,7 +127,7 @@ describe("openInExternalApp", () => {
 
     await openInExternalApp(body, filename);
 
-    const expectedPath = path.join(htapExportDir, filename);
+    const expectedPath = path.join(httapExportDir, filename);
     expect(spawn).toHaveBeenCalledWith("cmd", ["/c", "start", "", expectedPath], {
       detached: true,
       stdio: "ignore",
@@ -155,7 +155,7 @@ describe("openInExternalApp", () => {
 
     await openInExternalApp(body, filename);
 
-    const expectedPath = path.join(htapExportDir, filename);
+    const expectedPath = path.join(httapExportDir, filename);
     expect(spawn).toHaveBeenCalledWith("xdg-open", [expectedPath], {
       detached: true,
       stdio: "ignore",
@@ -184,8 +184,8 @@ describe("openInExternalApp", () => {
 
   it("should handle write failures gracefully", async () => {
     // Make temp directory read-only to cause write failure
-    fs.mkdirSync(htapExportDir, { recursive: true });
-    fs.chmodSync(htapExportDir, 0o444);
+    fs.mkdirSync(httapExportDir, { recursive: true });
+    fs.chmodSync(httapExportDir, 0o444);
 
     const body = Buffer.from("test content");
     const filename = "test-write-fail.txt";
@@ -197,7 +197,7 @@ describe("openInExternalApp", () => {
     expect(result.filePath).toBeUndefined();
 
     // Restore permissions for cleanup
-    fs.chmodSync(htapExportDir, 0o755);
+    fs.chmodSync(httapExportDir, 0o755);
   });
 
   // Note: Testing mkdir failure with ESM is problematic due to module namespace limitations.
@@ -232,7 +232,7 @@ describe("openInExternalApp", () => {
     expect(result.success).toBe(true);
 
     // Verify binary content was written correctly
-    const expectedPath = path.join(htapExportDir, filename);
+    const expectedPath = path.join(httapExportDir, filename);
     const written = fs.readFileSync(expectedPath);
     expect(written).toEqual(body);
   });
@@ -245,7 +245,7 @@ describe("openInExternalApp", () => {
 
     expect(result.success).toBe(true);
 
-    const expectedPath = path.join(htapExportDir, filename);
+    const expectedPath = path.join(httapExportDir, filename);
     const written = fs.readFileSync(expectedPath);
     expect(written.length).toBe(0);
   });
@@ -259,13 +259,13 @@ describe("openInExternalApp", () => {
     expect(result.success).toBe(true);
     expect(result.filePath).toContain("test file (1).txt");
 
-    const expectedPath = path.join(htapExportDir, filename);
+    const expectedPath = path.join(httapExportDir, filename);
     expect(fs.existsSync(expectedPath)).toBe(true);
   });
 
   it("should overwrite existing file with same name", async () => {
-    fs.mkdirSync(htapExportDir, { recursive: true });
-    const filePath = path.join(htapExportDir, "test-overwrite.txt");
+    fs.mkdirSync(httapExportDir, { recursive: true });
+    const filePath = path.join(httapExportDir, "test-overwrite.txt");
 
     // Write initial content
     fs.writeFileSync(filePath, "old content");

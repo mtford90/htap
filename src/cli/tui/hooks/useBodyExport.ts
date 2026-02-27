@@ -7,7 +7,7 @@ import * as fs from "node:fs";
 import * as path from "node:path";
 import * as os from "node:os";
 import { copyToClipboard } from "../utils/clipboard.js";
-import { findOrCreateProjectRoot, ensureHtapDir } from "../../../shared/project.js";
+import { findOrCreateProjectRoot, ensureHttapDir } from "../../../shared/project.js";
 
 export type SaveLocation = "exports" | "downloads" | "custom";
 
@@ -124,8 +124,8 @@ export function resolveTargetDir(location: SaveLocation, customPath?: string): s
   switch (location) {
     case "exports": {
       const projectRoot = findOrCreateProjectRoot();
-      const htapDir = ensureHtapDir(projectRoot);
-      const exportsDir = path.join(htapDir, "exports");
+      const httapDir = ensureHttapDir(projectRoot);
+      const exportsDir = path.join(httapDir, "exports");
       if (!fs.existsSync(exportsDir)) {
         fs.mkdirSync(exportsDir, { recursive: true });
       }

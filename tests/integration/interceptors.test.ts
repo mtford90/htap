@@ -10,14 +10,14 @@ import { RequestRepository } from "../../src/daemon/storage.js";
 import { createProxy } from "../../src/daemon/proxy.js";
 import { createControlServer } from "../../src/daemon/control.js";
 import { ControlClient } from "../../src/shared/control-client.js";
-import { ensureHtapDir, getHtapPaths } from "../../src/shared/project.js";
+import { ensureHttapDir, getHttapPaths } from "../../src/shared/project.js";
 import { createInterceptorLoader } from "../../src/daemon/interceptor-loader.js";
 import { createInterceptorRunner } from "../../src/daemon/interceptor-runner.js";
-import { createHtapClient } from "../../src/daemon/htap-client.js";
+import { createHttapClient } from "../../src/daemon/httap-client.js";
 
 describe("interceptor integration", { timeout: 30_000 }, () => {
   let tempDir: string;
-  let paths: ReturnType<typeof getHtapPaths>;
+  let paths: ReturnType<typeof getHttapPaths>;
   let storage: RequestRepository;
   let cleanup: (() => Promise<void>)[] = [];
 
@@ -26,12 +26,12 @@ describe("interceptor integration", { timeout: 30_000 }, () => {
   const DEFAULT_HTTPS_PORT = 443;
 
   beforeEach(async () => {
-    tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "htap-interceptor-test-"));
-    ensureHtapDir(tempDir);
-    paths = getHtapPaths(tempDir);
+    tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "httap-interceptor-test-"));
+    ensureHttapDir(tempDir);
+    paths = getHttapPaths(tempDir);
 
     const ca = await generateCACertificate({
-      subject: { commonName: "htap Test CA" },
+      subject: { commonName: "httap Test CA" },
     });
     fs.writeFileSync(paths.caKeyFile, ca.key);
     fs.writeFileSync(paths.caCertFile, ca.cert);
@@ -71,7 +71,7 @@ describe("interceptor integration", { timeout: 30_000 }, () => {
     });
 
     // Load interceptors via jiti
-    const htapClient = createHtapClient(storage);
+    const httapClient = createHttapClient(storage);
     const loader = await createInterceptorLoader({
       interceptorsDir: paths.interceptorsDir,
       projectRoot: tempDir,
@@ -81,7 +81,7 @@ describe("interceptor integration", { timeout: 30_000 }, () => {
 
     const runner = createInterceptorRunner({
       loader,
-      htapClient,
+      httapClient,
       projectRoot: tempDir,
       logLevel: "silent",
     });

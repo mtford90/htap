@@ -12,7 +12,7 @@ describe("interceptor-loader", () => {
 
   beforeEach(() => {
     // Create a unique temp directory for each test
-    tempDir = path.join(os.tmpdir(), `htap-test-${crypto.randomUUID()}`);
+    tempDir = path.join(os.tmpdir(), `httap-test-${crypto.randomUUID()}`);
     interceptorsDir = tempDir;
     fs.mkdirSync(interceptorsDir, { recursive: true });
   });

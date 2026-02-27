@@ -21,7 +21,7 @@ describe("completions command", () => {
     }) as never);
 
     // Build a minimal program tree for the generator to walk
-    const program = new Command("htap")
+    const program = new Command("httap")
       .option("-v, --verbose", "increase verbosity")
       .option("-d, --dir <path>", "override project root");
 
@@ -40,7 +40,7 @@ describe("completions command", () => {
 
     try {
       // Run the completions command
-      program.parse(["node", "htap", "completions", shell]);
+      program.parse(["node", "httap", "completions", shell]);
     } catch (e) {
       // If process.exit was called, we threw an error - check if it was expected
       if ((e as Error).message !== "process.exit called") {
@@ -58,8 +58,8 @@ describe("completions command", () => {
   describe("zsh completions", () => {
     it("generates valid zsh completion script", () => {
       const output = runCompletions("zsh");
-      expect(output).toContain("compdef _htap htap");
-      expect(output).toContain("_htap");
+      expect(output).toContain("compdef _httap httap");
+      expect(output).toContain("_httap");
       expect(output).toContain("requests");
       expect(output).toContain("sessions");
     });
@@ -74,7 +74,7 @@ describe("completions command", () => {
   describe("bash completions", () => {
     it("generates valid bash completion script", () => {
       const output = runCompletions("bash");
-      expect(output).toContain("complete -F _htap htap");
+      expect(output).toContain("complete -F _httap httap");
       expect(output).toContain("requests");
       expect(output).toContain("sessions");
     });
@@ -83,7 +83,7 @@ describe("completions command", () => {
   describe("fish completions", () => {
     it("generates valid fish completion script", () => {
       const output = runCompletions("fish");
-      expect(output).toContain("complete -c htap");
+      expect(output).toContain("complete -c httap");
       expect(output).toContain("requests");
       expect(output).toContain("sessions");
     });
@@ -98,11 +98,11 @@ describe("completions command", () => {
       throw new Error("process.exit called");
     }) as never);
 
-    const program = new Command("htap");
+    const program = new Command("httap");
     program.addCommand(completionsCommand);
 
     expect(() => {
-      program.parse(["node", "htap", "completions", "powershell"]);
+      program.parse(["node", "httap", "completions", "powershell"]);
     }).toThrow("process.exit called");
     expect(errorOutput).toContain("Unsupported shell");
   });

@@ -590,7 +590,7 @@ export function createControlServer(options: ControlServerOptions): ControlServe
           success: false,
           count: 0,
           error:
-            "Interceptors directory not found. Create .htap/interceptors/ and restart the daemon.",
+            "Interceptors directory not found. Create .httap/interceptors/ and restart the daemon.",
         };
       }
       try {

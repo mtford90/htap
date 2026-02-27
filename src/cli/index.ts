@@ -16,12 +16,12 @@ import { requestCommand } from "./commands/request.js";
 import { sessionsCommand } from "./commands/sessions.js";
 import { browserCommand } from "./commands/browser.js";
 import { completionsCommand } from "./commands/completions.js";
-import { getHtapVersion } from "../shared/version.js";
+import { getHttapVersion } from "../shared/version.js";
 
 program
-  .name("htap")
+  .name("httap")
   .description("Terminal HTTP interception toolkit")
-  .version(getHtapVersion())
+  .version(getHttapVersion())
   .option(
     "-v, --verbose",
     "increase verbosity (use -vv or -vvv for more)",
@@ -29,7 +29,7 @@ program
     0
   )
   .option("-d, --dir <path>", "override project root directory")
-  .option("-c, --config <path>", "override htap data directory (no .htap appended)");
+  .option("-c, --config <path>", "override httap data directory (no .httap appended)");
 
 program.addCommand(browserCommand);
 program.addCommand(clearCommand);
@@ -51,11 +51,11 @@ program.addHelpText(
   "after",
   `
 Quick start:
-  htap on         Start intercepting HTTP traffic
-  htap tui        Browse captured requests
-  htap browser    Launch a proxied browser session
+  httap on         Start intercepting HTTP traffic
+  httap tui        Browse captured requests
+  httap browser    Launch a proxied browser session
 
-Docs: https://github.com/mtford90/htap`
+Docs: https://github.com/mtford90/httap`
 );
 
 program.parse();

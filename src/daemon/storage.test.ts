@@ -12,7 +12,7 @@ describe("RequestRepository", () => {
   let repo: RequestRepository;
 
   beforeEach(() => {
-    tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "htap-storage-test-"));
+    tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "httap-storage-test-"));
     dbPath = path.join(tempDir, "test.db");
     repo = new RequestRepository(dbPath);
   });
@@ -1221,7 +1221,7 @@ describe("RequestRepository", () => {
 
     it("applies migrations to old schema", () => {
       // Create a DB with the old schema (no truncation columns)
-      const migrationDir = fs.mkdtempSync(path.join(os.tmpdir(), "htap-migration-test-"));
+      const migrationDir = fs.mkdtempSync(path.join(os.tmpdir(), "httap-migration-test-"));
       const migrationDbPath = path.join(migrationDir, "old.db");
 
       const rawDb = new Database(migrationDbPath);
@@ -1264,7 +1264,7 @@ describe("RequestRepository", () => {
     });
 
     it("is idempotent when opened multiple times", () => {
-      const idempotentDir = fs.mkdtempSync(path.join(os.tmpdir(), "htap-idempotent-test-"));
+      const idempotentDir = fs.mkdtempSync(path.join(os.tmpdir(), "httap-idempotent-test-"));
       const idempotentDbPath = path.join(idempotentDir, "test.db");
 
       const repo1 = new RequestRepository(idempotentDbPath);
@@ -1278,7 +1278,7 @@ describe("RequestRepository", () => {
     });
 
     it("propagates real errors instead of swallowing them", () => {
-      const errorDir = fs.mkdtempSync(path.join(os.tmpdir(), "htap-error-test-"));
+      const errorDir = fs.mkdtempSync(path.join(os.tmpdir(), "httap-error-test-"));
       const errorDbPath = path.join(errorDir, "error.db");
 
       // Create an old-schema DB with data and only ONE of the truncation columns.
@@ -1304,7 +1304,7 @@ describe("RequestRepository", () => {
     });
 
     it("rolls back all migrations on failure", () => {
-      const rollbackDir = fs.mkdtempSync(path.join(os.tmpdir(), "htap-rollback-test-"));
+      const rollbackDir = fs.mkdtempSync(path.join(os.tmpdir(), "httap-rollback-test-"));
       const rollbackDbPath = path.join(rollbackDir, "rollback.db");
 
       // Create a DB with old schema and data

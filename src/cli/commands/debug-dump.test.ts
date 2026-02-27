@@ -4,8 +4,8 @@ import * as path from "node:path";
 import * as os from "node:os";
 import { collectDebugInfo } from "./debug-dump.js";
 import {
-  ensureHtapDir,
-  getHtapPaths,
+  ensureHttapDir,
+  getHttapPaths,
   writeDaemonPid,
   writeProxyPort,
 } from "../../shared/project.js";
@@ -14,17 +14,17 @@ describe("collectDebugInfo", () => {
   let tempDir: string;
 
   beforeEach(() => {
-    tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "htap-debug-dump-test-"));
+    tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "httap-debug-dump-test-"));
   });
 
   afterEach(() => {
     fs.rmSync(tempDir, { recursive: true, force: true });
   });
 
-  it("includes htap version", () => {
+  it("includes httap version", () => {
     const dump = collectDebugInfo(tempDir);
-    expect(dump.htapVersion).toBeDefined();
-    expect(typeof dump.htapVersion).toBe("string");
+    expect(dump.httapVersion).toBeDefined();
+    expect(typeof dump.httapVersion).toBe("string");
   });
 
   it("includes system platform and node version", () => {
@@ -41,8 +41,8 @@ describe("collectDebugInfo", () => {
   });
 
   it("includes daemon pid and port when running", () => {
-    // Set up .htap directory with daemon files
-    ensureHtapDir(tempDir);
+    // Set up .httap directory with daemon files
+    ensureHttapDir(tempDir);
     writeDaemonPid(tempDir, process.pid); // Use current process as fake daemon
     writeProxyPort(tempDir, 8080);
 
@@ -53,24 +53,24 @@ describe("collectDebugInfo", () => {
     expect(dump.daemon.proxyPort).toBe(8080);
   });
 
-  it("lists files in .htap directory", () => {
-    ensureHtapDir(tempDir);
-    const paths = getHtapPaths(tempDir);
+  it("lists files in .httap directory", () => {
+    ensureHttapDir(tempDir);
+    const paths = getHttapPaths(tempDir);
 
     // Create some test files
-    fs.writeFileSync(path.join(paths.htapDir, "test1.txt"), "test");
-    fs.writeFileSync(path.join(paths.htapDir, "test2.txt"), "test");
+    fs.writeFileSync(path.join(paths.httapDir, "test1.txt"), "test");
+    fs.writeFileSync(path.join(paths.httapDir, "test2.txt"), "test");
 
     const dump = collectDebugInfo(tempDir);
 
-    expect(dump.htapDir.exists).toBe(true);
-    expect(dump.htapDir.files).toContain("test1.txt");
-    expect(dump.htapDir.files).toContain("test2.txt");
+    expect(dump.httapDir.exists).toBe(true);
+    expect(dump.httapDir.files).toContain("test1.txt");
+    expect(dump.httapDir.files).toContain("test2.txt");
   });
 
   it("includes recent log lines", () => {
-    ensureHtapDir(tempDir);
-    const paths = getHtapPaths(tempDir);
+    ensureHttapDir(tempDir);
+    const paths = getHttapPaths(tempDir);
 
     // Create a log file with some entries
     const logEntries = [
@@ -88,7 +88,7 @@ describe("collectDebugInfo", () => {
   });
 
   it("handles missing log file gracefully", () => {
-    ensureHtapDir(tempDir);
+    ensureHttapDir(tempDir);
 
     // Don't create a log file
     const dump = collectDebugInfo(tempDir);
@@ -96,25 +96,25 @@ describe("collectDebugInfo", () => {
     expect(dump.recentLogs).toEqual([]);
   });
 
-  it("handles missing .htap directory gracefully", () => {
-    // Don't create .htap directory
+  it("handles missing .httap directory gracefully", () => {
+    // Don't create .httap directory
     const dump = collectDebugInfo(tempDir);
 
-    expect(dump.htapDir.exists).toBe(false);
-    expect(dump.htapDir.files).toEqual([]);
+    expect(dump.httapDir.exists).toBe(false);
+    expect(dump.httapDir.files).toEqual([]);
   });
 
   it("handles undefined project root gracefully", () => {
     const dump = collectDebugInfo(undefined);
 
-    expect(dump.htapDir.exists).toBe(false);
+    expect(dump.httapDir.exists).toBe(false);
     expect(dump.daemon.running).toBe(false);
     expect(dump.recentLogs).toEqual([]);
   });
 
   it("limits recent logs to 200 lines", () => {
-    ensureHtapDir(tempDir);
-    const paths = getHtapPaths(tempDir);
+    ensureHttapDir(tempDir);
+    const paths = getHttapPaths(tempDir);
 
     // Create a log file with more than 200 entries
     const logEntries: string[] = [];

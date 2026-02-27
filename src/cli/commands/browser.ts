@@ -2,7 +2,7 @@ import * as fs from "node:fs";
 import * as path from "node:path";
 import * as crypto from "node:crypto";
 import { Command } from "commander";
-import { ensureHtapDir, getHtapPaths } from "../../shared/project.js";
+import { ensureHttapDir, getHttapPaths } from "../../shared/project.js";
 import { startDaemon } from "../../shared/daemon.js";
 import { ControlClient } from "../../shared/control-client.js";
 import { parseVerbosity } from "../../shared/logger.js";
@@ -10,7 +10,7 @@ import { getErrorMessage, getGlobalOptions, resolveProjectContext } from "./help
 import { detectBrowsers, findBrowser, launchBrowser } from "../../shared/browser.js";
 
 export const browserCommand = new Command("browser")
-  .description("Launch a browser pre-configured to use the htap proxy")
+  .description("Launch a browser pre-configured to use the httap proxy")
   .argument("[url]", "URL to open in the browser")
   .option("-b, --browser <name>", "Browser to use (chrome, firefox). Auto-detected if omitted.")
   .option("-l, --label <label>", "Session label (defaults to browser name)")
@@ -41,8 +41,8 @@ export const browserCommand = new Command("browser")
 
       // Ensure project root and daemon
       const projectRoot = resolveProjectContext(globalOpts);
-      ensureHtapDir(projectRoot);
-      const paths = getHtapPaths(projectRoot);
+      ensureHttapDir(projectRoot);
+      const paths = getHttapPaths(projectRoot);
 
       let proxyPort: number;
       try {

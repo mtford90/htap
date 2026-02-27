@@ -6,10 +6,10 @@ import type { ReplayTracker } from "./replay-tracker.js";
 import type { InterceptorRequest, InterceptorResponse } from "../shared/types.js";
 import { createLogger, type LogLevel } from "../shared/logger.js";
 import {
-  HTAP_RUNTIME_SOURCE_HEADER,
-  HTAP_SESSION_ID_HEADER,
-  HTAP_SESSION_TOKEN_HEADER,
-  HTAP_REPLAY_TOKEN_HEADER,
+  HTTAP_RUNTIME_SOURCE_HEADER,
+  HTTAP_SESSION_ID_HEADER,
+  HTTAP_SESSION_TOKEN_HEADER,
+  HTTAP_REPLAY_TOKEN_HEADER,
 } from "../shared/constants.js";
 
 /**
@@ -29,7 +29,7 @@ interface PassThroughResponse {
 export const DEFAULT_MAX_BODY_SIZE = 10 * 1024 * 1024;
 const MAX_RUNTIME_SOURCE_LENGTH = 32;
 const RUNTIME_SOURCE_PATTERN = /^[a-z0-9._-]+$/;
-const LEGACY_SESSION_HEADER = "x-htap-session";
+const LEGACY_SESSION_HEADER = "x-httap-session";
 
 export interface ProxyOptions {
   port?: number;
@@ -165,21 +165,21 @@ export async function createProxy(options: ProxyOptions): Promise<ProxyServer> {
       const storedHeaders = { ...headers };
       delete storedHeaders["content-encoding"];
 
-      // Read and strip internal htap attribution headers
-      const requestSessionId = storedHeaders[HTAP_SESSION_ID_HEADER];
-      const requestSessionToken = storedHeaders[HTAP_SESSION_TOKEN_HEADER];
-      const runtimeSourceHeader = storedHeaders[HTAP_RUNTIME_SOURCE_HEADER];
-      const replayTokenHeader = storedHeaders[HTAP_REPLAY_TOKEN_HEADER];
+      // Read and strip internal httap attribution headers
+      const requestSessionId = storedHeaders[HTTAP_SESSION_ID_HEADER];
+      const requestSessionToken = storedHeaders[HTTAP_SESSION_TOKEN_HEADER];
+      const runtimeSourceHeader = storedHeaders[HTTAP_RUNTIME_SOURCE_HEADER];
+      const replayTokenHeader = storedHeaders[HTTAP_REPLAY_TOKEN_HEADER];
       const legacySessionId = storedHeaders[LEGACY_SESSION_HEADER];
       const headersCopy = { ...storedHeaders };
       // eslint-disable-next-line @typescript-eslint/no-dynamic-delete
-      delete headersCopy[HTAP_SESSION_ID_HEADER];
+      delete headersCopy[HTTAP_SESSION_ID_HEADER];
       // eslint-disable-next-line @typescript-eslint/no-dynamic-delete
-      delete headersCopy[HTAP_SESSION_TOKEN_HEADER];
+      delete headersCopy[HTTAP_SESSION_TOKEN_HEADER];
       // eslint-disable-next-line @typescript-eslint/no-dynamic-delete
-      delete headersCopy[HTAP_RUNTIME_SOURCE_HEADER];
+      delete headersCopy[HTTAP_RUNTIME_SOURCE_HEADER];
       // eslint-disable-next-line @typescript-eslint/no-dynamic-delete
-      delete headersCopy[HTAP_REPLAY_TOKEN_HEADER];
+      delete headersCopy[HTTAP_REPLAY_TOKEN_HEADER];
       // Legacy header used before token hardening. Strip it for compatibility.
       // eslint-disable-next-line @typescript-eslint/no-dynamic-delete
       delete headersCopy[LEGACY_SESSION_HEADER];
@@ -196,13 +196,13 @@ export async function createProxy(options: ProxyOptions): Promise<ProxyServer> {
           sessionSource = trusted.source;
           trustedAttribution = true;
         } else {
-          logger?.warn("Ignoring untrusted htap session attribution headers", {
+          logger?.warn("Ignoring untrusted httap session attribution headers", {
             sessionId: requestSessionId,
           });
         }
       }
       if (requestSessionId === undefined && typeof legacySessionId === "string") {
-        logger?.warn("Ignoring legacy untrusted htap session header without token");
+        logger?.warn("Ignoring legacy untrusted httap session header without token");
       }
 
       // Runtime hint wins when present; otherwise fall back to the session source.
@@ -289,7 +289,7 @@ export async function createProxy(options: ProxyOptions): Promise<ProxyServer> {
         }
       }
 
-      // Strip internal htap attribution headers from the upstream request.
+      // Strip internal httap attribution headers from the upstream request.
       if (
         requestSessionId !== undefined ||
         requestSessionToken !== undefined ||
@@ -300,13 +300,13 @@ export async function createProxy(options: ProxyOptions): Promise<ProxyServer> {
         const upstreamHeaders = flattenHeaders(request.headers);
         const cleanedHeaders = { ...upstreamHeaders };
         // eslint-disable-next-line @typescript-eslint/no-dynamic-delete
-        delete cleanedHeaders[HTAP_SESSION_ID_HEADER];
+        delete cleanedHeaders[HTTAP_SESSION_ID_HEADER];
         // eslint-disable-next-line @typescript-eslint/no-dynamic-delete
-        delete cleanedHeaders[HTAP_SESSION_TOKEN_HEADER];
+        delete cleanedHeaders[HTTAP_SESSION_TOKEN_HEADER];
         // eslint-disable-next-line @typescript-eslint/no-dynamic-delete
-        delete cleanedHeaders[HTAP_RUNTIME_SOURCE_HEADER];
+        delete cleanedHeaders[HTTAP_RUNTIME_SOURCE_HEADER];
         // eslint-disable-next-line @typescript-eslint/no-dynamic-delete
-        delete cleanedHeaders[HTAP_REPLAY_TOKEN_HEADER];
+        delete cleanedHeaders[HTTAP_REPLAY_TOKEN_HEADER];
         // eslint-disable-next-line @typescript-eslint/no-dynamic-delete
         delete cleanedHeaders[LEGACY_SESSION_HEADER];
         return { headers: cleanedHeaders };

@@ -1,16 +1,16 @@
 import * as fs from "node:fs";
 import { createRequire } from "node:module";
 import {
-  HTAP_RUNTIME_SOURCE_HEADER,
-  HTAP_SESSION_ID_HEADER,
-  HTAP_SESSION_TOKEN_HEADER,
+  HTTAP_RUNTIME_SOURCE_HEADER,
+  HTTAP_SESSION_ID_HEADER,
+  HTTAP_SESSION_TOKEN_HEADER,
 } from "../shared/constants.js";
 
 const require = createRequire(import.meta.url);
 
 /**
  * Resolve the absolute filesystem path to a dependency installed
- * within htap's own node_modules. Uses `createRequire` so the
+ * within httap's own node_modules. Uses `createRequire` so the
  * resolution is relative to *this* package, not the user's project.
  */
 export function resolveDependencyPath(dep: string): string {
@@ -22,7 +22,7 @@ export function resolveDependencyPath(dep: string): string {
  * Node.js `http`/`https` global agents and native `fetch()` to
  * route through the proxy specified by env vars.
  *
- * Absolute paths to htap's own `global-agent` and `undici` are
+ * Absolute paths to httap's own `global-agent` and `undici` are
  * baked in so the script works regardless of the user's project
  * dependencies.
  */
@@ -49,12 +49,12 @@ export function generateNodePreloadScript(): string {
     "",
     "// Inject session tracking header into outgoing requests",
     "try {",
-    "  var htapSessionId = process.env.HTAP_SESSION_ID;",
-    "  var htapSessionToken = process.env.HTAP_SESSION_TOKEN;",
-    "  if (htapSessionId && htapSessionToken) {",
-    `    var SESSION_ID_HEADER = '${HTAP_SESSION_ID_HEADER}';`,
-    `    var SESSION_TOKEN_HEADER = '${HTAP_SESSION_TOKEN_HEADER}';`,
-    `    var RUNTIME_HEADER = '${HTAP_RUNTIME_SOURCE_HEADER}';`,
+    "  var httapSessionId = process.env.HTTAP_SESSION_ID;",
+    "  var httapSessionToken = process.env.HTTAP_SESSION_TOKEN;",
+    "  if (httapSessionId && httapSessionToken) {",
+    `    var SESSION_ID_HEADER = '${HTTAP_SESSION_ID_HEADER}';`,
+    `    var SESSION_TOKEN_HEADER = '${HTTAP_SESSION_TOKEN_HEADER}';`,
+    `    var RUNTIME_HEADER = '${HTTAP_RUNTIME_SOURCE_HEADER}';`,
     "    var RUNTIME_VALUE = 'node';",
     "    ['http', 'https'].forEach(function(modName) {",
     "      var mod = require(modName);",
@@ -64,15 +64,15 @@ export function generateNodePreloadScript(): string {
     "          if (typeof options === 'function') { cb = options; options = {}; }",
     "          options = Object.assign({}, options);",
     "          options.headers = Object.assign({}, options.headers);",
-    "          options.headers[SESSION_ID_HEADER] = htapSessionId;",
-    "          options.headers[SESSION_TOKEN_HEADER] = htapSessionToken;",
+    "          options.headers[SESSION_ID_HEADER] = httapSessionId;",
+    "          options.headers[SESSION_TOKEN_HEADER] = httapSessionToken;",
     "          options.headers[RUNTIME_HEADER] = RUNTIME_VALUE;",
     "          return origRequest.call(mod, url, options, cb);",
     "        }",
     "        url = Object.assign({}, url);",
     "        url.headers = Object.assign({}, url.headers);",
-    "        url.headers[SESSION_ID_HEADER] = htapSessionId;",
-    "        url.headers[SESSION_TOKEN_HEADER] = htapSessionToken;",
+    "        url.headers[SESSION_ID_HEADER] = httapSessionId;",
+    "        url.headers[SESSION_TOKEN_HEADER] = httapSessionToken;",
     "        url.headers[RUNTIME_HEADER] = RUNTIME_VALUE;",
     "        return origRequest.call(mod, url, options);",
     "      };",
@@ -98,8 +98,8 @@ export function generateNodePreloadScript(): string {
     "            mergedHeaders.set(key, value);",
     "          });",
     "        }",
-    "        mergedHeaders.set(SESSION_ID_HEADER, htapSessionId);",
-    "        mergedHeaders.set(SESSION_TOKEN_HEADER, htapSessionToken);",
+    "        mergedHeaders.set(SESSION_ID_HEADER, httapSessionId);",
+    "        mergedHeaders.set(SESSION_TOKEN_HEADER, httapSessionToken);",
     "        mergedHeaders.set(RUNTIME_HEADER, RUNTIME_VALUE);",
     "        init = Object.assign({}, init, { headers: mergedHeaders });",
     "        return origFetch.call(globalThis, input, init);",
@@ -113,7 +113,7 @@ export function generateNodePreloadScript(): string {
 
 /**
  * Write the CJS preload script to the given path (typically
- * `.htap/proxy-preload.cjs`). Creates parent directories if needed.
+ * `.httap/proxy-preload.cjs`). Creates parent directories if needed.
  *
  * Returns the absolute path written to.
  */

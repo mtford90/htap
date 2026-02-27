@@ -1,5 +1,5 @@
 /**
- * `htap request <id>` — view a single request in detail, dump body, or export.
+ * `httap request <id>` — view a single request in detail, dump body, or export.
  */
 
 import { Command } from "commander";
@@ -38,7 +38,7 @@ async function resolveRequest(client: ControlClient, idPrefix: string): Promise<
 
   if (matches.length === 0) {
     console.error(`  No request found matching "${idPrefix}"`);
-    console.error("  Run 'htap requests' to see captured requests");
+    console.error("  Run 'httap requests' to see captured requests");
     process.exit(1);
   }
 
@@ -73,7 +73,7 @@ const bodySubcommand = new Command("body")
     const parentOpts = command.parent?.args ?? [];
     const idPrefix = parentOpts[0];
     if (!idPrefix || typeof idPrefix !== "string") {
-      console.error("Usage: htap request <id> body");
+      console.error("Usage: httap request <id> body");
       process.exit(1);
     }
 
@@ -92,7 +92,7 @@ const bodySubcommand = new Command("body")
         const hasNullBytes = body.includes(0x00);
         if (hasNullBytes) {
           console.error("Binary body detected — pipe to a file instead:");
-          console.error(`  htap request ${idPrefix} body > output.bin`);
+          console.error(`  httap request ${idPrefix} body > output.bin`);
           return;
         }
       }
@@ -120,7 +120,7 @@ const exportSubcommand = new Command("export")
     const parentOpts = command.parent?.args ?? [];
     const idPrefix = parentOpts[0];
     if (!idPrefix || typeof idPrefix !== "string") {
-      console.error("Usage: htap request <id> export <format>");
+      console.error("Usage: httap request <id> export <format>");
       process.exit(1);
     }
 
@@ -153,7 +153,7 @@ const saveSubcommand = new Command("save")
     const parentOpts = command.parent?.args ?? [];
     const idPrefix = parentOpts[0];
     if (!idPrefix || typeof idPrefix !== "string") {
-      console.error("Usage: htap request <id> save");
+      console.error("Usage: httap request <id> save");
       process.exit(1);
     }
 
@@ -202,7 +202,7 @@ const replaySubcommand = new Command("replay")
       const parentOpts = command.parent?.args ?? [];
       const idPrefix = parentOpts[0];
       if (!idPrefix || typeof idPrefix !== "string") {
-        console.error("Usage: htap request <id> replay");
+        console.error("Usage: httap request <id> replay");
         process.exit(1);
       }
 
@@ -276,7 +276,7 @@ const unsaveSubcommand = new Command("unsave")
     const parentOpts = command.parent?.args ?? [];
     const idPrefix = parentOpts[0];
     if (!idPrefix || typeof idPrefix !== "string") {
-      console.error("Usage: htap request <id> unsave");
+      console.error("Usage: httap request <id> unsave");
       process.exit(1);
     }
 

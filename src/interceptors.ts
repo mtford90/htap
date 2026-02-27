@@ -3,5 +3,5 @@ export type {
   InterceptorRequest,
   InterceptorResponse,
   InterceptorContext,
-  HtapClient,
+  HttapClient,
 } from "./shared/types.js";

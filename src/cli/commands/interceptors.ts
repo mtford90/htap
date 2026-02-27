@@ -2,7 +2,7 @@ import * as fs from "node:fs";
 import * as path from "node:path";
 import { Command } from "commander";
 import { ControlClient } from "../../shared/control-client.js";
-import { getHtapPaths } from "../../shared/project.js";
+import { getHttapPaths } from "../../shared/project.js";
 import { isDaemonRunning } from "../../shared/daemon.js";
 import type { InterceptorEventLevel } from "../../shared/types.js";
 import { requireProjectRoot, getErrorMessage, getGlobalOptions } from "./helpers.js";
@@ -11,12 +11,12 @@ import { resolveInterceptorPath } from "../../shared/interceptors.js";
 
 const EXAMPLE_INTERCEPTOR_FILENAME = "example.ts";
 
-const EXAMPLE_INTERCEPTOR_CONTENT = `// Example htap interceptor
+const EXAMPLE_INTERCEPTOR_CONTENT = `// Example httap interceptor
 // Uncomment and modify one of the patterns below to get started.
 //
-// Run \`htap interceptors reload\` after editing, or run \`htap daemon restart\`.
+// Run \`httap interceptors reload\` after editing, or run \`httap daemon restart\`.
 
-import type { Interceptor } from "@mtford/htap/interceptors";
+import type { Interceptor } from "@mtford/httap/interceptors";
 
 // --- Mock pattern: return a canned response without hitting the real server ---
 //
@@ -37,7 +37,7 @@ import type { Interceptor } from "@mtford/htap/interceptors";
 //   match: (req) => req.host.includes("example.com"),
 //   handler: async (ctx) => {
 //     const response = await ctx.forward();
-//     response.headers = { ...response.headers, "x-debug": "htap" };
+//     response.headers = { ...response.headers, "x-debug": "httap" };
 //     return response;
 //   },
 // } satisfies Interceptor;
@@ -78,7 +78,7 @@ function formatInterceptorRow(
 async function listAction(command: Command): Promise<void> {
   const globalOpts = getGlobalOptions(command);
   const projectRoot = requireProjectRoot(globalOpts.dir);
-  const paths = getHtapPaths(projectRoot);
+  const paths = getHttapPaths(projectRoot);
 
   const running = await isDaemonRunning(projectRoot);
   if (!running) {
@@ -121,7 +121,7 @@ const reloadSubcommand = new Command("reload")
   .action(async (_, command: Command) => {
     const globalOpts = getGlobalOptions(command);
     const projectRoot = requireProjectRoot(globalOpts.dir);
-    const paths = getHtapPaths(projectRoot);
+    const paths = getHttapPaths(projectRoot);
 
     const running = await isDaemonRunning(projectRoot);
     if (!running) {
@@ -151,7 +151,7 @@ const initSubcommand = new Command("init")
   .action(async (_, command: Command) => {
     const globalOpts = getGlobalOptions(command);
     const projectRoot = requireProjectRoot(globalOpts.dir);
-    const paths = getHtapPaths(projectRoot);
+    const paths = getHttapPaths(projectRoot);
 
     const interceptorsDir = paths.interceptorsDir;
 
@@ -170,8 +170,8 @@ const initSubcommand = new Command("init")
     console.log(`Created ${exampleFile}`);
     console.log("");
     console.log("Edit the file to define your interceptor, then either:");
-    console.log("  - Restart the daemon (htap daemon restart)");
-    console.log("  - Run: htap interceptors reload");
+    console.log("  - Restart the daemon (httap daemon restart)");
+    console.log("  - Run: httap interceptors reload");
   });
 
 const FOLLOW_POLL_INTERVAL_MS = 1000;
@@ -182,7 +182,7 @@ const logsClearSubcommand = new Command("clear")
   .action(async (_, command: Command) => {
     const globalOpts = getGlobalOptions(command);
     const projectRoot = requireProjectRoot(globalOpts.dir);
-    const paths = getHtapPaths(projectRoot);
+    const paths = getHttapPaths(projectRoot);
 
     const running = await isDaemonRunning(projectRoot);
     if (!running) {
@@ -223,7 +223,7 @@ const logsSubcommand = new Command("logs")
     ) => {
       const globalOpts = getGlobalOptions(command);
       const projectRoot = requireProjectRoot(globalOpts.dir);
-      const paths = getHtapPaths(projectRoot);
+      const paths = getHttapPaths(projectRoot);
 
       const running = await isDaemonRunning(projectRoot);
       if (!running) {
@@ -344,7 +344,7 @@ async function reloadIfRunning(projectRoot: string): Promise<void> {
   const running = await isDaemonRunning(projectRoot);
   if (!running) return;
 
-  const paths = getHtapPaths(projectRoot);
+  const paths = getHttapPaths(projectRoot);
   const client = new ControlClient(paths.controlSocketFile);
   try {
     const result = await client.reloadInterceptors();
@@ -379,11 +379,11 @@ function collectTsFiles(dir: string): string[] {
 
 const removeSubcommand = new Command("remove")
   .description("Delete a single interceptor file")
-  .argument("<file>", "path relative to .htap/interceptors/")
+  .argument("<file>", "path relative to .httap/interceptors/")
   .action(async (file: string, _, command: Command) => {
     const globalOpts = getGlobalOptions(command);
     const projectRoot = requireProjectRoot(globalOpts.dir);
-    const paths = getHtapPaths(projectRoot);
+    const paths = getHttapPaths(projectRoot);
 
     let absolutePath: string;
     try {
@@ -414,7 +414,7 @@ const clearSubcommand = new Command("clear")
   .action(async (_, command: Command) => {
     const globalOpts = getGlobalOptions(command);
     const projectRoot = requireProjectRoot(globalOpts.dir);
-    const paths = getHtapPaths(projectRoot);
+    const paths = getHttapPaths(projectRoot);
 
     const files = collectTsFiles(paths.interceptorsDir);
 
@@ -441,7 +441,7 @@ const resetSubcommand = new Command("reset")
   .action(async (_, command: Command) => {
     const globalOpts = getGlobalOptions(command);
     const projectRoot = requireProjectRoot(globalOpts.dir);
-    const paths = getHtapPaths(projectRoot);
+    const paths = getHttapPaths(projectRoot);
 
     const files = collectTsFiles(paths.interceptorsDir);
 

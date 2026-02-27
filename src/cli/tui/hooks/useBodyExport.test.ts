@@ -12,7 +12,7 @@ vi.mock("../utils/clipboard.js", () => ({
 // Mock project root finding
 vi.mock("../../../shared/project.js", () => ({
   findOrCreateProjectRoot: vi.fn().mockReturnValue("/mock/project"),
-  ensureHtapDir: vi.fn().mockReturnValue("/mock/project/.htap"),
+  ensureHttapDir: vi.fn().mockReturnValue("/mock/project/.httap"),
 }));
 
 describe("generateFilename", () => {
@@ -79,7 +79,7 @@ describe("saveBodyContent", () => {
 
   beforeEach(() => {
     // Create a real temp directory for tests
-    tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "htap-test-"));
+    tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "httap-test-"));
   });
 
   afterEach(() => {
@@ -122,14 +122,14 @@ describe("saveBodyContent", () => {
     const filename = "test.bin";
 
     // This will fail to save but shouldn't throw
-    const result = await saveBodyContent(body, filename, "custom", "~/nonexistent-htap-test-dir");
+    const result = await saveBodyContent(body, filename, "custom", "~/nonexistent-httap-test-dir");
 
     // Should succeed (creates directory)
     expect(result.success).toBe(true);
 
     // Clean up the created directory
     const homeDir = os.homedir();
-    const createdDir = path.join(homeDir, "nonexistent-htap-test-dir");
+    const createdDir = path.join(homeDir, "nonexistent-httap-test-dir");
     if (fs.existsSync(createdDir)) {
       fs.rmSync(createdDir, { recursive: true });
     }

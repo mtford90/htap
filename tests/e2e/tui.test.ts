@@ -1,5 +1,5 @@
 /**
- * End-to-end tests for the htap TUI.
+ * End-to-end tests for the httap TUI.
  *
  * These tests spawn real CLI processes using cli-testing-library and assert
  * on terminal output. The TUI uses --ci mode which renders once and exits,
@@ -20,7 +20,7 @@ import { generateCACertificate } from "mockttp";
 import { RequestRepository } from "../../src/daemon/storage.js";
 import { createProxy } from "../../src/daemon/proxy.js";
 import { createControlServer } from "../../src/daemon/control.js";
-import { ensureHtapDir, getHtapPaths } from "../../src/shared/project.js";
+import { ensureHttapDir, getHttapPaths } from "../../src/shared/project.js";
 
 // Increase default timeout for async operations
 configure({ asyncUtilTimeout: 10000 });
@@ -77,9 +77,9 @@ function getCliBinPath(): string {
   return path.resolve(process.cwd(), "dist/cli/index.js");
 }
 
-describe("htap tui e2e", () => {
+describe("httap tui e2e", () => {
   let tempDir: string;
-  let paths: ReturnType<typeof getHtapPaths>;
+  let paths: ReturnType<typeof getHttapPaths>;
   let storage: RequestRepository;
   let testServer: http.Server;
   let testServerPort: number;
@@ -87,13 +87,13 @@ describe("htap tui e2e", () => {
 
   beforeAll(async () => {
     // Create temp project directory
-    tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "htap-e2e-"));
-    ensureHtapDir(tempDir);
-    paths = getHtapPaths(tempDir);
+    tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "httap-e2e-"));
+    ensureHttapDir(tempDir);
+    paths = getHttapPaths(tempDir);
 
     // Generate CA certificate
     const ca = await generateCACertificate({
-      subject: { commonName: "htap Test CA" },
+      subject: { commonName: "httap Test CA" },
     });
     fs.writeFileSync(paths.caKeyFile, ca.key);
     fs.writeFileSync(paths.caCertFile, ca.cert);
@@ -252,9 +252,9 @@ describe("htap tui e2e", () => {
       await findByText(/daemon.*not running|start.*intercept/i);
     });
 
-    it("shows error when not in htap project", async () => {
-      // Create a temp directory without .htap
-      const nonProjectDir = fs.mkdtempSync(path.join(os.tmpdir(), "htap-noproject-"));
+    it("shows error when not in httap project", async () => {
+      // Create a temp directory without .httap
+      const nonProjectDir = fs.mkdtempSync(path.join(os.tmpdir(), "httap-noproject-"));
 
       try {
         const { findByText } = await render("node", [getCliBinPath(), "tui", "--ci"], {

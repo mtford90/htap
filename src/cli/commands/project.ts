@@ -1,22 +1,22 @@
 import { Command } from "commander";
-import { ensureHtapDir, getHtapDir } from "../../shared/project.js";
+import { ensureHttapDir, getHttapDir } from "../../shared/project.js";
 import { getGlobalOptions, resolveProjectContext } from "./helpers.js";
 
 export const projectCommand = new Command("project").description(
-  "Manage htap project configuration"
+  "Manage httap project configuration"
 );
 
 projectCommand
   .command("init")
-  .description("Initialise htap in the current directory")
+  .description("Initialise httap in the current directory")
   .action((_, command: Command) => {
     const globalOpts = getGlobalOptions(command);
     if (!globalOpts.dir && !globalOpts.config) {
       globalOpts.dir = process.cwd();
     }
     const projectRoot = resolveProjectContext(globalOpts);
-    const htapDir = getHtapDir(projectRoot);
+    const httapDir = getHttapDir(projectRoot);
 
-    ensureHtapDir(projectRoot);
-    console.log(`Created ${htapDir}`);
+    ensureHttapDir(projectRoot);
+    console.log(`Created ${httapDir}`);
   });

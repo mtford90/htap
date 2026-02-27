@@ -19,7 +19,7 @@ import {
 let tmpDir: string;
 
 beforeEach(() => {
-  tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "htap-browser-test-"));
+  tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "httap-browser-test-"));
 });
 
 afterEach(() => {
@@ -137,12 +137,12 @@ describe("generateChromeExtension", () => {
     expect(headers).toEqual(
       expect.arrayContaining([
         expect.objectContaining({
-          header: "x-htap-internal-session-id",
+          header: "x-httap-internal-session-id",
           operation: "set",
           value: "sess-42",
         }),
         expect.objectContaining({
-          header: "x-htap-internal-session-token",
+          header: "x-httap-internal-session-token",
           operation: "set",
           value: "tok-xyz",
         }),
@@ -182,9 +182,9 @@ describe("generateFirefoxExtension", () => {
 
     const bg = fs.readFileSync(path.join(extDir, "background.js"), "utf-8");
 
-    expect(bg).toContain("x-htap-internal-session-id");
+    expect(bg).toContain("x-httap-internal-session-id");
     expect(bg).toContain("sess-99");
-    expect(bg).toContain("x-htap-internal-session-token");
+    expect(bg).toContain("x-httap-internal-session-token");
     expect(bg).toContain("tok-secret");
     expect(bg).toContain("onBeforeSendHeaders");
   });
@@ -200,7 +200,7 @@ describe("generateFirefoxExtension", () => {
     const geckoSettings = (manifest["browser_specific_settings"] as Record<string, unknown>)?.[
       "gecko"
     ] as Record<string, unknown> | undefined;
-    expect(geckoSettings?.["id"]).toBe("htap@htap.dev");
+    expect(geckoSettings?.["id"]).toBe("httap@httap.dev");
   });
 });
 
@@ -273,7 +273,7 @@ describe("computeSpkiHash", () => {
         "-days",
         "1",
         "-subj",
-        "/CN=htap-test-ca",
+        "/CN=httap-test-ca",
       ]);
     } catch {
       // Skip test if openssl is not available

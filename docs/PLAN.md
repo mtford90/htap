@@ -1,4 +1,4 @@
-# htap Development Plan
+# httap Development Plan
 
 ## Completed
 
@@ -11,7 +11,7 @@
 - Extended navigation (g/G/Ctrl+u/Ctrl+d), mouse support, context-sensitive hints
 - Help overlay, loading spinner, min terminal size, focus indicators, status indicators
 - Copy body (`y`), copy cURL (`c`), HAR export (`H`)
-- Project scoping (`.htap/`), directory override (`--dir`), global instance (`~/`)
+- Project scoping (`.httap/`), directory override (`--dir`), global instance (`~/`)
 - CI publish, npm badges, LICENSE
 
 </details>
@@ -19,9 +19,9 @@
 <details>
 <summary>Phase 1: Read-only MCP — Traffic Inspection</summary>
 
-MCP server (`htap mcp`) connecting to the daemon's control socket for AI-driven traffic inspection.
+MCP server (`httap mcp`) connecting to the daemon's control socket for AI-driven traffic inspection.
 
-**Tools:** `htap_get_status`, `htap_list_requests`, `htap_get_request`, `htap_search_bodies`, `htap_query_json`, `htap_count_requests`, `htap_clear_requests`, `htap_list_sessions`
+**Tools:** `httap_get_status`, `httap_list_requests`, `httap_get_request`, `httap_search_bodies`, `httap_query_json`, `httap_count_requests`, `httap_clear_requests`, `httap_list_sessions`
 
 **Filtering:** method, status range, URL, host, path prefix, time window, header name/value/target. Text and JSON output formats.
 
@@ -30,15 +30,15 @@ MCP server (`htap mcp`) connecting to the daemon's control socket for AI-driven 
 <details>
 <summary>Phase 2: Config-as-code — Mocks & Interceptors</summary>
 
-TypeScript interceptor files in `.htap/interceptors/` — mock, modify, or observe HTTP traffic via the `forward()` pattern.
+TypeScript interceptor files in `.httap/interceptors/` — mock, modify, or observe HTTP traffic via the `forward()` pattern.
 
 - `jiti` TypeScript loader, hot-reload via `fs.watch`, first-match semantics
-- `InterceptorContext` with frozen request, `forward()`, `htap` client, `ctx.log()`
+- `InterceptorContext` with frozen request, `forward()`, `httap` client, `ctx.log()`
 - Match timeout (5s), handler timeout (30s), response validation
-- MCP tools: `htap_list_interceptors`, `htap_reload_interceptors`, `intercepted_by` filter
-- CLI: `htap interceptors list|reload|init`
+- MCP tools: `httap_list_interceptors`, `httap_reload_interceptors`, `intercepted_by` filter
+- CLI: `httap interceptors list|reload|init`
 - TUI: M/I indicators, interceptor badge, detail pane info
-- `htap/interceptors` barrel export for consumer types
+- `httap/interceptors` barrel export for consumer types
 
 </details>
 
@@ -59,19 +59,19 @@ TypeScript interceptor files in `.htap/interceptors/` — mock, modify, or obser
 
 Scriptable CLI commands exposing the same search/filter/export capabilities as the TUI and MCP. Follows a "gradual discovery" pattern where each command's output hints at related commands.
 
-- `htap requests` — list/filter with `--method`, `--status`, `--host`, `--path`, `--since`/`--before`, `--header`, `--intercepted-by`, `--json`
+- `httap requests` — list/filter with `--method`, `--status`, `--host`, `--path`, `--since`/`--before`, `--header`, `--intercepted-by`, `--json`
 - Space-separated URL search terms now compose with AND semantics (applies across TUI/CLI/MCP list filtering)
-- `htap requests search <query>` — full-text body search
-- `htap requests query <jsonpath>` — JSONPath query on bodies
-- `htap requests count` — count matching requests
-- `htap requests clear` — clear captured requests (with confirmation)
-- `htap request <id>` — single request detail (supports abbreviated IDs)
-- `htap request <id> body` — dump response body (raw, pipeable); `--request` for request body
-- `htap request <id> export curl|har` — export in various formats
-- `htap sessions` — list active proxy sessions
-- `htap interceptors logs` — event log with `--name`, `--level`, `--follow` (live tail), `--json`
-- `htap interceptors logs clear` — clear event log
-- `htap completions zsh|bash|fish` — shell completion script generation
+- `httap requests search <query>` — full-text body search
+- `httap requests query <jsonpath>` — JSONPath query on bodies
+- `httap requests count` — count matching requests
+- `httap requests clear` — clear captured requests (with confirmation)
+- `httap request <id>` — single request detail (supports abbreviated IDs)
+- `httap request <id> body` — dump response body (raw, pipeable); `--request` for request body
+- `httap request <id> export curl|har` — export in various formats
+- `httap sessions` — list active proxy sessions
+- `httap interceptors logs` — event log with `--name`, `--level`, `--follow` (live tail), `--json`
+- `httap interceptors logs clear` — clear event log
+- `httap completions zsh|bash|fish` — shell completion script generation
 - Human-friendly time parser for `--since`/`--before` (5m, 2h, 10am, yesterday, monday, ISO dates)
 - Colour-coded output with NO_COLOR/pipe detection; `--json` for machine output
 
@@ -95,9 +95,9 @@ Validated support for mocking fully fictional hosts/paths through interceptors, 
 Each feature should be considered across all four surfaces where applicable:
 
 - **TUI** — interactive terminal UI (filter bar, keybindings, modals)
-- **CLI** — REST-like commands (`htap requests --flag`)
-- **MCP** — AI-facing tools (`htap_list_requests` etc.)
-- **API** — programmatic Node.js API (`import { ... } from 'htap'`)
+- **CLI** — REST-like commands (`httap requests --flag`)
+- **MCP** — AI-facing tools (`httap_list_requests` etc.)
+- **API** — programmatic Node.js API (`import { ... } from 'httap'`)
 
 ---
 
@@ -118,19 +118,19 @@ Each feature should be considered across all four surfaces where applicable:
 - [x] **Saved requests (bookmarks)** — save/bookmark individual requests for later reference, persisting them beyond `clear` operations
   - **Storage:** new `saved_requests` table in SQLite (or a `saved` flag on the requests table); saved requests excluded from `clear` by default
   - **TUI:** keybinding (e.g. `b`) to toggle bookmark on selected request, visual indicator on bookmarked rows, filter to show only saved requests
-  - **CLI:** `htap requests --saved` filter flag; `htap request <id> save` / `htap request <id> unsave` to toggle
-  - **MCP:** `saved` filter param on `htap_list_requests`, `htap_save_request` / `htap_unsave_request` tools
+  - **CLI:** `httap requests --saved` filter flag; `httap request <id> save` / `httap request <id> unsave` to toggle
+  - **MCP:** `saved` filter param on `httap_list_requests`, `httap_save_request` / `httap_unsave_request` tools
 
 - [x] **Request sources** — automatically identify where requests come from, with optional user override
-  - **Daemon:** resolve parent PID to process name on session creation; store `source` on the session; accept `--source` override via `htap on`
+  - **Daemon:** resolve parent PID to process name on session creation; store `source` on the session; accept `--source` override via `httap on`
   - **TUI:** ~~show source on request list rows~~ source shown in accordion detail panel (Request section); source field in filter bar
-  - **CLI:** `--source` filter flag on `htap requests` / `htap sessions`; `htap on --source "dev server"` to set manually
-  - **MCP:** `source` filter param on `htap_list_requests` / `htap_list_sessions`
+  - **CLI:** `--source` filter flag on `httap requests` / `httap sessions`; `httap on --source "dev server"` to set manually
+  - **MCP:** `source` filter param on `httap_list_requests` / `httap_list_sessions`
 
 - [x] **Regexp filter** — support regex patterns in search/filter across all surfaces
   - **TUI:** detect `/pattern/` syntax in the filter bar search field, apply as regex match on URL
   - **CLI:** `--search` accepts `/pattern/` for regex, or a `--regex` flag
-  - **MCP:** `regex` param on `htap_list_requests` / `htap_search_bodies`
+  - **MCP:** `regex` param on `httap_list_requests` / `httap_search_bodies`
   - **Implementation checklist:**
     - [x] **Shared filter contract + parser helpers**
       - Extend `RequestFilter` with `regex?: string`
@@ -139,7 +139,7 @@ Each feature should be considered across all four surfaces where applicable:
       - Accept `filter.regex` in `src/daemon/control.ts` (`optionalFilter`)
       - Add regex condition support in `src/daemon/storage.ts` filter application
       - Ensure invalid regex yields a clear error (no crash)
-    - [x] **CLI wiring (`htap requests`)**
+    - [x] **CLI wiring (`httap requests`)**
       - Add `--regex <pattern>` flag in `src/cli/commands/requests.ts`
       - Support `/pattern/` auto-detection in `--search`
       - Keep non-regex search semantics unchanged (space-separated terms = AND)
@@ -148,7 +148,7 @@ Each feature should be considered across all four surfaces where applicable:
       - Preserve existing debounce/live-apply behaviour
       - Disable substring highlight in `RequestListItem` when search is in regex mode
     - [x] **MCP schema + filter builder updates**
-      - Add `regex` param to `htap_list_requests` + `htap_search_bodies`
+      - Add `regex` param to `httap_list_requests` + `httap_search_bodies`
       - Pass through in `buildFilter(...)` in `src/mcp/server.ts`
     - [x] **Tests**
       - Daemon storage: regex match/no-match/invalid/combined filters
@@ -164,8 +164,8 @@ Each feature should be considered across all four surfaces where applicable:
   - **Behaviour contract:**
     - `target=both` remains default (existing behaviour)
     - Explicit `target=request` and `target=response`
-  - **CLI:** `htap requests search <query> --target request|response|both`
-  - **MCP:** `htap_search_bodies` supports optional `target` enum (`request` | `response` | `both`)
+  - **CLI:** `httap requests search <query> --target request|response|both`
+  - **MCP:** `httap_search_bodies` supports optional `target` enum (`request` | `response` | `both`)
   - **TUI:** no new keybinding; filter-bar scope syntax
     - Default (unchanged): `foo` → URL/path search
     - `body:foo` → body search (`both`)
@@ -177,7 +177,7 @@ Each feature should be considered across all four surfaces where applicable:
     - [x] Update storage `searchBodies(...)` SQL builder to apply body-match conditions by target (request-only/response-only/both)
     - [x] Keep text-content-type safety rules per-side (don’t search binary content-types)
     - [x] CLI: add `--target` parsing/validation, wiring, and help text
-    - [x] MCP: add `target` schema/docs in `htap_search_bodies`, pass through to client
+    - [x] MCP: add `target` schema/docs in `httap_search_bodies`, pass through to client
     - [x] TUI: add search-prefix parser for body scope + target, route to body-search path without adding a keybinding
     - [x] Keep existing debounce/live filter UX and regex error resilience
     - [x] Tests: storage target semantics, control-client/control-server wiring, CLI flag behaviour, MCP param behaviour, TUI scope parsing and rendering
@@ -193,7 +193,7 @@ Each feature should be considered across all four surfaces where applicable:
   - **Out of scope (for this pass):** mode badges, extra panels, or advanced filter UX rework
   - **Validation:** TUI component tests for prefix parsing/rendering + help copy updates
 
-- [x] **Remove `htap init`** — replaced `init`/`vars` with `htap on`/`htap off` as real CLI subcommands
+- [x] **Remove `httap init`** — replaced `init`/`vars` with `httap on`/`httap off` as real CLI subcommands
 
 - [x] **Simplify README** — current README is ~700 lines; trim to quick-start + feature highlights + architecture diagram and move detailed reference (MCP tools/filters, full keybindings, CLI reference, interceptor cookbook) to a GitHub wiki. Inspiration: [sql-tap](https://github.com/mickamy/sql-tap) keeps its README short and scannable
 
@@ -203,9 +203,9 @@ Each feature should be considered across all four surfaces where applicable:
   - When no request is selected, the request list should expand to fill the entire screen (no empty detail pane)
   - Resizable panels (zellij-style): allow dragging or keybinding-based resizing of the request list / detail pane split
 
-- [ ] **Programmatic Node.js API** — `npm install @mtford/htap` and use from a script; fourth surface alongside TUI/CLI/MCP
-  - **Why:** htap will be composed with other packages (SQL proxy, logger, OTEL tool) into a larger toolkit; needs to be embeddable, not just a standalone CLI
-  - Public API exported from `htap` package entry point (e.g. `import { createProxy, ... } from 'htap'`)
+- [ ] **Programmatic Node.js API** — `npm install @mtford/httap` and use from a script; fourth surface alongside TUI/CLI/MCP
+  - **Why:** httap will be composed with other packages (SQL proxy, logger, OTEL tool) into a larger toolkit; needs to be embeddable, not just a standalone CLI
+  - Public API exported from `httap` package entry point (e.g. `import { createProxy, ... } from 'httap'`)
   - Start/stop daemon programmatically, configure proxy settings, register interceptors
   - Query captured traffic (list, filter, search, get request detail)
   - Event-based hooks (on request captured, on interceptor match, etc.)
@@ -219,9 +219,9 @@ Each feature should be considered across all four surfaces where applicable:
 
 **Goals:** add safe MCP write operations and a deliberate replay UX in the TUI.
 
-### 3.1 Replay request (`htap_replay_request`)
+### 3.1 Replay request (`httap_replay_request`)
 
-- [x] Add `htap_replay_request` MCP tool to replay a captured request by ID
+- [x] Add `httap_replay_request` MCP tool to replay a captured request by ID
   - Required: `id`
   - Optional overrides: `method`, `url`, header upserts/removals, `body` (text), `body_base64` (binary), `timeout_ms`
   - Return: new request ID + replay summary
@@ -232,13 +232,13 @@ Each feature should be considered across all four surfaces where applicable:
 
 ### 3.2 Interceptor file write/delete tools
 
-- [x] Add `htap_write_interceptor` MCP tool
-  - Writes/updates `.htap/interceptors/*.ts`
+- [x] Add `httap_write_interceptor` MCP tool
+  - Writes/updates `.httap/interceptors/*.ts`
   - Path safety: must remain under interceptors dir, no traversal, `.ts` only
   - Supports explicit overwrite mode
   - Triggers interceptor reload and returns reload status/errors
-- [x] Add `htap_delete_interceptor` MCP tool
-  - Deletes `.htap/interceptors/*.ts`
+- [x] Add `httap_delete_interceptor` MCP tool
+  - Deletes `.httap/interceptors/*.ts`
   - Same path safety constraints
   - Triggers interceptor reload and returns reload status/errors
 
@@ -287,7 +287,7 @@ New formatter functions alongside existing `generateCurl()`. Submenu or modal fo
 ## Phase 5: Remaining Features
 
 - [ ] **WebSocket support** — Capture and display WebSocket traffic (frames, messages, connection lifecycle)
-- [x] **Launch browser** — `htap browser [url]` spawns a browser pre-configured to use the proxy with the CA cert trusted
+- [x] **Launch browser** — `httap browser [url]` spawns a browser pre-configured to use the proxy with the CA cert trusted
   - **Chrome/Chromium:** `--proxy-server` and `--ignore-certificate-errors-spki-list` flags, isolated profile via `--user-data-dir`, MV3 extension for session header injection
   - **Firefox:** fresh profile with proxy prefs via `user.js`, MV2 webRequest extension for session header injection, `--no-remote` for isolation
   - **Safari:** deferred — requires system-wide proxy settings and macOS Keychain CA trust (elevated permissions)
@@ -298,7 +298,7 @@ New formatter functions alongside existing `generateCurl()`. Submenu or modal fo
 
 ## Runtime-specific Proxy Overrides
 
-Many runtimes don't respect `HTTP_PROXY`/`HTTPS_PROXY` out of the box. htap injects preload scripts or agent configuration per-runtime to ensure traffic flows through the proxy.
+Many runtimes don't respect `HTTP_PROXY`/`HTTPS_PROXY` out of the box. httap injects preload scripts or agent configuration per-runtime to ensure traffic flows through the proxy.
 
 | Runtime     | Mechanism                                                       | Status      | Notes                                                                  |
 | ----------- | --------------------------------------------------------------- | ----------- | ---------------------------------------------------------------------- |

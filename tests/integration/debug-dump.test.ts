@@ -7,8 +7,8 @@ import { RequestRepository } from "../../src/daemon/storage.js";
 import { createProxy } from "../../src/daemon/proxy.js";
 import { createControlServer } from "../../src/daemon/control.js";
 import {
-  ensureHtapDir,
-  getHtapPaths,
+  ensureHttapDir,
+  getHttapPaths,
   writeDaemonPid,
   writeProxyPort,
 } from "../../src/shared/project.js";
@@ -17,18 +17,18 @@ import { createLogger } from "../../src/shared/logger.js";
 
 describe("debug-dump integration", () => {
   let tempDir: string;
-  let paths: ReturnType<typeof getHtapPaths>;
+  let paths: ReturnType<typeof getHttapPaths>;
   let storage: RequestRepository;
   let cleanup: (() => Promise<void>)[] = [];
 
   beforeEach(async () => {
-    tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "htap-debug-dump-test-"));
-    ensureHtapDir(tempDir);
-    paths = getHtapPaths(tempDir);
+    tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "httap-debug-dump-test-"));
+    ensureHttapDir(tempDir);
+    paths = getHttapPaths(tempDir);
 
     // Generate CA certificate
     const ca = await generateCACertificate({
-      subject: { commonName: "htap Test CA" },
+      subject: { commonName: "httap Test CA" },
     });
     fs.writeFileSync(paths.caKeyFile, ca.key);
     fs.writeFileSync(paths.caCertFile, ca.cert);
@@ -84,7 +84,7 @@ describe("debug-dump integration", () => {
     expect(dump.daemon.proxyPort).toBeUndefined();
   });
 
-  it("includes actual log content from htap.log", () => {
+  it("includes actual log content from httap.log", () => {
     // Create some log entries
     const logger = createLogger("daemon", tempDir, "trace");
     logger.info("Test message 1", { key: "value1" });
@@ -112,18 +112,18 @@ describe("debug-dump integration", () => {
     expect(allLogs).toContain("Test message 3");
   });
 
-  it("lists all files in .htap directory", () => {
+  it("lists all files in .httap directory", () => {
     // Create some test files
-    fs.writeFileSync(path.join(paths.htapDir, "custom.file"), "test");
+    fs.writeFileSync(path.join(paths.httapDir, "custom.file"), "test");
 
     const dump = collectDebugInfo(tempDir);
 
-    expect(dump.htapDir.exists).toBe(true);
+    expect(dump.httapDir.exists).toBe(true);
     // Should include standard files created in setup
-    expect(dump.htapDir.files).toContain("ca.pem");
-    expect(dump.htapDir.files).toContain("ca-key.pem");
-    expect(dump.htapDir.files).toContain("requests.db");
-    expect(dump.htapDir.files).toContain("custom.file");
+    expect(dump.httapDir.files).toContain("ca.pem");
+    expect(dump.httapDir.files).toContain("ca-key.pem");
+    expect(dump.httapDir.files).toContain("requests.db");
+    expect(dump.httapDir.files).toContain("custom.file");
   });
 
   it("dump contains all expected fields", () => {
@@ -131,10 +131,10 @@ describe("debug-dump integration", () => {
 
     // Check all top-level fields
     expect(dump.timestamp).toBeDefined();
-    expect(dump.htapVersion).toBeDefined();
+    expect(dump.httapVersion).toBeDefined();
     expect(dump.system).toBeDefined();
     expect(dump.daemon).toBeDefined();
-    expect(dump.htapDir).toBeDefined();
+    expect(dump.httapDir).toBeDefined();
     expect(dump.recentLogs).toBeDefined();
 
     // Check nested fields
@@ -142,8 +142,8 @@ describe("debug-dump integration", () => {
     expect(dump.system.release).toBeDefined();
     expect(dump.system.nodeVersion).toBeDefined();
     expect(typeof dump.daemon.running).toBe("boolean");
-    expect(typeof dump.htapDir.exists).toBe("boolean");
-    expect(Array.isArray(dump.htapDir.files)).toBe(true);
+    expect(typeof dump.httapDir.exists).toBe("boolean");
+    expect(Array.isArray(dump.httapDir.files)).toBe(true);
     expect(Array.isArray(dump.recentLogs)).toBe(true);
   });
 });

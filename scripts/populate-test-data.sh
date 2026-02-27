@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# Populate htap with real test requests for development/demo purposes.
+# Populate httap with real test requests for development/demo purposes.
 # This script clears existing data, starts the daemon, makes various HTTP
 # requests through the proxy, and then stops the daemon.
 #
@@ -19,25 +19,25 @@ NC='\033[0m' # No colour
 # Get the project root (directory containing this script's parent)
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
-HTAP_DIR="$PROJECT_ROOT/.htap"
+HTTAP_DIR="$PROJECT_ROOT/.httap"
 
-echo -e "${BLUE}=== htap Test Data Population Script ===${NC}"
+echo -e "${BLUE}=== httap Test Data Population Script ===${NC}"
 echo ""
 
 # Step 1: Clean out existing data
-echo -e "${YELLOW}Step 1: Cleaning existing .htap directory...${NC}"
-if [ -d "$HTAP_DIR" ]; then
+echo -e "${YELLOW}Step 1: Cleaning existing .httap directory...${NC}"
+if [ -d "$HTTAP_DIR" ]; then
     # Stop daemon if running
-    if [ -f "$HTAP_DIR/daemon.pid" ]; then
+    if [ -f "$HTTAP_DIR/daemon.pid" ]; then
         echo "  Stopping existing daemon..."
         cd "$PROJECT_ROOT" && node dist/cli/index.js daemon stop 2>/dev/null || true
     fi
 
-    echo "  Removing $HTAP_DIR..."
-    rm -rf "$HTAP_DIR"
+    echo "  Removing $HTTAP_DIR..."
+    rm -rf "$HTTAP_DIR"
     echo -e "  ${GREEN}Cleaned!${NC}"
 else
-    echo "  No existing .htap directory found."
+    echo "  No existing .httap directory found."
 fi
 echo ""
 
@@ -49,7 +49,7 @@ echo -e "${GREEN}Build complete!${NC}"
 echo ""
 
 # Step 3: Start the daemon and get proxy settings
-echo -e "${YELLOW}Step 3: Starting htap daemon...${NC}"
+echo -e "${YELLOW}Step 3: Starting httap daemon...${NC}"
 cd "$PROJECT_ROOT"
 
 # Run vars command and capture the environment variables
@@ -115,7 +115,7 @@ make_request POST "https://httpbin.org/post" "POST with form data" \
 echo ""
 echo -e "  ${BLUE}--- Headers ---${NC}"
 make_request GET "https://httpbin.org/headers" "Headers inspection" \
-    -H "X-Custom-Header: hello-htap" \
+    -H "X-Custom-Header: hello-httap" \
     -H "Authorization: Bearer test-token-123"
 
 # Various status codes
@@ -179,7 +179,7 @@ echo -e "${GREEN}=== Complete! ===${NC}"
 echo ""
 echo "Test data has been populated. You can now run:"
 echo ""
-echo -e "  ${BLUE}htap tui${NC}       # Open the TUI to inspect requests"
-echo -e "  ${BLUE}htap status${NC}    # Check daemon status"
-echo -e "  ${BLUE}htap daemon stop${NC}  # Stop the daemon"
+echo -e "  ${BLUE}httap tui${NC}       # Open the TUI to inspect requests"
+echo -e "  ${BLUE}httap status${NC}    # Check daemon status"
+echo -e "  ${BLUE}httap daemon stop${NC}  # Stop the daemon"
 echo ""

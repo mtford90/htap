@@ -10,8 +10,8 @@ import { createControlServer } from "../../src/daemon/control.js";
 import { createReplayTracker } from "../../src/daemon/replay-tracker.js";
 import { ControlClient } from "../../src/shared/control-client.js";
 import {
-  ensureHtapDir,
-  getHtapPaths,
+  ensureHttapDir,
+  getHttapPaths,
   setConfigOverride,
   getConfigOverride,
 } from "../../src/shared/project.js";
@@ -24,9 +24,9 @@ describe("config override integration", () => {
   let cleanup: (() => Promise<void>)[] = [];
 
   beforeEach(() => {
-    tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "htap-config-test-"));
-    // The config dir is a standalone directory — no .htap appended
-    configDir = path.join(tempDir, "my-htap-data");
+    tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "httap-config-test-"));
+    // The config dir is a standalone directory — no .httap appended
+    configDir = path.join(tempDir, "my-httap-data");
     cleanup = [];
   });
 
@@ -44,16 +44,16 @@ describe("config override integration", () => {
   it("daemon components use config dir when override is set", async () => {
     setConfigOverride(configDir);
 
-    // ensureHtapDir should create configDir directly
-    ensureHtapDir("/ignored-project-root");
+    // ensureHttapDir should create configDir directly
+    ensureHttapDir("/ignored-project-root");
     expect(fs.existsSync(configDir)).toBe(true);
 
-    const paths = getHtapPaths("/ignored-project-root");
-    expect(paths.htapDir).toBe(configDir);
+    const paths = getHttapPaths("/ignored-project-root");
+    expect(paths.httapDir).toBe(configDir);
 
     // Generate CA certificate inside config dir
     const ca = await generateCACertificate({
-      subject: { commonName: "htap Config Override Test CA" },
+      subject: { commonName: "httap Config Override Test CA" },
     });
     fs.writeFileSync(paths.caKeyFile, ca.key);
     fs.writeFileSync(paths.caCertFile, ca.cert);
@@ -124,14 +124,14 @@ describe("config override integration", () => {
 
   it("config override takes precedence over project root", () => {
     const projectRoot = path.join(tempDir, "project");
-    fs.mkdirSync(path.join(projectRoot, ".htap"), { recursive: true });
+    fs.mkdirSync(path.join(projectRoot, ".httap"), { recursive: true });
 
     setConfigOverride(configDir);
     fs.mkdirSync(configDir, { recursive: true });
 
-    const paths = getHtapPaths(projectRoot);
-    // Should use configDir, not projectRoot/.htap
-    expect(paths.htapDir).toBe(configDir);
+    const paths = getHttapPaths(projectRoot);
+    // Should use configDir, not projectRoot/.httap
+    expect(paths.httapDir).toBe(configDir);
     expect(paths.databaseFile).toBe(path.join(configDir, "requests.db"));
   });
 
@@ -143,7 +143,7 @@ describe("config override integration", () => {
     logger.debug("test message");
     logger.close();
 
-    const logFile = path.join(configDir, "htap.log");
+    const logFile = path.join(configDir, "httap.log");
     expect(fs.existsSync(logFile)).toBe(true);
     const content = fs.readFileSync(logFile, "utf-8");
     expect(content).toContain("test message");
