@@ -1,4 +1,4 @@
-# htap - Terminal HTTP Interception Toolkit
+# httap - Terminal HTTP Interception Toolkit
 
 ## Planning & Status
 
@@ -10,30 +10,30 @@
 - Keep task descriptions concise but informative
 - Code reviews are stored in `docs/reviews/<date>/`
 
-Published to npm as `htap` (v0.1.0). The name `htap` was taken.
+Published to npm as `httap` (v0.1.0). The name `httap` was taken.
 
 ## Project Overview
 
-htap is a terminal-based HTTP interception/inspection tool with project-scoped isolation and a lazygit-style TUI. It captures HTTP/HTTPS traffic through a MITM proxy and displays it in an interactive terminal interface.
+httap is a terminal-based HTTP interception/inspection tool with project-scoped isolation and a lazygit-style TUI. It captures HTTP/HTTPS traffic through a MITM proxy and displays it in an interactive terminal interface.
 
 ## Product Vision
 
 ### Messaging Pillars
 
-These define what htap is and how it should feel — keep them in mind when making design and UX decisions:
+These define what httap is and how it should feel — keep them in mind when making design and UX decisions:
 
-- **Workspace-isolated** — per-project `.htap/` directory, no cross-project bleed
+- **Workspace-isolated** — per-project `.httap/` directory, no cross-project bleed
 - **Lives in your terminal** — TUI, not another GUI app; fits your existing workflow
 - **AI-native** — MCP integration, AI writes your mocks, inspects your traffic
 - **Config-as-code** — mocks and interceptors are TypeScript files, not GUI toggles
-- **Zero-config** — `htap on` and go; auto-starts daemon, auto-generates certs
+- **Zero-config** — `httap on` and go; auto-starts daemon, auto-generates certs
 - **Developer-first** — built for how you already work, not bolted on
 
 ### Strategic Direction
 
-The long-term vision centres on **mocks & interceptors as code** — TypeScript config files inside `.htap/` that define middleware/intercept/mock behaviour, with full programmatic access to the htap client. The TUI visualises what's configured, but logic lives in code.
+The long-term vision centres on **mocks & interceptors as code** — TypeScript config files inside `.httap/` that define middleware/intercept/mock behaviour, with full programmatic access to the httap client. The TUI visualises what's configured, but logic lives in code.
 
-**MCP integration** is a first-class concern: AI agents should be able to discover `.htap`, communicate with the proxy, search through captured traffic, and write/manage mock rules via the config-as-code system.
+**MCP integration** is a first-class concern: AI agents should be able to discover `.httap`, communicate with the proxy, search through captured traffic, and write/manage mock rules via the config-as-code system.
 
 ### CLI Design Philosophy — Gradual Discovery
 
@@ -50,7 +50,7 @@ The CLI follows a **gradual discovery** pattern — each command's output hints 
 
 ```
 ~/projects/client-a/
-├── .htap/
+├── .httap/
 │   ├── proxy.port        # TCP port for HTTP_PROXY
 │   ├── control.sock      # Unix socket for TUI <-> daemon
 │   ├── requests.db       # SQLite - captured traffic
@@ -59,11 +59,11 @@ The CLI follows a **gradual discovery** pattern — each command's output hints 
 ```
 
 Key design decisions:
-- **Project-scoped isolation** - each project gets its own `.htap/` directory
+- **Project-scoped isolation** - each project gets its own `.httap/` directory
 - **Unix socket for control API** - avoids port conflicts
 - **TCP for proxy** - required by HTTP_PROXY standard
 - **SQLite for persistence** - simple, embedded storage
-- **Auto-start daemon** - starts on first `htap on`
+- **Auto-start daemon** - starts on first `httap on`
 
 ## Technology Stack
 
@@ -172,7 +172,7 @@ npm run typecheck && npm run lint && npm test
 | `src/cli/commands/` | Command implementations |
 | `src/daemon/` | Proxy daemon (mockttp, control API) |
 | `src/tui/` | ink TUI components |
-| `src/shared/project.ts` | Project root detection, .htap paths |
+| `src/shared/project.ts` | Project root detection, .httap paths |
 | `src/shared/daemon.ts` | Daemon lifecycle management |
 
 ## Code Quality Guidelines
@@ -256,5 +256,5 @@ CI will automatically publish to npm on version tags (requires `NPM_TOKEN` secre
 
 ## Repository
 
-- **npm**: https://www.npmjs.com/package/htap
-- **GitHub**: https://github.com/mtford90/htap
+- **npm**: https://www.npmjs.com/package/httap
+- **GitHub**: https://github.com/mtford90/httap

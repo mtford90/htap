@@ -13,22 +13,22 @@ import * as os from "node:os";
 import { RequestRepository } from "../../src/daemon/storage.js";
 import { createControlServer } from "../../src/daemon/control.js";
 import { ControlClient } from "../../src/shared/control-client.js";
-import { ensureHtapDir, getHtapPaths } from "../../src/shared/project.js";
+import { ensureHttapDir, getHttapPaths } from "../../src/shared/project.js";
 import { formatRequestTable, SHORT_ID_LENGTH } from "../../src/cli/formatters/table.js";
 import { formatRequestDetail, formatSessionTable } from "../../src/cli/formatters/detail.js";
 import { parseTime } from "../../src/cli/utils/parse-time.js";
 
 describe("CLI query integration", () => {
   let tempDir: string;
-  let paths: ReturnType<typeof getHtapPaths>;
+  let paths: ReturnType<typeof getHttapPaths>;
   let storage: RequestRepository;
   let client: ControlClient;
   let cleanup: (() => Promise<void>)[] = [];
 
   beforeEach(async () => {
-    tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "htap-cli-query-test-"));
-    ensureHtapDir(tempDir);
-    paths = getHtapPaths(tempDir);
+    tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "httap-cli-query-test-"));
+    ensureHttapDir(tempDir);
+    paths = getHttapPaths(tempDir);
 
     storage = new RequestRepository(paths.databaseFile);
     cleanup = [];

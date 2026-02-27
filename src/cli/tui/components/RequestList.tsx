@@ -80,7 +80,7 @@ export const RequestList = forwardRef<DOMElement, RequestListProps>(function Req
         <Box paddingX={1} paddingY={1} flexDirection="column">
           <Text dimColor>No requests captured yet.</Text>
           <Text dimColor> </Text>
-          <Text>Run <Text color="cyan">eval &quot;$(htap on)&quot;</Text> in another terminal</Text>
+          <Text>Run <Text color="cyan">eval &quot;$(httap on)&quot;</Text> in another terminal</Text>
           <Text dimColor>to start capturing traffic.</Text>
         </Box>
       ) : (

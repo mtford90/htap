@@ -22,7 +22,7 @@ describe("generateHar", () => {
     const har = generateHar(requests);
 
     expect(har.log.version).toBe("1.2");
-    expect(har.log.creator.name).toBe("htap");
+    expect(har.log.creator.name).toBe("httap");
     expect(har.log.entries).toHaveLength(1);
   });
 

@@ -76,7 +76,7 @@ describe("HelpModal", () => {
   describe("Connection Info section", () => {
     it("shows proxy URL when proxyPort is defined", () => {
       const { lastFrame } = render(
-        <HelpModal {...defaultProps} proxyPort={54321} caCertPath="/path/to/.htap/ca.pem" />,
+        <HelpModal {...defaultProps} proxyPort={54321} caCertPath="/path/to/.httap/ca.pem" />,
       );
       const frame = lastFrame();
       expect(frame).toContain("Connection Info");
@@ -85,9 +85,9 @@ describe("HelpModal", () => {
 
     it("shows CA cert path when proxyPort is defined", () => {
       const { lastFrame } = render(
-        <HelpModal {...defaultProps} proxyPort={54321} caCertPath="/path/to/.htap/ca.pem" />,
+        <HelpModal {...defaultProps} proxyPort={54321} caCertPath="/path/to/.httap/ca.pem" />,
       );
-      expect(lastFrame()).toContain("/path/to/.htap/ca.pem");
+      expect(lastFrame()).toContain("/path/to/.httap/ca.pem");
     });
 
     it("shows not-running state when proxyPort is undefined", () => {

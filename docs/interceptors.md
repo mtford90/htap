@@ -2,11 +2,11 @@
 
 [Back to README](../README.md) | [CLI Reference](cli-reference.md)
 
-TypeScript files in `.htap/interceptors/` that intercept HTTP traffic as it passes through the proxy. They can return mock responses, modify upstream responses, or just observe.
+TypeScript files in `.httap/interceptors/` that intercept HTTP traffic as it passes through the proxy. They can return mock responses, modify upstream responses, or just observe.
 
 ```bash
-htap interceptors init    # scaffold an example
-htap interceptors reload  # reload after editing
+httap interceptors init    # scaffold an example
+httap interceptors reload  # reload after editing
 ```
 
 ## Mock
@@ -14,7 +14,7 @@ htap interceptors reload  # reload after editing
 Return a response without hitting upstream:
 
 ```typescript
-import type { Interceptor } from "@mtford/htap/interceptors";
+import type { Interceptor } from "@mtford/httap/interceptors";
 
 export default {
   name: "mock-users",
@@ -29,10 +29,10 @@ export default {
 
 ## Mock Fictional Domains (Virtual Hosts)
 
-Interceptors can mock completely non-existent domains too — no upstream DNS/host is required, as long as your request goes through the htap proxy.
+Interceptors can mock completely non-existent domains too — no upstream DNS/host is required, as long as your request goes through the httap proxy.
 
 ```typescript
-import type { Interceptor } from "@mtford/htap/interceptors";
+import type { Interceptor } from "@mtford/httap/interceptors";
 
 export default {
   name: "fake-api",
@@ -49,24 +49,24 @@ Try it:
 
 ```bash
 curl -x "$HTTP_PROXY" http://my-fake-api.local/users
-curl -x "$HTTPS_PROXY" --cacert .htap/ca.pem https://my-fake-api.local/users
+curl -x "$HTTPS_PROXY" --cacert .httap/ca.pem https://my-fake-api.local/users
 ```
 
-For HTTPS clients, trust the htap CA (`.htap/ca.pem`) so TLS validation succeeds.
+For HTTPS clients, trust the httap CA (`.httap/ca.pem`) so TLS validation succeeds.
 
 ## Modify
 
 Forward to upstream, then alter the response:
 
 ```typescript
-import type { Interceptor } from "@mtford/htap/interceptors";
+import type { Interceptor } from "@mtford/httap/interceptors";
 
 export default {
   name: "inject-header",
   match: (req) => req.host.includes("example.com"),
   handler: async (ctx) => {
     const response = await ctx.forward();
-    return { ...response, headers: { ...response.headers, "x-debug": "htap" } };
+    return { ...response, headers: { ...response.headers, "x-debug": "httap" } };
   },
 } satisfies Interceptor;
 ```
@@ -76,7 +76,7 @@ export default {
 Log traffic without altering it:
 
 ```typescript
-import type { Interceptor } from "@mtford/htap/interceptors";
+import type { Interceptor } from "@mtford/httap/interceptors";
 
 export default {
   name: "log-api",
@@ -92,10 +92,10 @@ export default {
 
 ## Query Past Traffic
 
-Interceptors can query the traffic database via `ctx.htap`. This lets you build mocks that react to what's already happened — rate limiting, conditional failures, responses based on prior requests:
+Interceptors can query the traffic database via `ctx.httap`. This lets you build mocks that react to what's already happened — rate limiting, conditional failures, responses based on prior requests:
 
 ```typescript
-import type { Interceptor } from "@mtford/htap/interceptors";
+import type { Interceptor } from "@mtford/httap/interceptors";
 
 export default {
   name: "rate-limit",
@@ -103,7 +103,7 @@ export default {
   handler: async (ctx) => {
     // Count how many requests this endpoint has seen in the last minute
     const since = new Date(Date.now() - 60_000).toISOString();
-    const count = await ctx.htap.countRequests({
+    const count = await ctx.httap.countRequests({
       path: ctx.request.path,
       since,
     });
@@ -127,10 +127,10 @@ export default {
 | --------------- | ----------------------------------------- |
 | `ctx.request`   | The incoming request (frozen, read-only)  |
 | `ctx.forward()` | Forward to upstream, returns the response |
-| `ctx.htap`    | Query captured traffic (see below)        |
-| `ctx.log(msg)`  | Write to `.htap/htap.log`             |
+| `ctx.httap`    | Query captured traffic (see below)        |
+| `ctx.log(msg)`  | Write to `.httap/httap.log`             |
 
-### `ctx.htap`
+### `ctx.httap`
 
 | Method                                       | Description                                  |
 | -------------------------------------------- | -------------------------------------------- |
@@ -142,11 +142,11 @@ export default {
 
 ## How Interceptors Work
 
-- Any `.ts` file in `.htap/interceptors/` is loaded automatically
+- Any `.ts` file in `.httap/interceptors/` is loaded automatically
 - Files load alphabetically; first match wins
 - `match` is optional — omit it to match everything
-- Hot-reloads on file changes, or run `htap interceptors reload`
+- Hot-reloads on file changes, or run `httap interceptors reload`
 - 30s handler timeout, 5s match timeout
 - Errors fall through gracefully (never crashes the proxy)
-- `ctx.log()` writes to `.htap/htap.log` since `console.log` goes nowhere in the daemon
+- `ctx.log()` writes to `.httap/httap.log` since `console.log` goes nowhere in the daemon
 - Use `satisfies Interceptor` for full intellisense

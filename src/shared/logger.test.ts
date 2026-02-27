@@ -9,7 +9,7 @@ describe("Logger", () => {
   let logFile: string;
 
   beforeEach(() => {
-    tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "htap-logger-test-"));
+    tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "httap-logger-test-"));
     logFile = path.join(tempDir, "test.log");
   });
 
@@ -295,7 +295,7 @@ describe("createLogger", () => {
   let tempDir: string;
 
   beforeEach(() => {
-    tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "htap-logger-test-"));
+    tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "httap-logger-test-"));
   });
 
   afterEach(() => {
@@ -307,7 +307,7 @@ describe("createLogger", () => {
     logger.info("Test message");
     logger.close();
 
-    const expectedPath = path.join(tempDir, ".htap", "htap.log");
+    const expectedPath = path.join(tempDir, ".httap", "httap.log");
     expect(fs.existsSync(expectedPath)).toBe(true);
   });
 });

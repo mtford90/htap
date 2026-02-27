@@ -15,7 +15,7 @@ export function resolveInterceptorPath(interceptorsDir: string, requestedPath: s
   const relative = path.relative(absoluteInterceptorsDir, absoluteTarget);
 
   if (relative.startsWith("..") || path.isAbsolute(relative)) {
-    throw new Error("Interceptor path must stay inside .htap/interceptors/.");
+    throw new Error("Interceptor path must stay inside .httap/interceptors/.");
   }
 
   if (!absoluteTarget.endsWith(".ts")) {

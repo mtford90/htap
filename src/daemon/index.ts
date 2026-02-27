@@ -9,18 +9,18 @@ import { createControlServer } from "./control.js";
 import { createInterceptorLoader, type InterceptorLoader } from "./interceptor-loader.js";
 import { createInterceptorRunner } from "./interceptor-runner.js";
 import { createInterceptorEventLog } from "./interceptor-event-log.js";
-import { createHtapClient } from "./htap-client.js";
+import { createHttapClient } from "./httap-client.js";
 import { createReplayTracker } from "./replay-tracker.js";
 import {
-  getHtapPaths,
-  ensureHtapDir,
+  getHttapPaths,
+  ensureHttapDir,
   writeProxyPort,
   writeDaemonPid,
   removeDaemonPid,
   setConfigOverride,
 } from "../shared/project.js";
 import { createLogger, isValidLogLevel, type LogLevel } from "../shared/logger.js";
-import { getHtapVersion } from "../shared/version.js";
+import { getHttapVersion } from "../shared/version.js";
 import { loadConfig } from "../shared/config.js";
 
 /**
@@ -29,7 +29,7 @@ import { loadConfig } from "../shared/config.js";
  */
 async function main() {
   // Apply config override before any path resolution
-  const configOverride = process.env["HTAP_CONFIG"];
+  const configOverride = process.env["HTTAP_CONFIG"];
   if (configOverride) {
     setConfigOverride(configOverride);
   }
@@ -40,11 +40,11 @@ async function main() {
     process.exit(1);
   }
 
-  // Ensure .htap directory exists
-  ensureHtapDir(projectRoot);
+  // Ensure .httap directory exists
+  ensureHttapDir(projectRoot);
 
   // Parse log level from environment
-  const envLogLevel = process.env["HTAP_LOG_LEVEL"];
+  const envLogLevel = process.env["HTTAP_LOG_LEVEL"];
   const logLevel: LogLevel = envLogLevel && isValidLogLevel(envLogLevel) ? envLogLevel : "warn";
 
   // Load project configuration
@@ -52,13 +52,13 @@ async function main() {
 
   const logger = createLogger("daemon", projectRoot, logLevel, { maxLogSize: config.maxLogSize });
 
-  const paths = getHtapPaths(projectRoot);
+  const paths = getHttapPaths(projectRoot);
 
   // Generate CA certificate if it doesn't exist
   if (!fs.existsSync(paths.caCertFile) || !fs.existsSync(paths.caKeyFile)) {
     logger.info("Generating CA certificate");
     const ca = await generateCACertificate({
-      subject: { commonName: "htap Local CA - DO NOT TRUST" },
+      subject: { commonName: "httap Local CA - DO NOT TRUST" },
     });
     fs.writeFileSync(paths.caKeyFile, ca.key);
     fs.writeFileSync(paths.caCertFile, ca.cert);
@@ -77,7 +77,7 @@ async function main() {
   const interceptorEventLog = createInterceptorEventLog();
 
   if (fs.existsSync(paths.interceptorsDir)) {
-    const htapClient = createHtapClient(storage);
+    const httapClient = createHttapClient(storage);
     interceptorLoader = await createInterceptorLoader({
       interceptorsDir: paths.interceptorsDir,
       projectRoot,
@@ -99,7 +99,7 @@ async function main() {
 
     interceptorRunner = createInterceptorRunner({
       loader: interceptorLoader,
-      htapClient,
+      httapClient,
       projectRoot,
       logLevel,
       eventLog: interceptorEventLog,
@@ -142,7 +142,7 @@ async function main() {
   fs.writeFileSync(paths.preferredPortFile, proxy.port.toString(), "utf-8");
 
   // Start control server
-  const daemonVersion = getHtapVersion();
+  const daemonVersion = getHttapVersion();
   logger.info("Starting control server", {
     socketPath: paths.controlSocketFile,
     version: daemonVersion,

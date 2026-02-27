@@ -1,19 +1,19 @@
 import { Command } from "commander";
-import { createHtapMcpServer } from "../../mcp/server.js";
+import { createHttapMcpServer } from "../../mcp/server.js";
 import { getGlobalOptions, requireProjectRoot } from "./helpers.js";
 
 const SEPARATOR_WIDTH = 48;
 
 function printSetupInstructions(): void {
-  console.log("htap MCP server");
+  console.log("httap MCP server");
   console.log("");
-  console.log("Add htap to your AI tool to give it access to captured HTTP traffic.");
+  console.log("Add httap to your AI tool to give it access to captured HTTP traffic.");
   console.log("");
 
   const clients: { name: string; lines: string[] }[] = [
     {
       name: "Claude Code",
-      lines: ["  claude mcp add htap -- htap mcp"],
+      lines: ["  claude mcp add httap -- httap mcp"],
     },
     {
       name: "Cursor",
@@ -22,8 +22,8 @@ function printSetupInstructions(): void {
         "",
         "  {",
         '    "mcpServers": {',
-        '      "htap": {',
-        '        "command": "htap",',
+        '      "httap": {',
+        '        "command": "httap",',
         '        "args": ["mcp"]',
         "      }",
         "    }",
@@ -32,7 +32,7 @@ function printSetupInstructions(): void {
     },
     {
       name: "Codex",
-      lines: ["  codex mcp add htap -- htap mcp"],
+      lines: ["  codex mcp add httap -- httap mcp"],
     },
     {
       name: "Other (Windsurf, etc.)",
@@ -41,8 +41,8 @@ function printSetupInstructions(): void {
         "",
         "  {",
         '    "mcpServers": {',
-        '      "htap": {',
-        '        "command": "htap",',
+        '      "httap": {',
+        '        "command": "httap",',
         '        "args": ["mcp"]',
         "      }",
         "    }",
@@ -62,11 +62,13 @@ function printSetupInstructions(): void {
     console.log("");
   }
 
-  console.log('Note: The proxy must be running (eval "$(htap on)") for the MCP server to connect.');
+  console.log(
+    'Note: The proxy must be running (eval "$(httap on)") for the MCP server to connect.'
+  );
 }
 
 export const mcpCommand = new Command("mcp")
-  .description("Start the htap MCP server (stdio transport for AI tool integration)")
+  .description("Start the httap MCP server (stdio transport for AI tool integration)")
   .action(async (_, command: Command) => {
     // If stdout is a TTY, user ran directly — show setup instructions instead
     if (process.stdout.isTTY) {
@@ -77,7 +79,7 @@ export const mcpCommand = new Command("mcp")
     const globalOpts = getGlobalOptions(command);
     const projectRoot = requireProjectRoot(globalOpts.dir);
 
-    const mcp = createHtapMcpServer({ projectRoot });
+    const mcp = createHttapMcpServer({ projectRoot });
 
     let closing = false;
     const shutdown = async () => {
@@ -92,5 +94,5 @@ export const mcpCommand = new Command("mcp")
     await mcp.start();
 
     // Log to stderr (stdout is reserved for MCP JSON-RPC protocol)
-    process.stderr.write(`htap MCP server running (project: ${projectRoot})\n`);
+    process.stderr.write(`httap MCP server running (project: ${projectRoot})\n`);
   });

@@ -1,4 +1,4 @@
-# htap Code Review -- 2026-02-20
+# httap Code Review -- 2026-02-20
 
 Review of the export formats feature: adding Fetch, Python requests, and HTTPie export generators to the TUI and CLI, consolidating single-request exports under an `e` key with an inline format picker.
 
@@ -433,7 +433,7 @@ No issues found in this dimension.
 - **The `e` key hint in the status bar says "copy as"**, which is more descriptive than the old "copy" text and hints that there are multiple formats available.
 - **The help modal correctly lists all four formats**: "Export as cURL / Fetch / Python / HTTPie" (line 45).
 - **The CLI `request <id>` hint** (line 327) includes `export curl|har|fetch|requests|httpie`, maintaining the gradual discovery chain.
-- **The Python export format name in the CLI is `requests`** (matching the library name), while the TUI uses `python` (matching the language). This is a pragmatic choice -- CLI users type `htap request <id> export requests` which reads naturally, and TUI users see `[p]ython` which is unambiguous.
+- **The Python export format name in the CLI is `requests`** (matching the library name), while the TUI uses `python` (matching the language). This is a pragmatic choice -- CLI users type `httap request <id> export requests` which reads naturally, and TUI users see `[p]ython` which is unambiguous.
 - **The format picker cancels on any unrecognised key**, not just Escape. This matches the existing patterns for `pendingClear` and `pendingReplayId`, keeping the interaction model consistent.
 
 ---
@@ -480,7 +480,7 @@ No issues found in this dimension.
   const EXPORT_FORMATS = ["curl", "har", "fetch", "requests", "httpie"];
   ```
 
-  **Issue:** The TUI uses `python` as the format identifier while the CLI uses `requests`. The status bar says "Python copied to clipboard" while the CLI docs say `export requests`. A user who learns the format name from the TUI status message and then tries `htap request <id> export python` would get an error: `Unknown export format: "python"`. Conversely, a user who reads the CLI help and looks for a "requests" format in the TUI would not find it.
+  **Issue:** The TUI uses `python` as the format identifier while the CLI uses `requests`. The status bar says "Python copied to clipboard" while the CLI docs say `export requests`. A user who learns the format name from the TUI status message and then tries `httap request <id> export python` would get an error: `Unknown export format: "python"`. Conversely, a user who reads the CLI help and looks for a "requests" format in the TUI would not find it.
 
   **Fix:** Accept both names in the CLI (`requests` and `python` as aliases), or unify on one name. The simplest fix is to add `python` as an accepted alias in the CLI:
   ```typescript

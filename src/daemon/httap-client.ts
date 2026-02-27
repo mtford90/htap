@@ -1,11 +1,11 @@
 import type { RequestRepository } from "./storage.js";
-import type { HtapClient } from "../shared/types.js";
+import type { HttapClient } from "../shared/types.js";
 
 /**
- * Create an in-process HtapClient that wraps RequestRepository directly.
+ * Create an in-process HttapClient that wraps RequestRepository directly.
  * Used by interceptors running inside the daemon process.
  */
-export function createHtapClient(storage: RequestRepository): HtapClient {
+export function createHttapClient(storage: RequestRepository): HttapClient {
   return {
     countRequests: async (filter) => storage.countRequests({ filter }),
     listRequests: async (options) =>

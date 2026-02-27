@@ -1,4 +1,4 @@
-# htap Code Review -- 2026-02-14
+# httap Code Review -- 2026-02-14
 
 Review of two features: (1) Interceptor Events Integration in the TUI, and (2) the CLI Query Interface.
 
@@ -237,11 +237,11 @@ Review of two features: (1) Interceptor Events Integration in the TUI, and (2) t
   }> {
     const globalOpts = getGlobalOptions(command);
     const projectRoot = requireProjectRoot(globalOpts.dir);
-    const paths = getHtapPaths(projectRoot);
+    const paths = getHttapPaths(projectRoot);
 
     const running = await isDaemonRunning(projectRoot);
     if (!running) {
-      console.error("Daemon is not running. Start it with: htap on");
+      console.error("Daemon is not running. Start it with: httap on");
       process.exit(1);
     }
 
@@ -365,7 +365,7 @@ Review of two features: (1) Interceptor Events Integration in the TUI, and (2) t
 
   ```typescript
   if (shouldShowHints()) {
-    console.log(formatHint(["htap request <id> for detail", "--json for JSON output"]));
+    console.log(formatHint(["httap request <id> for detail", "--json for JSON output"]));
   }
   ```
 
@@ -561,11 +561,11 @@ Review of two features: (1) Interceptor Events Integration in the TUI, and (2) t
   .action(async (opts: { json?: boolean }, command: Command) => {
     const globalOpts = getGlobalOptions(command);
     const projectRoot = requireProjectRoot(globalOpts.dir);
-    const paths = getHtapPaths(projectRoot);
+    const paths = getHttapPaths(projectRoot);
 
     const running = await isDaemonRunning(projectRoot);
     if (!running) {
-      console.error("Daemon is not running. Start it with: htap on");
+      console.error("Daemon is not running. Start it with: httap on");
       process.exit(1);
     }
 
@@ -607,11 +607,11 @@ Review of two features: (1) Interceptor Events Integration in the TUI, and (2) t
 
   // fish:
   lines.push(
-    `complete -c htap -n '__fish_use_subcommand' -a '${cmd.name}' -d '${cmd.description}'`
+    `complete -c httap -n '__fish_use_subcommand' -a '${cmd.name}' -d '${cmd.description}'`
   );
   ```
 
-  **Issue:** Command names and descriptions are interpolated directly into single-quoted shell strings without escaping single quotes within the values. If a command description contains a single quote (e.g. `"don't"` or `"filter by 'host'"`) the generated completion script will have a syntax error that breaks the user's shell config. Since these descriptions come from Commander's `.description()` calls which are controlled by the htap codebase, this is not exploitable by end users, but it is a latent bug that will trigger the moment someone writes a description containing an apostrophe.
+  **Issue:** Command names and descriptions are interpolated directly into single-quoted shell strings without escaping single quotes within the values. If a command description contains a single quote (e.g. `"don't"` or `"filter by 'host'"`) the generated completion script will have a syntax error that breaks the user's shell config. Since these descriptions come from Commander's `.description()` calls which are controlled by the httap codebase, this is not exploitable by end users, but it is a latent bug that will trigger the moment someone writes a description containing an apostrophe.
 
   **Fix:** Add a `shellEscapeSingleQuote` function and apply it to all interpolated values:
   ```typescript
@@ -636,7 +636,7 @@ Review of two features: (1) Interceptor Events Integration in the TUI, and (2) t
   process.stdout.write(body);
   ```
 
-  **Issue:** When `htap request <id> body` is run interactively (not piped), binary response bodies (e.g. images, gzip data) are written directly to the terminal. This can produce garbled output, trigger terminal escape sequences, and in rare cases alter terminal state (e.g. binary data that happens to contain ANSI escape codes). Tools like `cat` have the same behaviour, so this is not unusual, but developer tools like `curl` print a warning when writing binary to a TTY.
+  **Issue:** When `httap request <id> body` is run interactively (not piped), binary response bodies (e.g. images, gzip data) are written directly to the terminal. This can produce garbled output, trigger terminal escape sequences, and in rare cases alter terminal state (e.g. binary data that happens to contain ANSI escape codes). Tools like `cat` have the same behaviour, so this is not unusual, but developer tools like `curl` print a warning when writing binary to a TTY.
 
   **Fix:** When `process.stdout.isTTY` is true, check if the body contains non-UTF-8 bytes or has a binary content type, and either print a warning to stderr or refuse to dump (with a hint to pipe to a file). This matches curl's `--output` behaviour.
 
@@ -656,7 +656,7 @@ Review of two features: (1) Interceptor Events Integration in the TUI, and (2) t
 
 ---
 
-- [ ] **CLI.7.1: `htap requests` shows `--method, --status, --host to filter` but does not mention `--since`/`--before`**
+- [ ] **CLI.7.1: `httap requests` shows `--method, --status, --host to filter` but does not mention `--since`/`--before`**
 
   **Severity:** Low
 
@@ -666,7 +666,7 @@ Review of two features: (1) Interceptor Events Integration in the TUI, and (2) t
   if (shouldShowHints()) {
     console.log(
       formatHint([
-        "htap request <id>",
+        "httap request <id>",
         "--method, --status, --host to filter",
         "--json for JSON",
       ])
@@ -682,13 +682,13 @@ Review of two features: (1) Interceptor Events Integration in the TUI, and (2) t
 
 ---
 
-- [ ] **CLI.7.2: `htap interceptors logs` with `--follow` has no visual indication that it is waiting**
+- [ ] **CLI.7.2: `httap interceptors logs` with `--follow` has no visual indication that it is waiting**
 
   **Severity:** Low
 
   **File:** `src/cli/commands/interceptors.ts:257-312`
 
-  **Issue:** After printing the initial batch of events, the `--follow` mode enters a silent polling loop. The user sees no indication that htap is still running and waiting for new events. Compare with `tail -f` which is universally understood, or `kubectl logs --follow` which prints nothing but the command does not exit. For a less familiar tool, some visual feedback would help.
+  **Issue:** After printing the initial batch of events, the `--follow` mode enters a silent polling loop. The user sees no indication that httap is still running and waiting for new events. Compare with `tail -f` which is universally understood, or `kubectl logs --follow` which prints nothing but the command does not exit. For a less familiar tool, some visual feedback would help.
 
   **Fix:** Print a dim separator line after the initial batch (e.g. `--- following events (Ctrl+C to stop) ---`) to signal that the command is actively tailing. This is what `docker logs -f` does.
 

@@ -1,0 +1,13 @@
+{
+  "name": "httap",
+  "version": "0.1.0",
+  "description": "AI skill for inspecting, filtering, and intercepting HTTP traffic with httap",
+  "author": {
+    "name": "mtford90",
+    "url": "https://github.com/mtford90"
+  },
+  "homepage": "https://github.com/mtford90/httap",
+  "repository": "https://github.com/mtford90/httap",
+  "license": "MIT",
+  "keywords": ["http", "proxy", "intercept", "debugging", "mcp"]
+}

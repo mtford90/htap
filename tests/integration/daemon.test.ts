@@ -10,28 +10,28 @@ import { createProxy } from "../../src/daemon/proxy.js";
 import { createControlServer } from "../../src/daemon/control.js";
 import { createReplayTracker } from "../../src/daemon/replay-tracker.js";
 import { ControlClient } from "../../src/shared/control-client.js";
-import { ensureHtapDir, getHtapPaths } from "../../src/shared/project.js";
-import { getHtapVersion } from "../../src/shared/version.js";
+import { ensureHttapDir, getHttapPaths } from "../../src/shared/project.js";
+import { getHttapVersion } from "../../src/shared/version.js";
 import {
-  HTAP_RUNTIME_SOURCE_HEADER,
-  HTAP_SESSION_ID_HEADER,
-  HTAP_SESSION_TOKEN_HEADER,
+  HTTAP_RUNTIME_SOURCE_HEADER,
+  HTTAP_SESSION_ID_HEADER,
+  HTTAP_SESSION_TOKEN_HEADER,
 } from "../../src/shared/constants.js";
 
 describe("daemon integration", () => {
   let tempDir: string;
-  let paths: ReturnType<typeof getHtapPaths>;
+  let paths: ReturnType<typeof getHttapPaths>;
   let storage: RequestRepository;
   let cleanup: (() => Promise<void>)[] = [];
 
   beforeEach(async () => {
-    tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "htap-daemon-test-"));
-    ensureHtapDir(tempDir);
-    paths = getHtapPaths(tempDir);
+    tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "httap-daemon-test-"));
+    ensureHttapDir(tempDir);
+    paths = getHttapPaths(tempDir);
 
     // Generate CA certificate
     const ca = await generateCACertificate({
-      subject: { commonName: "htap Test CA" },
+      subject: { commonName: "httap Test CA" },
     });
     fs.writeFileSync(paths.caKeyFile, ca.key);
     fs.writeFileSync(paths.caCertFile, ca.cert);
@@ -140,9 +140,9 @@ describe("daemon integration", () => {
       });
 
       await makeProxiedRequest(proxy.port, `http://127.0.0.1:${testServerAddress.port}/spoofed`, {
-        [HTAP_SESSION_ID_HEADER]: trustedSession.id,
-        [HTAP_SESSION_TOKEN_HEADER]: "invalid-token",
-        [HTAP_RUNTIME_SOURCE_HEADER]: "node",
+        [HTTAP_SESSION_ID_HEADER]: trustedSession.id,
+        [HTTAP_SESSION_TOKEN_HEADER]: "invalid-token",
+        [HTTAP_RUNTIME_SOURCE_HEADER]: "node",
       });
       await new Promise((resolve) => setTimeout(resolve, 100));
 
@@ -151,9 +151,9 @@ describe("daemon integration", () => {
       expect(captured).toBeDefined();
       expect(captured?.sessionId).toBe(daemonSessionId);
       expect(captured?.source).toBe("daemon");
-      expect(captured?.requestHeaders[HTAP_SESSION_ID_HEADER]).toBeUndefined();
-      expect(captured?.requestHeaders[HTAP_SESSION_TOKEN_HEADER]).toBeUndefined();
-      expect(captured?.requestHeaders[HTAP_RUNTIME_SOURCE_HEADER]).toBeUndefined();
+      expect(captured?.requestHeaders[HTTAP_SESSION_ID_HEADER]).toBeUndefined();
+      expect(captured?.requestHeaders[HTTAP_SESSION_TOKEN_HEADER]).toBeUndefined();
+      expect(captured?.requestHeaders[HTTAP_RUNTIME_SOURCE_HEADER]).toBeUndefined();
     });
 
     it("uses trusted internal session attribution headers when token is valid", async () => {
@@ -181,9 +181,9 @@ describe("daemon integration", () => {
       });
 
       await makeProxiedRequest(proxy.port, `http://127.0.0.1:${testServerAddress.port}/trusted`, {
-        [HTAP_SESSION_ID_HEADER]: trustedSession.id,
-        [HTAP_SESSION_TOKEN_HEADER]: trustedSession.token,
-        [HTAP_RUNTIME_SOURCE_HEADER]: "node",
+        [HTTAP_SESSION_ID_HEADER]: trustedSession.id,
+        [HTTAP_SESSION_TOKEN_HEADER]: trustedSession.token,
+        [HTTAP_RUNTIME_SOURCE_HEADER]: "node",
       });
       await new Promise((resolve) => setTimeout(resolve, 100));
 
@@ -546,7 +546,7 @@ describe("daemon integration", () => {
       });
       cleanup.push(proxy.stop);
 
-      const testVersion = getHtapVersion();
+      const testVersion = getHttapVersion();
       const controlServer = createControlServer({
         socketPath: paths.controlSocketFile,
         storage,

@@ -8,7 +8,7 @@ import { promisify } from "node:util";
 import { generateCACertificate } from "mockttp";
 import { RequestRepository } from "../../src/daemon/storage.js";
 import { createProxy } from "../../src/daemon/proxy.js";
-import { ensureHtapDir, getHtapPaths } from "../../src/shared/project.js";
+import { ensureHttapDir, getHttapPaths } from "../../src/shared/project.js";
 import { writeNodePreloadScript, getNodeEnvVars } from "../../src/overrides/node.js";
 
 const execFileAsync = promisify(execFile);
@@ -18,28 +18,28 @@ const STORAGE_SETTLE_MS = 200;
 
 describe("node overrides integration", () => {
   let tempDir: string;
-  let paths: ReturnType<typeof getHtapPaths>;
+  let paths: ReturnType<typeof getHttapPaths>;
   let storage: RequestRepository;
   let cleanup: (() => Promise<void>)[] = [];
 
   /** Port of the upstream test server */
   let upstreamPort: number;
-  /** Port of the htap proxy */
+  /** Port of the httap proxy */
   let proxyPort: number;
   /** Proxy URL for env vars */
   let proxyUrl: string;
-  /** Session credentials injected by htap on */
-  let htapSessionId: string;
-  let htapSessionToken: string;
+  /** Session credentials injected by httap on */
+  let httapSessionId: string;
+  let httapSessionToken: string;
 
   beforeEach(async () => {
-    tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "htap-node-overrides-test-"));
-    ensureHtapDir(tempDir);
-    paths = getHtapPaths(tempDir);
+    tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "httap-node-overrides-test-"));
+    ensureHttapDir(tempDir);
+    paths = getHttapPaths(tempDir);
 
     // Generate CA certificate
     const ca = await generateCACertificate({
-      subject: { commonName: "htap Test CA" },
+      subject: { commonName: "httap Test CA" },
     });
     fs.writeFileSync(paths.caKeyFile, ca.key);
     fs.writeFileSync(paths.caCertFile, ca.cert);
@@ -50,8 +50,8 @@ describe("node overrides integration", () => {
     // Create storage
     storage = new RequestRepository(paths.databaseFile);
     const session = storage.registerSession("test", process.pid, "shell");
-    htapSessionId = session.id;
-    htapSessionToken = session.token;
+    httapSessionId = session.id;
+    httapSessionToken = session.token;
 
     // Start upstream test server
     const testServer = http.createServer((req, res) => {
@@ -105,8 +105,8 @@ describe("node overrides integration", () => {
       https_proxy: proxyUrl,
       NODE_EXTRA_CA_CERTS: paths.caCertFile,
       NODE_OPTIONS: `--require ${paths.proxyPreloadFile}`,
-      HTAP_SESSION_ID: htapSessionId,
-      HTAP_SESSION_TOKEN: htapSessionToken,
+      HTTAP_SESSION_ID: httapSessionId,
+      HTTAP_SESSION_TOKEN: httapSessionToken,
       ...getNodeEnvVars(proxyUrl),
     };
   }
@@ -200,7 +200,7 @@ describe("node overrides integration", () => {
   });
 
   it("crashes when NODE_OPTIONS contains literal single quotes around the path", async () => {
-    // Reproduces the bug: `eval "$(htap on)"` used to produce NODE_OPTIONS
+    // Reproduces the bug: `eval "$(httap on)"` used to produce NODE_OPTIONS
     // with literal single quotes inside a double-quoted shell string.
     // Node.js interprets the quotes as part of the filename and fails.
     const quotedNodeOptions = `--require '${paths.proxyPreloadFile}'`;
@@ -235,7 +235,7 @@ describe("node overrides integration", () => {
 
   it("preserves request body and headers through the proxy", async () => {
     const targetUrl = `http://127.0.0.1:${upstreamPort}/post-test`;
-    const postBody = JSON.stringify({ name: "htap", version: 1 });
+    const postBody = JSON.stringify({ name: "httap", version: 1 });
 
     // Use a more verbose inline script to POST with fetch()
     const script = `

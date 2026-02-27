@@ -1,6 +1,6 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
-import { getHtapDir } from "./project.js";
+import { getHttapDir } from "./project.js";
 
 export type LogLevel = "error" | "warn" | "info" | "debug" | "trace" | "silent";
 export type Component = "daemon" | "tui" | "cli" | "proxy" | "control" | "storage" | "interceptor";
@@ -223,7 +223,7 @@ export function createLogger(
   level: LogLevel = "warn",
   options?: LoggerOptions
 ): Logger {
-  const logFile = path.join(getHtapDir(projectRoot), "htap.log");
+  const logFile = path.join(getHttapDir(projectRoot), "httap.log");
   return new Logger(component, logFile, level, options);
 }
 

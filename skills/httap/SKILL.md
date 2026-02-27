@@ -1,28 +1,28 @@
-# /htap
+# /httap
 
-Use htap to inspect, filter, and intercept HTTP traffic. Activate when htap MCP tools are available or when the user mentions HTTP traffic, API debugging, request interception, or mocking.
+Use httap to inspect, filter, and intercept HTTP traffic. Activate when httap MCP tools are available or when the user mentions HTTP traffic, API debugging, request interception, or mocking.
 
 ## Installation & Setup
 
-If htap is not installed or the daemon is not running, you can set it up:
+If httap is not installed or the daemon is not running, you can set it up:
 
-1. **Install**: `npm install -g @mtford/htap`
-2. **Start intercepting**: `eval "$(htap on)"` in the project directory
-4. **MCP config**: Add htap to the MCP configuration:
+1. **Install**: `npm install -g @mtford/httap`
+2. **Start intercepting**: `eval "$(httap on)"` in the project directory
+4. **MCP config**: Add httap to the MCP configuration:
    ```json
    {
      "mcpServers": {
-       "htap": {
-         "command": "htap",
+       "httap": {
+         "command": "httap",
          "args": ["mcp"]
        }
      }
    }
    ```
 
-After setup, call `htap_get_status` to verify the daemon is running.
+After setup, call `httap_get_status` to verify the daemon is running.
 
-## When to Use htap
+## When to Use httap
 
 - **Debugging failing API calls** -- filter by status code, inspect headers and response bodies
 - **Understanding traffic patterns** -- count requests, group by host/path/method
@@ -32,22 +32,22 @@ After setup, call `htap_get_status` to verify the daemon is running.
 
 ## Preflight
 
-Always call `htap_get_status` first to confirm the daemon is running. If it is not running, try to start it by running `eval "$(htap on)"` in the project directory. If htap is not installed, follow the Installation & Setup steps above.
+Always call `httap_get_status` first to confirm the daemon is running. If it is not running, try to start it by running `eval "$(httap on)"` in the project directory. If httap is not installed, follow the Installation & Setup steps above.
 
 ## MCP Tool Reference
 
 | Tool | Purpose | Key Parameters |
 |------|---------|----------------|
-| `htap_get_status` | Check daemon is running, get proxy port and request count | -- |
-| `htap_list_requests` | Browse/filter captured traffic (returns summaries) | `method`, `status_range`, `search`, `regex`, `host`, `path`, `saved`, `source`, `header_name`, `header_value`, `header_target`, `intercepted_by`, `since`, `before`, `limit`, `offset`, `format` |
-| `htap_get_request` | Full request details -- headers, bodies, timing | `id` (single or comma-separated IDs), `format` |
-| `htap_search_bodies` | Full-text search in request/response bodies | `query`, `target` (`request`/`response`/`both`), plus all request filter params (`regex`, `saved`, `source`, etc.) |
-| `htap_query_json` | Extract JSON values with JSONPath (SQLite `json_extract`) | `json_path`, `value`, `target` (`request`/`response`/`both`), `source`, plus filters |
-| `htap_count_requests` | Count matching requests | All filter params (incl. `source`), `format` |
-| `htap_clear_requests` | Delete all captured traffic (irreversible) | -- |
-| `htap_list_sessions` | List active proxy sessions | -- |
-| `htap_list_interceptors` | List loaded interceptors with status/errors | `format` |
-| `htap_reload_interceptors` | Hot-reload interceptors from disk | `format` |
+| `httap_get_status` | Check daemon is running, get proxy port and request count | -- |
+| `httap_list_requests` | Browse/filter captured traffic (returns summaries) | `method`, `status_range`, `search`, `regex`, `host`, `path`, `saved`, `source`, `header_name`, `header_value`, `header_target`, `intercepted_by`, `since`, `before`, `limit`, `offset`, `format` |
+| `httap_get_request` | Full request details -- headers, bodies, timing | `id` (single or comma-separated IDs), `format` |
+| `httap_search_bodies` | Full-text search in request/response bodies | `query`, `target` (`request`/`response`/`both`), plus all request filter params (`regex`, `saved`, `source`, etc.) |
+| `httap_query_json` | Extract JSON values with JSONPath (SQLite `json_extract`) | `json_path`, `value`, `target` (`request`/`response`/`both`), `source`, plus filters |
+| `httap_count_requests` | Count matching requests | All filter params (incl. `source`), `format` |
+| `httap_clear_requests` | Delete all captured traffic (irreversible) | -- |
+| `httap_list_sessions` | List active proxy sessions | -- |
+| `httap_list_interceptors` | List loaded interceptors with status/errors | `format` |
+| `httap_reload_interceptors` | Hot-reload interceptors from disk | `format` |
 
 ### Output Formats
 
@@ -77,7 +77,7 @@ header_target: "request"       # Only search request headers
 intercepted_by: "my-mock"      # Requests handled by a specific interceptor
 source: "node"                 # Filter by request source
 since: "2024-01-15T10:30:00Z"  # Time-bounded queries
-# htap_search_bodies only:
+# httap_search_bodies only:
 target: "request"              # Search request body only (or "response" / "both")
 ```
 
@@ -87,38 +87,38 @@ Filters can be combined freely. All are optional.
 
 ### Pattern 1: Investigate a Bug
 
-1. `htap_list_requests` with relevant filters (status code, host, path) to find the request
-2. `htap_get_request` with the ID to inspect full headers, bodies, timing
-3. If searching for specific content in bodies, use `htap_search_bodies`
+1. `httap_list_requests` with relevant filters (status code, host, path) to find the request
+2. `httap_get_request` with the ID to inspect full headers, bodies, timing
+3. If searching for specific content in bodies, use `httap_search_bodies`
 
 ### Pattern 2: Write a Mock Interceptor
 
-1. `htap_list_requests` to understand the traffic pattern you want to mock
-2. `htap_get_request` to capture a real response as a template
-3. Write a `.ts` file to `.htap/interceptors/` (see interceptor patterns below)
-4. `htap_reload_interceptors` to activate
-5. `htap_list_interceptors` to verify it loaded without errors
+1. `httap_list_requests` to understand the traffic pattern you want to mock
+2. `httap_get_request` to capture a real response as a template
+3. Write a `.ts` file to `.httap/interceptors/` (see interceptor patterns below)
+4. `httap_reload_interceptors` to activate
+5. `httap_list_interceptors` to verify it loaded without errors
 
 ### Pattern 3: Analyse API Usage
 
-1. `htap_count_requests` with various filters to understand volume
-2. `htap_query_json` to extract specific values from JSON bodies
-3. `htap_list_requests` with `format: "json"` for structured analysis
+1. `httap_count_requests` with various filters to understand volume
+2. `httap_query_json` to extract specific values from JSON bodies
+3. `httap_list_requests` with `format: "json"` for structured analysis
 
 ### Pattern 4: Debug Auth Issues
 
-1. `htap_list_requests` with `header_name: "authorization", header_target: "request"` to find authed requests
-2. `htap_list_requests` with `status_range: "401"` to find failures
-3. `htap_get_request` to compare auth headers between successful and failed requests
+1. `httap_list_requests` with `header_name: "authorization", header_target: "request"` to find authed requests
+2. `httap_list_requests` with `status_range: "401"` to find failures
+3. `httap_get_request` to compare auth headers between successful and failed requests
 
 ## Writing Interceptors
 
-Interceptor files are TypeScript files placed in `.htap/interceptors/`. Each file exports a default `Interceptor` object.
+Interceptor files are TypeScript files placed in `.httap/interceptors/`. Each file exports a default `Interceptor` object.
 
 ### Mock -- Return a Canned Response
 
 ```typescript
-import type { Interceptor } from "@mtford/htap/interceptors";
+import type { Interceptor } from "@mtford/httap/interceptors";
 
 export default {
   name: "mock-users",
@@ -136,14 +136,14 @@ Do not call `ctx.forward()` -- the request never reaches upstream. This is recor
 ### Modify -- Forward, Then Alter the Response
 
 ```typescript
-import type { Interceptor } from "@mtford/htap/interceptors";
+import type { Interceptor } from "@mtford/httap/interceptors";
 
 export default {
   name: "inject-header",
   match: (req) => req.host.includes("example.com"),
   handler: async (ctx) => {
     const response = await ctx.forward();
-    return { ...response, headers: { ...response.headers, "x-debug": "htap" } };
+    return { ...response, headers: { ...response.headers, "x-debug": "httap" } };
   },
 } satisfies Interceptor;
 ```
@@ -153,7 +153,7 @@ Calls `ctx.forward()` but returns a modified response. Recorded as `interception
 ### Observe -- Log Without Altering
 
 ```typescript
-import type { Interceptor } from "@mtford/htap/interceptors";
+import type { Interceptor } from "@mtford/httap/interceptors";
 
 export default {
   name: "log-api",
@@ -175,8 +175,8 @@ Calls `ctx.forward()` and returns the response unchanged. Useful for debugging.
 |----------|------|-------------|
 | `ctx.request` | `Readonly<InterceptorRequest>` | The incoming request (read-only) |
 | `ctx.forward()` | `() => Promise<InterceptorResponse>` | Forward to upstream server, returns response |
-| `ctx.log(msg)` | `(message: string) => void` | Write to `.htap/htap.log` (`console.log` is `/dev/null` in daemon) |
-| `ctx.htap` | `HtapClient` | Full query API (see below) |
+| `ctx.log(msg)` | `(message: string) => void` | Write to `.httap/httap.log` (`console.log` is `/dev/null` in daemon) |
+| `ctx.httap` | `HttapClient` | Full query API (see below) |
 
 ### InterceptorRequest Shape
 
@@ -197,37 +197,37 @@ Calls `ctx.forward()` and returns the response unchanged. Useful for debugging.
 | `headers` | `Record<string, string> \| undefined` |
 | `body` | `string \| Buffer \| undefined` |
 
-### HtapClient API (available as `ctx.htap`)
+### HttapClient API (available as `ctx.httap`)
 
 ```typescript
-ctx.htap.countRequests(filter?)          // Promise<number>
-ctx.htap.listRequests({ filter, limit, offset })  // Promise<CapturedRequestSummary[]>
-ctx.htap.getRequest(id)                  // Promise<CapturedRequest | null>
-ctx.htap.searchBodies({ query, target, filter, limit })    // Promise<CapturedRequestSummary[]>
-ctx.htap.queryJsonBodies({ jsonPath, filter })      // Promise<JsonQueryResult[]>
+ctx.httap.countRequests(filter?)          // Promise<number>
+ctx.httap.listRequests({ filter, limit, offset })  // Promise<CapturedRequestSummary[]>
+ctx.httap.getRequest(id)                  // Promise<CapturedRequest | null>
+ctx.httap.searchBodies({ query, target, filter, limit })    // Promise<CapturedRequestSummary[]>
+ctx.httap.queryJsonBodies({ jsonPath, filter })      // Promise<JsonQueryResult[]>
 ```
 
 This allows interceptors to make decisions based on previously captured traffic.
 
 ### Interceptor Rules
 
-- Any `.ts` file in `.htap/interceptors/` is loaded as an interceptor
+- Any `.ts` file in `.httap/interceptors/` is loaded as an interceptor
 - Files are loaded alphabetically; **first matching interceptor wins**
 - `match` is optional -- omit it to match all requests
 - `name` is optional but strongly recommended (used in `intercepted_by` filter)
 - Use `satisfies Interceptor` for full type checking and intellisense
 - Handler timeout: 30 seconds. Match timeout: 5 seconds.
 - Errors in handlers result in graceful pass-through -- never crashes the proxy
-- `ctx.log()` writes to `.htap/htap.log` (since `console.log` goes nowhere in the daemon)
-- Hot-reload on file changes, or run `htap interceptors reload` / `htap_reload_interceptors` / `htap daemon restart`
+- `ctx.log()` writes to `.httap/httap.log` (since `console.log` goes nowhere in the daemon)
+- Hot-reload on file changes, or run `httap interceptors reload` / `httap_reload_interceptors` / `httap daemon restart`
 
 ## Tips
 
-- After writing an interceptor, always `htap_reload_interceptors` then `htap_list_interceptors` to verify it loaded without errors
+- After writing an interceptor, always `httap_reload_interceptors` then `httap_list_interceptors` to verify it loaded without errors
 - Use `search` for URL substring matching, or `regex` for full JavaScript regex URL matching (e.g. `users/\\d+$`)
-- `htap_search_bodies` supports `target: "request" | "response" | "both"` (default `both`)
-- `htap_query_json` uses SQLite `json_extract` syntax (e.g. `$.user.name`, `$.items[0].id`)
+- `httap_search_bodies` supports `target: "request" | "response" | "both"` (default `both`)
+- `httap_query_json` uses SQLite `json_extract` syntax (e.g. `$.user.name`, `$.items[0].id`)
 - Use `limit` and `offset` for pagination when there are many results (default limit: 50, max: 500)
-- `htap_get_request` accepts comma-separated IDs for batch fetching (e.g. `id: "id1,id2,id3"`)
+- `httap_get_request` accepts comma-separated IDs for batch fetching (e.g. `id: "id1,id2,id3"`)
 - Host suffix matching requires a leading dot: `.example.com` matches `api.example.com` and `www.example.com`
 - Time filters use ISO 8601 format: `since: "2024-01-15T10:30:00Z"`

@@ -3,16 +3,16 @@ import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
 import { RequestRepository } from "./storage.js";
-import { createHtapClient } from "./htap-client.js";
-import type { HtapClient } from "../shared/types.js";
+import { createHttapClient } from "./httap-client.js";
+import type { HttapClient } from "../shared/types.js";
 
-describe("createHtapClient", () => {
+describe("createHttapClient", () => {
   let tmpDir: string;
   let storage: RequestRepository;
-  let client: HtapClient;
+  let client: HttapClient;
 
   beforeEach(() => {
-    tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "htap-client-test-"));
+    tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "httap-client-test-"));
     const dbPath = path.join(tmpDir, "test.db");
     storage = new RequestRepository(dbPath);
     const session = storage.registerSession("test");
@@ -40,7 +40,7 @@ describe("createHtapClient", () => {
       requestBody: Buffer.from('{"name":"test"}'),
     });
 
-    client = createHtapClient(storage);
+    client = createHttapClient(storage);
   });
 
   afterEach(() => {

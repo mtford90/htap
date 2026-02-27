@@ -1,51 +1,51 @@
-# htap
+# httap
 
-[![npm version](https://img.shields.io/npm/v/htap.svg)](https://www.npmjs.com/package/htap)
-[![CI](https://github.com/mtford90/htap/actions/workflows/ci.yml/badge.svg)](https://github.com/mtford90/htap/actions/workflows/ci.yml)
+[![npm version](https://img.shields.io/npm/v/httap.svg)](https://www.npmjs.com/package/httap)
+[![CI](https://github.com/mtford90/httap/actions/workflows/ci.yml/badge.svg)](https://github.com/mtford90/httap/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-Htap is a terminal-based, project-scoped HTTP proxy with a powerful CLI, TUI & MCP server. Quickly intercept, inspect & rewrite HTTP traffic from the comfort of your terminal or favourite AI agent.
+Httap is a terminal-based, project-scoped HTTP proxy with a powerful CLI, TUI & MCP server. Quickly intercept, inspect & rewrite HTTP traffic from the comfort of your terminal or favourite AI agent.
 
-![htap demo](demo.gif)
+![httap demo](demo.gif)
 
 ## Feature Highlights
 
-- **Project-scoped** — each project gets its own `.htap/` directory with a separate daemon, database, CA cert and interceptors
+- **Project-scoped** — each project gets its own `.httap/` directory with a separate daemon, database, CA cert and interceptors
 - **MCP server** — AI agents get full access to your captured traffic and can search, filter, inspect, mock — all via tool calls.
 - **Interceptors** — mock, modify or observe traffic by writing typescript. Agent can do this over MCP meaning you can express complex scenarios in natural language!
 
 ## Quick Start
 
 ```bash
-npm install -g @mtford/htap
+npm install -g @mtford/httap
 
 # Configure environment e.g. HTTP_PROXY
-eval "$(htap on)"
+eval "$(httap on)"
 
 # Send a request
 curl https://api.example.com/users
 
 # Open UI
-htap tui
+httap tui
 
 # Add MCP server to your AI tool
-claude mcp add htap -- htap mcp
+claude mcp add httap -- httap mcp
 ```
 
 ## Browser Interception
 
-Launch any browser pre-configured to route through htap — no manual proxy setup, no certificate warnings:
+Launch any browser pre-configured to route through httap — no manual proxy setup, no certificate warnings:
 
 ```bash
 # Auto-detect and launch your default browser
-htap browser
+httap browser
 
 # Open a specific URL
-htap browser https://example.com
+httap browser https://example.com
 
 # Choose a specific browser
-htap browser --browser firefox
-htap browser --browser brave
+httap browser --browser firefox
+httap browser --browser brave
 ```
 
 Each browser session gets its own isolated profile and is automatically attributed in the TUI (e.g. `source: chrome`). Close the browser or press `Ctrl+C` to stop — the temp profile is cleaned up automatically.
@@ -59,11 +59,11 @@ Each browser session gets its own isolated profile and is automatically attribut
 
 ## Project Scoping
 
-htap doesn't use a global system proxy. Each project gets its own `.htap/` directory in the project root (detected by `.git` or an existing `.htap/`):
+httap doesn't use a global system proxy. Each project gets its own `.httap/` directory in the project root (detected by `.git` or an existing `.httap/`):
 
 ```
 your-project/
-├── .htap/
+├── .httap/
 │   ├── interceptors/   # TypeScript interceptor files
 │   ├── config.json     # Optional project config
 │   ├── proxy.port      # Proxy TCP port
@@ -74,32 +74,32 @@ your-project/
 └── src/...
 ```
 
-Separate daemon, database, certificates etc. You can run htap in multiple projects at the same time without them interfering with each other.
+Separate daemon, database, certificates etc. You can run httap in multiple projects at the same time without them interfering with each other.
 
-For non-project contexts or custom setups, use `--config` to point directly at a data directory (no `.htap` appended):
+For non-project contexts or custom setups, use `--config` to point directly at a data directory (no `.httap` appended):
 
 ```bash
-htap --config /tmp/my-htap-data on
+httap --config /tmp/my-httap-data on
 ```
 
 See [CLI Reference](docs/cli-reference.md) for the full resolution order (`--config` > `--dir` > auto-detect).
 
 ## MCP Integration
 
-htap has a built-in [MCP](https://modelcontextprotocol.io/) server that gives AI agents full access to your captured traffic and interceptor system.
+httap has a built-in [MCP](https://modelcontextprotocol.io/) server that gives AI agents full access to your captured traffic and interceptor system.
 
 ### Setup
 
 **Claude Code:**
 
 ```bash
-claude mcp add htap -- htap mcp
+claude mcp add httap -- httap mcp
 ```
 
 **Codex:**
 
 ```bash
-codex mcp add htap -- htap mcp
+codex mcp add httap -- httap mcp
 ```
 
 **Cursor** — add to `.cursor/mcp.json`:
@@ -107,8 +107,8 @@ codex mcp add htap -- htap mcp
 ```json
 {
   "mcpServers": {
-    "htap": {
-      "command": "htap",
+    "httap": {
+      "command": "httap",
       "args": ["mcp"]
     }
   }
@@ -120,39 +120,39 @@ codex mcp add htap -- htap mcp
 ```json
 {
   "mcpServers": {
-    "htap": {
-      "command": "htap",
+    "httap": {
+      "command": "httap",
       "args": ["mcp"]
     }
   }
 }
 ```
 
-The proxy must be running (`eval "$(htap on)"`) — the MCP server connects to the same daemon as the TUI.
+The proxy must be running (`eval "$(httap on)"`) — the MCP server connects to the same daemon as the TUI.
 
 ### Available Tools
 
 | Tool                       | Description                                          |
 | -------------------------- | ---------------------------------------------------- |
-| `htap_get_status`          | Daemon status, proxy port, request count             |
-| `htap_list_requests`       | Search and filter captured requests                  |
-| `htap_get_request`         | Full request details by ID (headers, bodies, timing) |
-| `htap_search_bodies`       | Full-text search through body content                |
-| `htap_query_json`          | Extract values from JSON bodies via JSONPath         |
-| `htap_count_requests`      | Count matching requests                              |
-| `htap_clear_requests`      | Delete all captured requests                         |
-| `htap_list_sessions`       | List active proxy sessions                           |
-| `htap_list_interceptors`   | List loaded interceptors with status and errors      |
-| `htap_reload_interceptors` | Reload interceptors from disk                        |
+| `httap_get_status`          | Daemon status, proxy port, request count             |
+| `httap_list_requests`       | Search and filter captured requests                  |
+| `httap_get_request`         | Full request details by ID (headers, bodies, timing) |
+| `httap_search_bodies`       | Full-text search through body content                |
+| `httap_query_json`          | Extract values from JSON bodies via JSONPath         |
+| `httap_count_requests`      | Count matching requests                              |
+| `httap_clear_requests`      | Delete all captured requests                         |
+| `httap_list_sessions`       | List active proxy sessions                           |
+| `httap_list_interceptors`   | List loaded interceptors with status and errors      |
+| `httap_reload_interceptors` | Reload interceptors from disk                        |
 
 See [full MCP documentation](docs/mcp.md) for filtering, output formats, and examples.
 
 ## Interceptors
 
-TypeScript files in `.htap/interceptors/` that intercept HTTP traffic as it passes through the proxy. They can return mock responses, modify upstream responses, or just observe.
+TypeScript files in `.httap/interceptors/` that intercept HTTP traffic as it passes through the proxy. They can return mock responses, modify upstream responses, or just observe.
 
 ```typescript
-import type { Interceptor } from "@mtford/htap/interceptors";
+import type { Interceptor } from "@mtford/httap/interceptors";
 
 export default {
   name: "mock-users",
@@ -182,7 +182,7 @@ See [full interceptors documentation](docs/interceptors.md) for modify, observe,
 └──────────────────────────┼──────────────────────────────────┘
                            ▼
 ┌─────────────────────────────────────────────────────────────┐
-│  htap daemon                                                │
+│  httap daemon                                                │
 │  ┌─────────────┐    ┌─────────────┐    ┌─────────────┐     │
 │  │ MITM Proxy  │───▶│   SQLite    │◀───│ Control API │     │
 │  │  (mockttp)  │    │  requests   │    │ (unix sock) │     │
@@ -191,7 +191,7 @@ See [full interceptors documentation](docs/interceptors.md) for modify, observe,
                            ▲
                            │
 ┌──────────────────────────┼──────────────────────────────────┐
-│  htap tui                │                                  │
+│  httap tui                │                                  │
 │  ┌───────────────────────┴─────────────────────────────┐   │
 │  │ ● POST /api/users   │ POST https://api.example.com  │   │
 │  │   GET  /health      │ Status: 200 │ Duration: 45ms  │   │
@@ -202,11 +202,11 @@ See [full interceptors documentation](docs/interceptors.md) for modify, observe,
 └─────────────────────────────────────────────────────────────┘
 ```
 
-`eval "$(htap on)"` starts a daemon, sets `HTTP_PROXY`/`HTTPS_PROXY` in your shell, and captures everything that flows through. `eval "$(htap off)"` unsets them. The TUI connects to the daemon via Unix socket.
+`eval "$(httap on)"` starts a daemon, sets `HTTP_PROXY`/`HTTPS_PROXY` in your shell, and captures everything that flows through. `eval "$(httap off)"` unsets them. The TUI connects to the daemon via Unix socket.
 
 ### Environment Variables
 
-`eval "$(htap on)"` sets these in your shell (`eval "$(htap off)"` unsets them):
+`eval "$(httap on)"` sets these in your shell (`eval "$(httap off)"` unsets them):
 
 | Variable              | Purpose                              |
 | --------------------- | ------------------------------------ |
@@ -221,14 +221,14 @@ See [full interceptors documentation](docs/interceptors.md) for modify, observe,
 | `GIT_SSL_CAINFO`      | CA cert path (Git)                   |
 | `AWS_CA_BUNDLE`       | CA cert path (AWS CLI)               |
 | `CGI_HTTP_PROXY`      | Proxy URL (PHP CGI, HTTPoxy-safe)    |
-| `HTAP_SESSION_ID`     | UUID identifying the current session |
-| `HTAP_LABEL`          | Session label (when `-l` flag used)  |
+| `HTTAP_SESSION_ID`     | UUID identifying the current session |
+| `HTTAP_LABEL`          | Session label (when `-l` flag used)  |
 
-Additionally, `htap on` sets `PYTHONPATH`, `RUBYOPT`, and `PHP_INI_SCAN_DIR` to load runtime-specific override scripts that ensure edge-case HTTP clients trust the proxy CA.
+Additionally, `httap on` sets `PYTHONPATH`, `RUBYOPT`, and `PHP_INI_SCAN_DIR` to load runtime-specific override scripts that ensure edge-case HTTP clients trust the proxy CA.
 
 ## Configuration
 
-Create `.htap/config.json` to override defaults:
+Create `.httap/config.json` to override defaults:
 
 ```json
 {
@@ -243,7 +243,7 @@ See [full configuration documentation](docs/configuration.md) for details on eac
 
 ## Supported HTTP Clients
 
-Anything that respects `HTTP_PROXY` works. htap sets the right CA cert env vars for each runtime automatically.
+Anything that respects `HTTP_PROXY` works. httap sets the right CA cert env vars for each runtime automatically.
 
 **Works automatically (env vars only):**
 
@@ -260,7 +260,7 @@ Anything that respects `HTTP_PROXY` works. htap sets the right CA cert env vars 
 | AWS CLI             | Automatic (`AWS_CA_BUNDLE`)     |
 | Cargo               | Automatic (`CARGO_HTTP_CAINFO`) |
 
-**Works with htap overrides (injection scripts):**
+**Works with httap overrides (injection scripts):**
 
 | Client                       | Mechanism                               |
 | ---------------------------- | --------------------------------------- |
@@ -290,13 +290,13 @@ See [full TUI documentation](docs/tui.md) for all keybindings and export feature
 - [Interceptors](docs/interceptors.md) — mock, modify, observe, query traffic, handler context
 - [MCP Integration](docs/mcp.md) — tools, filtering, output formats, examples
 - [TUI](docs/tui.md) — keybindings, export features
-- [Configuration](docs/configuration.md) — `.htap/config.json` options
+- [Configuration](docs/configuration.md) — `.httap/config.json` options
 
 ## Development
 
 ```bash
-git clone https://github.com/mtford90/htap.git
-cd htap
+git clone https://github.com/mtford90/httap.git
+cd httap
 npm install
 
 npm run build        # Compile TypeScript
@@ -310,10 +310,10 @@ npm run dev          # Watch mode
 
 ### Certificate errors
 
-htap sets common CA environment variables automatically, but some tools need manual configuration:
+httap sets common CA environment variables automatically, but some tools need manual configuration:
 
 ```bash
-cat .htap/ca.pem
+cat .httap/ca.pem
 ```
 
 ### Daemon won't start
@@ -321,9 +321,9 @@ cat .htap/ca.pem
 Check if something else is using the socket:
 
 ```bash
-htap status
-htap daemon stop
-eval "$(htap on)"
+httap status
+httap daemon stop
+eval "$(httap on)"
 ```
 
 ### Requests not appearing
@@ -334,7 +334,7 @@ There are workarounds implemented for node - e.g. fetch override. Other librarie
 
 ## Acknowledgements
 
-htap is built on top of [MockTTP](https://github.com/httptoolkit/mockttp) by [Tim Perry](https://github.com/pimterry), the same MITM proxy engine that powers [HTTP Toolkit](https://httptoolkit.com/).
+httap is built on top of [MockTTP](https://github.com/httptoolkit/mockttp) by [Tim Perry](https://github.com/pimterry), the same MITM proxy engine that powers [HTTP Toolkit](https://httptoolkit.com/).
 
 ## Licence
 

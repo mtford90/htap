@@ -1,19 +1,19 @@
 import { Command } from "commander";
-import { getHtapPaths } from "../../shared/project.js";
+import { getHttapPaths } from "../../shared/project.js";
 import { isDaemonRunning } from "../../shared/daemon.js";
 import { ControlClient } from "../../shared/control-client.js";
 import { buildProxyInfo } from "../../shared/proxy-info.js";
 import { requireProjectRoot, getErrorMessage, getGlobalOptions } from "./helpers.js";
 
 export const statusCommand = new Command("status")
-  .description("Show htap status")
+  .description("Show httap status")
   .action(async (_, command: Command) => {
     const globalOpts = getGlobalOptions(command);
     const projectRoot = requireProjectRoot(globalOpts.dir);
-    const paths = getHtapPaths(projectRoot);
+    const paths = getHttapPaths(projectRoot);
 
     // Detect whether the current shell is intercepting
-    const sessionId = process.env["HTAP_SESSION_ID"];
+    const sessionId = process.env["HTTAP_SESSION_ID"];
     const intercepting = sessionId !== undefined && sessionId !== "";
 
     // Check if daemon is running

@@ -2,7 +2,7 @@
 
 [Back to README](../README.md) | [Interceptors](interceptors.md)
 
-htap has a built-in [MCP](https://modelcontextprotocol.io/) server that gives AI agents full access to your captured traffic and interceptor system. Agents can search through requests, inspect headers and bodies, and write interceptor files directly into `.htap/interceptors/`.
+httap has a built-in [MCP](https://modelcontextprotocol.io/) server that gives AI agents full access to your captured traffic and interceptor system. Agents can search through requests, inspect headers and bodies, and write interceptor files directly into `.httap/interceptors/`.
 
 This means you can ask things like:
 
@@ -12,34 +12,34 @@ This means you can ask things like:
 - "Write an interceptor that logs all requests with missing auth headers"
 - "Send me a notification whenever an api request fails"
 
-The agent reads your traffic, writes the TypeScript, and htap hot-reloads it.
+The agent reads your traffic, writes the TypeScript, and httap hot-reloads it.
 
 ## Setup
 
-Add htap to your MCP client config:
+Add httap to your MCP client config:
 
 ```json
 {
   "mcpServers": {
-    "htap": {
-      "command": "htap",
+    "httap": {
+      "command": "httap",
       "args": ["mcp"]
     }
   }
 }
 ```
 
-The proxy must be running (`eval "$(htap on)"`) — the MCP server connects to the same daemon as the TUI.
+The proxy must be running (`eval "$(httap on)"`) — the MCP server connects to the same daemon as the TUI.
 
 ## Agent Skill
 
-htap also ships an agent skill that teaches AI assistants how to use the MCP tools properly. Gets you better results out of the box.
+httap also ships an agent skill that teaches AI assistants how to use the MCP tools properly. Gets you better results out of the box.
 
 **Claude Code:**
 
 ```bash
-/plugin marketplace add mtford90/htap
-/plugin install @mtford/htap
+/plugin marketplace add mtford90/httap
+/plugin install @mtford/httap
 ```
 
 **npm-agentskills** (works with Cursor, Copilot, Codex, etc.):
@@ -52,19 +52,19 @@ npx agents export --target claude
 
 | Tool                         | Description                                          |
 | ---------------------------- | ---------------------------------------------------- |
-| `htap_get_status`          | Daemon status, proxy port, request count             |
-| `htap_list_requests`       | Search and filter captured requests                  |
-| `htap_get_request`         | Full request details by ID (headers, bodies, timing) |
-| `htap_search_bodies`       | Full-text search through body content                |
-| `htap_query_json`          | Extract values from JSON bodies via JSONPath         |
-| `htap_count_requests`      | Count matching requests                              |
-| `htap_clear_requests`      | Delete all captured requests                         |
-| `htap_replay_request`      | Replay a captured request with optional overrides    |
-| `htap_list_sessions`       | List active proxy sessions                           |
-| `htap_write_interceptor`   | Write/update interceptor files and reload            |
-| `htap_delete_interceptor`  | Delete interceptor files and reload                  |
-| `htap_list_interceptors`   | List loaded interceptors with status and errors      |
-| `htap_reload_interceptors` | Reload interceptors from disk                        |
+| `httap_get_status`          | Daemon status, proxy port, request count             |
+| `httap_list_requests`       | Search and filter captured requests                  |
+| `httap_get_request`         | Full request details by ID (headers, bodies, timing) |
+| `httap_search_bodies`       | Full-text search through body content                |
+| `httap_query_json`          | Extract values from JSON bodies via JSONPath         |
+| `httap_count_requests`      | Count matching requests                              |
+| `httap_clear_requests`      | Delete all captured requests                         |
+| `httap_replay_request`      | Replay a captured request with optional overrides    |
+| `httap_list_sessions`       | List active proxy sessions                           |
+| `httap_write_interceptor`   | Write/update interceptor files and reload            |
+| `httap_delete_interceptor`  | Delete interceptor files and reload                  |
+| `httap_list_interceptors`   | List loaded interceptors with status and errors      |
+| `httap_reload_interceptors` | Reload interceptors from disk                        |
 
 ## Filtering
 
@@ -88,15 +88,15 @@ Most tools accept these filters:
 | `offset`           | Pagination offset (0-based)                 | `0`                                   |
 | `limit`            | Max results (default 50, max 500)           | `100`                                 |
 
-`htap_get_request` accepts comma-separated IDs for batch fetching (e.g. `"id1,id2,id3"`).
+`httap_get_request` accepts comma-separated IDs for batch fetching (e.g. `"id1,id2,id3"`).
 
-`htap_search_bodies` also takes:
+`httap_search_bodies` also takes:
 
 | Parameter | Description                                                              | Example       |
 | --------- | ------------------------------------------------------------------------ | ------------- |
 | `target`  | Which body to search: `"request"`, `"response"`, or `"both"` (default) | `"response"` |
 
-`htap_query_json` also takes:
+`httap_query_json` also takes:
 
 | Parameter | Description                                                           | Example      |
 | --------- | --------------------------------------------------------------------- | ------------ |
@@ -113,12 +113,12 @@ All query tools accept a `format` parameter:
 ## Examples
 
 ```
-htap_list_requests({ status_range: "5xx", path: "/api" })
-htap_search_bodies({ query: "error_code", method: "POST", target: "response" })
-htap_list_requests({ regex: "users/\\d+$" })
-htap_query_json({ json_path: "$.user.id", target: "response" })
-htap_list_requests({ header_name: "authorization", header_target: "request" })
-htap_replay_request({ id: "abc123", method: "POST", url: "https://api.example.com/test" })
-htap_write_interceptor({ path: "mock-users.ts", content: "export default { ... }" })
-htap_delete_interceptor({ path: "mock-users.ts" })
+httap_list_requests({ status_range: "5xx", path: "/api" })
+httap_search_bodies({ query: "error_code", method: "POST", target: "response" })
+httap_list_requests({ regex: "users/\\d+$" })
+httap_query_json({ json_path: "$.user.id", target: "response" })
+httap_list_requests({ header_name: "authorization", header_target: "request" })
+httap_replay_request({ id: "abc123", method: "POST", url: "https://api.example.com/test" })
+httap_write_interceptor({ path: "mock-users.ts", content: "export default { ... }" })
+httap_delete_interceptor({ path: "mock-users.ts" })
 ```

@@ -192,7 +192,7 @@ describe("FormatExportModal", () => {
 
     const frame = lastFrame();
     expect(frame).toContain("Export as HAR");
-    expect(frame).toContain(".htap/exports/");
+    expect(frame).toContain(".httap/exports/");
     expect(frame).toContain("~/Downloads/");
     expect(frame).toContain("Custom path...");
   });
@@ -265,7 +265,7 @@ describe("FormatExportModal", () => {
       expect(mockOnClose).not.toHaveBeenCalled();
     });
 
-    it("selecting .htap/exports/ exports HAR", async () => {
+    it("selecting .httap/exports/ exports HAR", async () => {
       const request = createRequest();
       const { stdin } = render(
         <FormatExportModal

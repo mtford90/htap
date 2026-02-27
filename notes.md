@@ -1,9 +1,9 @@
-# Research Notes: htap
+# Research Notes: httap
 
 ## Final Architecture
 
 ### Project-scoped isolation
-Each project gets its own `.htap/` directory containing:
+Each project gets its own `.httap/` directory containing:
 - `proxy.port` - TCP port the proxy listens on
 - `control.sock` - Unix socket for TUI <-> daemon communication
 - `requests.db` - SQLite database of captured traffic
@@ -107,15 +107,15 @@ render(<App />);
 ## Environment Variables to Set
 
 ```bash
-# htap intercept output (eval'd by user via shell function)
+# httap intercept output (eval'd by user via shell function)
 export HTTP_PROXY="http://127.0.0.1:9847"
 export HTTPS_PROXY="http://127.0.0.1:9847"
-export SSL_CERT_FILE="/Users/x/project/.htap/ca.pem"
-export NODE_EXTRA_CA_CERTS="/Users/x/project/.htap/ca.pem"
-export REQUESTS_CA_BUNDLE="/Users/x/project/.htap/ca.pem"
-export HTAP_SESSION_ID="abc123"
-export HTAP_LABEL="my-session"
-echo "htap: intercepting traffic (label: my-session)"
+export SSL_CERT_FILE="/Users/x/project/.httap/ca.pem"
+export NODE_EXTRA_CA_CERTS="/Users/x/project/.httap/ca.pem"
+export REQUESTS_CA_BUNDLE="/Users/x/project/.httap/ca.pem"
+export HTTAP_SESSION_ID="abc123"
+export HTTAP_LABEL="my-session"
+echo "httap: intercepting traffic (label: my-session)"
 ```
 
 ## SQLite Schema
@@ -195,7 +195,7 @@ mockttp can export to HAR format directly.
 ## Project Structure (Draft)
 
 ```
-htap/
+httap/
 ├── src/
 │   ├── cli/
 │   │   ├── index.ts          # CLI entry point

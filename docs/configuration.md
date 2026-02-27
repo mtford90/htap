@@ -2,7 +2,7 @@
 
 [Back to README](../README.md)
 
-Create `.htap/config.json` to override defaults. All fields are optional:
+Create `.httap/config.json` to override defaults. All fields are optional:
 
 ```json
 {

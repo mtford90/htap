@@ -2,13 +2,13 @@ import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
 
-const HTAP_DIR = ".htap";
+const HTTAP_DIR = ".httap";
 const HOME_DIR_PREFIX = "~";
 
 /**
- * Module-level override for the htap data directory.
- * When set, getHtapDir returns this path directly instead of
- * appending .htap to the project root.
+ * Module-level override for the httap data directory.
+ * When set, getHttapDir returns this path directly instead of
+ * appending .httap to the project root.
  */
 let _configOverride: string | undefined;
 
@@ -36,12 +36,12 @@ export function resolveOverridePath(override: string): string {
 }
 
 /**
- * Find the project root by looking for .htap directory or .git directory.
+ * Find the project root by looking for .httap directory or .git directory.
  * Walks up the directory tree from the current working directory.
  * Returns undefined if no project root is found.
  *
  * When override is provided, returns the resolved override path only if
- * it contains an .htap or .git directory; otherwise returns undefined.
+ * it contains an .httap or .git directory; otherwise returns undefined.
  *
  * @param startDir - Directory to start searching from. Pass `undefined` to
  *   use `process.cwd()` (common when only providing an override).
@@ -55,7 +55,7 @@ export function findProjectRoot(
   if (override !== undefined) {
     const resolved = resolveOverridePath(override);
     if (
-      fs.existsSync(path.join(resolved, HTAP_DIR)) ||
+      fs.existsSync(path.join(resolved, HTTAP_DIR)) ||
       fs.existsSync(path.join(resolved, ".git"))
     ) {
       return resolved;
@@ -67,8 +67,8 @@ export function findProjectRoot(
   const root = path.parse(currentDir).root;
 
   while (currentDir !== root) {
-    // Check for .htap directory first
-    if (fs.existsSync(path.join(currentDir, HTAP_DIR))) {
+    // Check for .httap directory first
+    if (fs.existsSync(path.join(currentDir, HTTAP_DIR))) {
       return currentDir;
     }
 
@@ -84,12 +84,12 @@ export function findProjectRoot(
 }
 
 /**
- * Determine the project root, creating .htap if needed.
+ * Determine the project root, creating .httap if needed.
  * Delegates to findProjectRoot for consistent traversal, then falls back
  * to the user's home directory (global instance) when no root is found.
  *
  * When override is provided, returns the resolved override path directly
- * (the caller is responsible for creating .htap as needed).
+ * (the caller is responsible for creating .httap as needed).
  */
 export function findOrCreateProjectRoot(
   startDir: string = process.cwd(),
@@ -103,59 +103,59 @@ export function findOrCreateProjectRoot(
 }
 
 /**
- * Get the .htap directory path for a project root.
+ * Get the .httap directory path for a project root.
  * Returns the config override when set (ignoring projectRoot).
  */
-export function getHtapDir(projectRoot: string): string {
-  return _configOverride ?? path.join(projectRoot, HTAP_DIR);
+export function getHttapDir(projectRoot: string): string {
+  return _configOverride ?? path.join(projectRoot, HTTAP_DIR);
 }
 
 /**
- * Ensure the .htap directory exists, creating it if necessary.
- * Returns the path to the .htap directory.
+ * Ensure the .httap directory exists, creating it if necessary.
+ * Returns the path to the .httap directory.
  */
-export function ensureHtapDir(projectRoot: string): string {
-  const htapDir = getHtapDir(projectRoot);
+export function ensureHttapDir(projectRoot: string): string {
+  const httapDir = getHttapDir(projectRoot);
 
-  if (!fs.existsSync(htapDir)) {
-    fs.mkdirSync(htapDir, { recursive: true });
+  if (!fs.existsSync(httapDir)) {
+    fs.mkdirSync(httapDir, { recursive: true });
   }
 
-  return htapDir;
+  return httapDir;
 }
 
 /**
- * Get paths to various files within the .htap directory.
+ * Get paths to various files within the .httap directory.
  */
-export function getHtapPaths(projectRoot: string) {
-  const htapDir = getHtapDir(projectRoot);
+export function getHttapPaths(projectRoot: string) {
+  const httapDir = getHttapDir(projectRoot);
 
   return {
-    htapDir,
-    proxyPortFile: path.join(htapDir, "proxy.port"),
-    preferredPortFile: path.join(htapDir, "preferred.port"),
-    controlSocketFile: path.join(htapDir, "control.sock"),
-    databaseFile: path.join(htapDir, "requests.db"),
-    caKeyFile: path.join(htapDir, "ca-key.pem"),
-    caCertFile: path.join(htapDir, "ca.pem"),
-    pidFile: path.join(htapDir, "daemon.pid"),
-    logFile: path.join(htapDir, "htap.log"),
-    configFile: path.join(htapDir, "config.json"),
-    interceptorsDir: path.join(htapDir, "interceptors"),
-    browserProfilesDir: path.join(htapDir, "browser-profiles"),
-    proxyPreloadFile: path.join(htapDir, "proxy-preload.cjs"),
-    pythonOverrideDir: path.join(htapDir, "overrides", "python"),
-    rubyOverrideFile: path.join(htapDir, "overrides", "ruby", "htap_intercept.rb"),
-    phpOverrideDir: path.join(htapDir, "overrides", "php"),
+    httapDir,
+    proxyPortFile: path.join(httapDir, "proxy.port"),
+    preferredPortFile: path.join(httapDir, "preferred.port"),
+    controlSocketFile: path.join(httapDir, "control.sock"),
+    databaseFile: path.join(httapDir, "requests.db"),
+    caKeyFile: path.join(httapDir, "ca-key.pem"),
+    caCertFile: path.join(httapDir, "ca.pem"),
+    pidFile: path.join(httapDir, "daemon.pid"),
+    logFile: path.join(httapDir, "httap.log"),
+    configFile: path.join(httapDir, "config.json"),
+    interceptorsDir: path.join(httapDir, "interceptors"),
+    browserProfilesDir: path.join(httapDir, "browser-profiles"),
+    proxyPreloadFile: path.join(httapDir, "proxy-preload.cjs"),
+    pythonOverrideDir: path.join(httapDir, "overrides", "python"),
+    rubyOverrideFile: path.join(httapDir, "overrides", "ruby", "httap_intercept.rb"),
+    phpOverrideDir: path.join(httapDir, "overrides", "php"),
   };
 }
 
 /**
- * Read the proxy port from the .htap directory.
+ * Read the proxy port from the .httap directory.
  * Returns undefined if the file doesn't exist.
  */
 export function readProxyPort(projectRoot: string): number | undefined {
-  const { proxyPortFile } = getHtapPaths(projectRoot);
+  const { proxyPortFile } = getHttapPaths(projectRoot);
 
   if (!fs.existsSync(proxyPortFile)) {
     return undefined;
@@ -168,19 +168,19 @@ export function readProxyPort(projectRoot: string): number | undefined {
 }
 
 /**
- * Write the proxy port to the .htap directory.
+ * Write the proxy port to the .httap directory.
  */
 export function writeProxyPort(projectRoot: string, port: number): void {
-  const { proxyPortFile } = getHtapPaths(projectRoot);
+  const { proxyPortFile } = getHttapPaths(projectRoot);
   fs.writeFileSync(proxyPortFile, port.toString(), "utf-8");
 }
 
 /**
- * Read the daemon PID from the .htap directory.
+ * Read the daemon PID from the .httap directory.
  * Returns undefined if the file doesn't exist.
  */
 export function readDaemonPid(projectRoot: string): number | undefined {
-  const { pidFile } = getHtapPaths(projectRoot);
+  const { pidFile } = getHttapPaths(projectRoot);
 
   if (!fs.existsSync(pidFile)) {
     return undefined;
@@ -193,10 +193,10 @@ export function readDaemonPid(projectRoot: string): number | undefined {
 }
 
 /**
- * Write the daemon PID to the .htap directory.
+ * Write the daemon PID to the .httap directory.
  */
 export function writeDaemonPid(projectRoot: string, pid: number): void {
-  const { pidFile } = getHtapPaths(projectRoot);
+  const { pidFile } = getHttapPaths(projectRoot);
   fs.writeFileSync(pidFile, pid.toString(), "utf-8");
 }
 
@@ -204,7 +204,7 @@ export function writeDaemonPid(projectRoot: string, pid: number): void {
  * Remove the daemon PID file.
  */
 export function removeDaemonPid(projectRoot: string): void {
-  const { pidFile } = getHtapPaths(projectRoot);
+  const { pidFile } = getHttapPaths(projectRoot);
 
   if (fs.existsSync(pidFile)) {
     fs.unlinkSync(pidFile);

@@ -4,8 +4,8 @@ node_modules/
 # Build output
 dist/
 
-# htap data (per-project)
-.htap/
+# httap data (per-project)
+.httap/
 
 # IDE
 .idea/

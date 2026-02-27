@@ -2,16 +2,16 @@ import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
 import { Command } from "commander";
-import { getHtapPaths, readDaemonPid, isProcessRunning } from "../../shared/project.js";
+import { getHttapPaths, readDaemonPid, isProcessRunning } from "../../shared/project.js";
 import { readProxyPort } from "../../shared/project.js";
-import { getHtapVersion } from "../../shared/version.js";
+import { getHttapVersion } from "../../shared/version.js";
 import { requireProjectRoot, getErrorMessage, getGlobalOptions } from "./helpers.js";
 
 const DEBUG_LOG_LINES = 200;
 
 interface DebugDump {
   timestamp: string;
-  htapVersion: string;
+  httapVersion: string;
   system: {
     platform: string;
     release: string;
@@ -22,7 +22,7 @@ interface DebugDump {
     pid?: number;
     proxyPort?: number;
   };
-  htapDir: {
+  httapDir: {
     exists: boolean;
     files: string[];
   };
@@ -33,11 +33,11 @@ interface DebugDump {
  * Collect debug information for a project.
  */
 export function collectDebugInfo(projectRoot: string | undefined): DebugDump {
-  const htapVersion = getHtapVersion();
+  const httapVersion = getHttapVersion();
 
   const dump: DebugDump = {
     timestamp: new Date().toISOString(),
-    htapVersion,
+    httapVersion,
     system: {
       platform: os.platform(),
       release: os.release(),
@@ -46,7 +46,7 @@ export function collectDebugInfo(projectRoot: string | undefined): DebugDump {
     daemon: {
       running: false,
     },
-    htapDir: {
+    httapDir: {
       exists: false,
       files: [],
     },
@@ -57,13 +57,13 @@ export function collectDebugInfo(projectRoot: string | undefined): DebugDump {
     return dump;
   }
 
-  const paths = getHtapPaths(projectRoot);
+  const paths = getHttapPaths(projectRoot);
 
-  // Check .htap directory
-  if (fs.existsSync(paths.htapDir)) {
-    dump.htapDir.exists = true;
+  // Check .httap directory
+  if (fs.existsSync(paths.httapDir)) {
+    dump.httapDir.exists = true;
     try {
-      dump.htapDir.files = fs.readdirSync(paths.htapDir);
+      dump.httapDir.files = fs.readdirSync(paths.httapDir);
     } catch {
       // Ignore errors reading directory
     }
@@ -111,17 +111,17 @@ export const debugDumpCommand = new Command("debug-dump")
   .action((_, command: Command) => {
     const globalOpts = getGlobalOptions(command);
     const projectRoot = requireProjectRoot(globalOpts.dir);
-    const paths = getHtapPaths(projectRoot);
+    const paths = getHttapPaths(projectRoot);
     const dump = collectDebugInfo(projectRoot);
 
     // Write dump to file
     const filename = generateDumpFilename();
-    const filepath = path.join(paths.htapDir, filename);
+    const filepath = path.join(paths.httapDir, filename);
 
     try {
-      // Ensure .htap directory exists
-      if (!fs.existsSync(paths.htapDir)) {
-        fs.mkdirSync(paths.htapDir, { recursive: true });
+      // Ensure .httap directory exists
+      if (!fs.existsSync(paths.httapDir)) {
+        fs.mkdirSync(paths.httapDir, { recursive: true });
       }
 
       fs.writeFileSync(filepath, JSON.stringify(dump, null, 2), "utf-8");

@@ -5,9 +5,9 @@ import * as os from "node:os";
 import {
   findProjectRoot,
   findOrCreateProjectRoot,
-  getHtapDir,
-  ensureHtapDir,
-  getHtapPaths,
+  getHttapDir,
+  ensureHttapDir,
+  getHttapPaths,
   readProxyPort,
   writeProxyPort,
   readDaemonPid,
@@ -22,7 +22,7 @@ describe("project utilities", () => {
   let tempDir: string;
 
   beforeEach(() => {
-    tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "htap-test-"));
+    tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "httap-test-"));
   });
 
   afterEach(() => {
@@ -30,14 +30,14 @@ describe("project utilities", () => {
   });
 
   describe("findProjectRoot", () => {
-    it("returns undefined when no .htap or .git directory exists", () => {
+    it("returns undefined when no .httap or .git directory exists", () => {
       const result = findProjectRoot(tempDir);
       expect(result).toBeUndefined();
     });
 
-    it("finds project root when .htap directory exists", () => {
-      const htapDir = path.join(tempDir, ".htap");
-      fs.mkdirSync(htapDir);
+    it("finds project root when .httap directory exists", () => {
+      const httapDir = path.join(tempDir, ".httap");
+      fs.mkdirSync(httapDir);
 
       const result = findProjectRoot(tempDir);
       expect(result).toBe(tempDir);
@@ -51,10 +51,10 @@ describe("project utilities", () => {
       expect(result).toBe(tempDir);
     });
 
-    it("prefers .htap over .git when both exist", () => {
-      const htapDir = path.join(tempDir, ".htap");
+    it("prefers .httap over .git when both exist", () => {
+      const httapDir = path.join(tempDir, ".httap");
       const gitDir = path.join(tempDir, ".git");
-      fs.mkdirSync(htapDir);
+      fs.mkdirSync(httapDir);
       fs.mkdirSync(gitDir);
 
       const result = findProjectRoot(tempDir);
@@ -62,9 +62,9 @@ describe("project utilities", () => {
     });
 
     it("walks up directory tree to find project root", () => {
-      const htapDir = path.join(tempDir, ".htap");
+      const httapDir = path.join(tempDir, ".httap");
       const subDir = path.join(tempDir, "src", "components");
-      fs.mkdirSync(htapDir);
+      fs.mkdirSync(httapDir);
       fs.mkdirSync(subDir, { recursive: true });
 
       const result = findProjectRoot(subDir);
@@ -73,15 +73,15 @@ describe("project utilities", () => {
   });
 
   describe("findOrCreateProjectRoot", () => {
-    it("returns directory with existing .htap", () => {
-      const htapDir = path.join(tempDir, ".htap");
-      fs.mkdirSync(htapDir);
+    it("returns directory with existing .httap", () => {
+      const httapDir = path.join(tempDir, ".httap");
+      fs.mkdirSync(httapDir);
 
       const result = findOrCreateProjectRoot(tempDir);
       expect(result).toBe(tempDir);
     });
 
-    it("returns git root when .git exists but no .htap", () => {
+    it("returns git root when .git exists but no .httap", () => {
       const gitDir = path.join(tempDir, ".git");
       fs.mkdirSync(gitDir);
 
@@ -89,7 +89,7 @@ describe("project utilities", () => {
       expect(result).toBe(tempDir);
     });
 
-    it("returns startDir when neither .htap nor .git exists in isolated tree", () => {
+    it("returns startDir when neither .httap nor .git exists in isolated tree", () => {
       // Note: This test verifies the fallback logic. In practice, when run inside
       // a git repo (like during development), the function will find that repo's
       // .git directory. This test documents the expected behaviour when truly
@@ -97,35 +97,35 @@ describe("project utilities", () => {
       const subDir = path.join(tempDir, "some", "nested", "dir");
       fs.mkdirSync(subDir, { recursive: true });
 
-      // Since we're running inside the htap git repo, the function will walk up
+      // Since we're running inside the httap git repo, the function will walk up
       // and find it. We verify it returns a valid path (the git root it found).
       const result = findOrCreateProjectRoot(subDir);
       expect(typeof result).toBe("string");
       expect(result.length).toBeGreaterThan(0);
     });
 
-    it("stops at .git boundary even when parent has .htap", () => {
-      // A child project with .git should NOT walk past it to find .htap in a parent
-      const parentHtap = path.join(tempDir, ".htap");
+    it("stops at .git boundary even when parent has .httap", () => {
+      // A child project with .git should NOT walk past it to find .httap in a parent
+      const parentHttap = path.join(tempDir, ".httap");
       const child = path.join(tempDir, "child-project");
       const childGit = path.join(child, ".git");
 
-      fs.mkdirSync(parentHtap);
+      fs.mkdirSync(parentHttap);
       fs.mkdirSync(childGit, { recursive: true });
 
       const result = findOrCreateProjectRoot(child);
       expect(result).toBe(child);
     });
 
-    it("prefers .htap over .git when both exist at different levels", () => {
-      // Git root at tempDir, .htap at a subdirectory
+    it("prefers .httap over .git when both exist at different levels", () => {
+      // Git root at tempDir, .httap at a subdirectory
       const gitDir = path.join(tempDir, ".git");
       const projectDir = path.join(tempDir, "project");
-      const htapDir = path.join(projectDir, ".htap");
+      const httapDir = path.join(projectDir, ".httap");
       const workDir = path.join(projectDir, "src");
 
       fs.mkdirSync(gitDir);
-      fs.mkdirSync(htapDir, { recursive: true });
+      fs.mkdirSync(httapDir, { recursive: true });
       fs.mkdirSync(workDir, { recursive: true });
 
       const result = findOrCreateProjectRoot(workDir);
@@ -143,49 +143,49 @@ describe("project utilities", () => {
     });
   });
 
-  describe("getHtapDir", () => {
-    it("returns path to .htap directory", () => {
-      const result = getHtapDir(tempDir);
-      expect(result).toBe(path.join(tempDir, ".htap"));
+  describe("getHttapDir", () => {
+    it("returns path to .httap directory", () => {
+      const result = getHttapDir(tempDir);
+      expect(result).toBe(path.join(tempDir, ".httap"));
     });
   });
 
-  describe("ensureHtapDir", () => {
-    it("creates .htap directory if it does not exist", () => {
-      const htapDir = ensureHtapDir(tempDir);
+  describe("ensureHttapDir", () => {
+    it("creates .httap directory if it does not exist", () => {
+      const httapDir = ensureHttapDir(tempDir);
 
-      expect(htapDir).toBe(path.join(tempDir, ".htap"));
-      expect(fs.existsSync(htapDir)).toBe(true);
+      expect(httapDir).toBe(path.join(tempDir, ".httap"));
+      expect(fs.existsSync(httapDir)).toBe(true);
     });
 
-    it("returns existing .htap directory if it exists", () => {
-      const existingDir = path.join(tempDir, ".htap");
+    it("returns existing .httap directory if it exists", () => {
+      const existingDir = path.join(tempDir, ".httap");
       fs.mkdirSync(existingDir);
 
-      const htapDir = ensureHtapDir(tempDir);
+      const httapDir = ensureHttapDir(tempDir);
 
-      expect(htapDir).toBe(existingDir);
-      expect(fs.existsSync(htapDir)).toBe(true);
+      expect(httapDir).toBe(existingDir);
+      expect(fs.existsSync(httapDir)).toBe(true);
     });
   });
 
-  describe("getHtapPaths", () => {
+  describe("getHttapPaths", () => {
     it("returns all expected paths", () => {
-      const paths = getHtapPaths(tempDir);
+      const paths = getHttapPaths(tempDir);
 
-      expect(paths.htapDir).toBe(path.join(tempDir, ".htap"));
-      expect(paths.proxyPortFile).toBe(path.join(tempDir, ".htap", "proxy.port"));
-      expect(paths.controlSocketFile).toBe(path.join(tempDir, ".htap", "control.sock"));
-      expect(paths.databaseFile).toBe(path.join(tempDir, ".htap", "requests.db"));
-      expect(paths.caKeyFile).toBe(path.join(tempDir, ".htap", "ca-key.pem"));
-      expect(paths.caCertFile).toBe(path.join(tempDir, ".htap", "ca.pem"));
-      expect(paths.pidFile).toBe(path.join(tempDir, ".htap", "daemon.pid"));
+      expect(paths.httapDir).toBe(path.join(tempDir, ".httap"));
+      expect(paths.proxyPortFile).toBe(path.join(tempDir, ".httap", "proxy.port"));
+      expect(paths.controlSocketFile).toBe(path.join(tempDir, ".httap", "control.sock"));
+      expect(paths.databaseFile).toBe(path.join(tempDir, ".httap", "requests.db"));
+      expect(paths.caKeyFile).toBe(path.join(tempDir, ".httap", "ca-key.pem"));
+      expect(paths.caCertFile).toBe(path.join(tempDir, ".httap", "ca.pem"));
+      expect(paths.pidFile).toBe(path.join(tempDir, ".httap", "daemon.pid"));
     });
   });
 
   describe("proxy port file", () => {
     beforeEach(() => {
-      ensureHtapDir(tempDir);
+      ensureHttapDir(tempDir);
     });
 
     it("returns undefined when port file does not exist", () => {
@@ -200,7 +200,7 @@ describe("project utilities", () => {
     });
 
     it("returns undefined for invalid port content", () => {
-      const { proxyPortFile } = getHtapPaths(tempDir);
+      const { proxyPortFile } = getHttapPaths(tempDir);
       fs.writeFileSync(proxyPortFile, "not-a-number");
 
       const result = readProxyPort(tempDir);
@@ -210,7 +210,7 @@ describe("project utilities", () => {
 
   describe("daemon pid file", () => {
     beforeEach(() => {
-      ensureHtapDir(tempDir);
+      ensureHttapDir(tempDir);
     });
 
     it("returns undefined when pid file does not exist", () => {
@@ -252,9 +252,9 @@ describe("project utilities", () => {
   });
 
   describe("override parameter", () => {
-    it("findProjectRoot returns resolved override path when .htap exists", () => {
-      const htapDir = path.join(tempDir, ".htap");
-      fs.mkdirSync(htapDir);
+    it("findProjectRoot returns resolved override path when .httap exists", () => {
+      const httapDir = path.join(tempDir, ".httap");
+      fs.mkdirSync(httapDir);
       const result = findProjectRoot(undefined, tempDir);
       expect(result).toBe(tempDir);
     });
@@ -266,7 +266,7 @@ describe("project utilities", () => {
       expect(result).toBe(tempDir);
     });
 
-    it("findProjectRoot returns undefined when override has no .htap or .git", () => {
+    it("findProjectRoot returns undefined when override has no .httap or .git", () => {
       const result = findProjectRoot(undefined, tempDir);
       expect(result).toBeUndefined();
     });
@@ -303,7 +303,7 @@ describe("project utilities", () => {
   });
 
   describe("homedir fallback", () => {
-    it("findOrCreateProjectRoot falls back to homedir when no .htap or .git found in isolated tree", () => {
+    it("findOrCreateProjectRoot falls back to homedir when no .httap or .git found in isolated tree", () => {
       const subDir = path.join(tempDir, "some", "nested", "dir");
       fs.mkdirSync(subDir, { recursive: true });
       // In this test env we're inside a git repo, so this will find that.
@@ -321,45 +321,45 @@ describe("project utilities", () => {
 
     it("setConfigOverride sets the override and getConfigOverride returns it", () => {
       expect(getConfigOverride()).toBeUndefined();
-      setConfigOverride("/tmp/custom-htap");
-      expect(getConfigOverride()).toBe("/tmp/custom-htap");
+      setConfigOverride("/tmp/custom-httap");
+      expect(getConfigOverride()).toBe("/tmp/custom-httap");
     });
 
     it("setConfigOverride(undefined) clears the override", () => {
-      setConfigOverride("/tmp/custom-htap");
+      setConfigOverride("/tmp/custom-httap");
       setConfigOverride(undefined);
       expect(getConfigOverride()).toBeUndefined();
     });
 
-    it("getHtapDir returns the override when set, ignoring projectRoot", () => {
+    it("getHttapDir returns the override when set, ignoring projectRoot", () => {
       const overrideDir = path.join(tempDir, "custom-data");
       setConfigOverride(overrideDir);
-      const result = getHtapDir("/some/ignored/path");
+      const result = getHttapDir("/some/ignored/path");
       expect(result).toBe(overrideDir);
     });
 
-    it("getHtapDir returns projectRoot + .htap when no override is set", () => {
-      const result = getHtapDir(tempDir);
-      expect(result).toBe(path.join(tempDir, ".htap"));
+    it("getHttapDir returns projectRoot + .httap when no override is set", () => {
+      const result = getHttapDir(tempDir);
+      expect(result).toBe(path.join(tempDir, ".httap"));
     });
 
-    it("getHtapPaths uses the override as the htap dir when set", () => {
+    it("getHttapPaths uses the override as the httap dir when set", () => {
       const overrideDir = path.join(tempDir, "custom-data");
       setConfigOverride(overrideDir);
-      const paths = getHtapPaths("/ignored");
-      expect(paths.htapDir).toBe(overrideDir);
+      const paths = getHttapPaths("/ignored");
+      expect(paths.httapDir).toBe(overrideDir);
       expect(paths.proxyPortFile).toBe(path.join(overrideDir, "proxy.port"));
       expect(paths.controlSocketFile).toBe(path.join(overrideDir, "control.sock"));
       expect(paths.databaseFile).toBe(path.join(overrideDir, "requests.db"));
       expect(paths.pidFile).toBe(path.join(overrideDir, "daemon.pid"));
-      expect(paths.logFile).toBe(path.join(overrideDir, "htap.log"));
+      expect(paths.logFile).toBe(path.join(overrideDir, "httap.log"));
       expect(paths.configFile).toBe(path.join(overrideDir, "config.json"));
     });
 
-    it("ensureHtapDir creates the override directory when set", () => {
+    it("ensureHttapDir creates the override directory when set", () => {
       const overrideDir = path.join(tempDir, "custom-data");
       setConfigOverride(overrideDir);
-      const result = ensureHtapDir("/ignored");
+      const result = ensureHttapDir("/ignored");
       expect(result).toBe(overrideDir);
       expect(fs.existsSync(overrideDir)).toBe(true);
     });

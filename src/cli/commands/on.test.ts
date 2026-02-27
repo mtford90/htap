@@ -38,21 +38,21 @@ describe("formatEnvVars", () => {
 
   it("handles paths with special characters", () => {
     const result = formatEnvVars({
-      SSL_CERT_FILE: "/Users/test/.htap/ca.pem",
+      SSL_CERT_FILE: "/Users/test/.httap/ca.pem",
     });
-    expect(result).toBe('export SSL_CERT_FILE="/Users/test/.htap/ca.pem"');
+    expect(result).toBe('export SSL_CERT_FILE="/Users/test/.httap/ca.pem"');
   });
 
-  it("formats all standard htap env vars", () => {
+  it("formats all standard httap env vars", () => {
     const result = formatEnvVars({
       HTTP_PROXY: "http://127.0.0.1:9000",
       HTTPS_PROXY: "http://127.0.0.1:9000",
       SSL_CERT_FILE: "/path/to/ca.pem",
       REQUESTS_CA_BUNDLE: "/path/to/ca.pem",
       NODE_EXTRA_CA_CERTS: "/path/to/ca.pem",
-      HTAP_SESSION_ID: "abc-123",
-      HTAP_SESSION_TOKEN: "token-123",
-      HTAP_LABEL: "test-session",
+      HTTAP_SESSION_ID: "abc-123",
+      HTTAP_SESSION_TOKEN: "token-123",
+      HTTAP_LABEL: "test-session",
     });
 
     expect(result).toContain("export HTTP_PROXY=");
@@ -60,40 +60,40 @@ describe("formatEnvVars", () => {
     expect(result).toContain("export SSL_CERT_FILE=");
     expect(result).toContain("export REQUESTS_CA_BUNDLE=");
     expect(result).toContain("export NODE_EXTRA_CA_CERTS=");
-    expect(result).toContain("export HTAP_SESSION_ID=");
-    expect(result).toContain("export HTAP_SESSION_TOKEN=");
-    expect(result).toContain("export HTAP_LABEL=");
+    expect(result).toContain("export HTTAP_SESSION_ID=");
+    expect(result).toContain("export HTTAP_SESSION_TOKEN=");
+    expect(result).toContain("export HTTAP_LABEL=");
   });
 
   describe("shell injection prevention", () => {
     it("escapes dollar signs (command substitution)", () => {
-      const result = formatEnvVars({ HTAP_LABEL: "$(rm -rf /)" });
-      expect(result).toBe('export HTAP_LABEL="\\$(rm -rf /)"');
+      const result = formatEnvVars({ HTTAP_LABEL: "$(rm -rf /)" });
+      expect(result).toBe('export HTTAP_LABEL="\\$(rm -rf /)"');
     });
 
     it("escapes backticks (legacy command substitution)", () => {
-      const result = formatEnvVars({ HTAP_LABEL: "`whoami`" });
-      expect(result).toBe('export HTAP_LABEL="\\`whoami\\`"');
+      const result = formatEnvVars({ HTTAP_LABEL: "`whoami`" });
+      expect(result).toBe('export HTTAP_LABEL="\\`whoami\\`"');
     });
 
     it("escapes double quotes", () => {
-      const result = formatEnvVars({ HTAP_LABEL: 'say "hello"' });
-      expect(result).toBe('export HTAP_LABEL="say \\"hello\\""');
+      const result = formatEnvVars({ HTTAP_LABEL: 'say "hello"' });
+      expect(result).toBe('export HTTAP_LABEL="say \\"hello\\""');
     });
 
     it("escapes backslashes", () => {
-      const result = formatEnvVars({ HTAP_LABEL: "path\\to\\file" });
-      expect(result).toBe('export HTAP_LABEL="path\\\\to\\\\file"');
+      const result = formatEnvVars({ HTTAP_LABEL: "path\\to\\file" });
+      expect(result).toBe('export HTTAP_LABEL="path\\\\to\\\\file"');
     });
 
     it("escapes exclamation marks (history expansion)", () => {
-      const result = formatEnvVars({ HTAP_LABEL: "hello!world" });
-      expect(result).toBe('export HTAP_LABEL="hello\\!world"');
+      const result = formatEnvVars({ HTTAP_LABEL: "hello!world" });
+      expect(result).toBe('export HTTAP_LABEL="hello\\!world"');
     });
 
     it("escapes multiple dangerous characters combined", () => {
-      const result = formatEnvVars({ HTAP_LABEL: '$(cmd) `cmd` "quoted" \\path!' });
-      expect(result).toBe('export HTAP_LABEL="\\$(cmd) \\`cmd\\` \\"quoted\\" \\\\path\\!"');
+      const result = formatEnvVars({ HTTAP_LABEL: '$(cmd) `cmd` "quoted" \\path!' });
+      expect(result).toBe('export HTTAP_LABEL="\\$(cmd) \\`cmd\\` \\"quoted\\" \\\\path\\!"');
     });
   });
 });
@@ -118,16 +118,16 @@ describe("formatUnsetVars", () => {
     expect(result).toBe("");
   });
 
-  it("includes all standard htap env vars", () => {
+  it("includes all standard httap env vars", () => {
     const result = formatUnsetVars([
       "HTTP_PROXY",
       "HTTPS_PROXY",
       "SSL_CERT_FILE",
       "REQUESTS_CA_BUNDLE",
       "NODE_EXTRA_CA_CERTS",
-      "HTAP_SESSION_ID",
-      "HTAP_SESSION_TOKEN",
-      "HTAP_LABEL",
+      "HTTAP_SESSION_ID",
+      "HTTAP_SESSION_TOKEN",
+      "HTTAP_LABEL",
     ]);
 
     expect(result).toContain("unset HTTP_PROXY");
@@ -135,20 +135,20 @@ describe("formatUnsetVars", () => {
     expect(result).toContain("unset SSL_CERT_FILE");
     expect(result).toContain("unset REQUESTS_CA_BUNDLE");
     expect(result).toContain("unset NODE_EXTRA_CA_CERTS");
-    expect(result).toContain("unset HTAP_SESSION_ID");
-    expect(result).toContain("unset HTAP_SESSION_TOKEN");
-    expect(result).toContain("unset HTAP_LABEL");
+    expect(result).toContain("unset HTTAP_SESSION_ID");
+    expect(result).toContain("unset HTTAP_SESSION_TOKEN");
+    expect(result).toContain("unset HTTAP_LABEL");
   });
 });
 
 describe("formatNodeOptionsExport", () => {
-  const preloadPath = "/Users/test/.htap/proxy-preload.cjs";
+  const preloadPath = "/Users/test/.httap/proxy-preload.cjs";
 
   it("saves original NODE_OPTIONS via ${param-word} guard", () => {
     const result = formatNodeOptionsExport(preloadPath);
-    // Uses ${HTAP_ORIG_NODE_OPTIONS-...} (without colon) so it only falls through when truly unset
-    expect(result).toContain("HTAP_ORIG_NODE_OPTIONS");
-    expect(result).toContain("${HTAP_ORIG_NODE_OPTIONS-${NODE_OPTIONS:-}}");
+    // Uses ${HTTAP_ORIG_NODE_OPTIONS-...} (without colon) so it only falls through when truly unset
+    expect(result).toContain("HTTAP_ORIG_NODE_OPTIONS");
+    expect(result).toContain("${HTTAP_ORIG_NODE_OPTIONS-${NODE_OPTIONS:-}}");
   });
 
   it("appends --require with the preload path", () => {
@@ -166,8 +166,8 @@ describe("formatNodeOptionsExport", () => {
 
   it("preserves existing NODE_OPTIONS when appending", () => {
     const result = formatNodeOptionsExport(preloadPath);
-    // Should use ${HTAP_ORIG_NODE_OPTIONS:+...} to conditionally prepend original value
-    expect(result).toContain("${HTAP_ORIG_NODE_OPTIONS:+");
+    // Should use ${HTTAP_ORIG_NODE_OPTIONS:+...} to conditionally prepend original value
+    expect(result).toContain("${HTTAP_ORIG_NODE_OPTIONS:+");
   });
 
   it("exports NODE_OPTIONS", () => {
@@ -193,7 +193,7 @@ describe("formatNodeOptionsExport", () => {
   });
 
   it("handles paths with spaces correctly after shell eval", () => {
-    const spacePath = "/Users/test user/.htap/proxy-preload.cjs";
+    const spacePath = "/Users/test user/.httap/proxy-preload.cjs";
     const result = formatNodeOptionsExport(spacePath);
     const nodeOptions = execSync(`bash -c '${result.replace(/'/g, "'\\''")}\necho "$NODE_OPTIONS"'`)
       .toString()
@@ -203,7 +203,7 @@ describe("formatNodeOptionsExport", () => {
   });
 
   it("escapes double-quote-significant characters in the path", () => {
-    const trickyPath = "/Users/test/.htap/proxy-preload.cjs";
+    const trickyPath = "/Users/test/.httap/proxy-preload.cjs";
     const result = formatNodeOptionsExport(trickyPath);
     // The path should be escaped for double-quoted context (backslash, $, `, ", !)
     // but should not contain single quotes
@@ -214,7 +214,7 @@ describe("formatNodeOptionsExport", () => {
 describe("formatNodeOptionsRestore", () => {
   it("restores NODE_OPTIONS from saved value when non-empty", () => {
     const result = formatNodeOptionsRestore();
-    expect(result).toContain("HTAP_ORIG_NODE_OPTIONS");
+    expect(result).toContain("HTTAP_ORIG_NODE_OPTIONS");
     expect(result).toContain("export NODE_OPTIONS=");
   });
 
@@ -223,19 +223,19 @@ describe("formatNodeOptionsRestore", () => {
     expect(result).toContain("unset NODE_OPTIONS");
   });
 
-  it("cleans up HTAP_ORIG_NODE_OPTIONS", () => {
+  it("cleans up HTTAP_ORIG_NODE_OPTIONS", () => {
     const result = formatNodeOptionsRestore();
-    expect(result).toContain("unset HTAP_ORIG_NODE_OPTIONS");
+    expect(result).toContain("unset HTTAP_ORIG_NODE_OPTIONS");
   });
 });
 
 describe("formatPythonPathExport", () => {
-  const overrideDir = "/Users/test/.htap/overrides/python";
+  const overrideDir = "/Users/test/.httap/overrides/python";
 
   it("saves original PYTHONPATH via ${param-word} guard", () => {
     const result = formatPythonPathExport(overrideDir);
-    expect(result).toContain("HTAP_ORIG_PYTHONPATH");
-    expect(result).toContain("${HTAP_ORIG_PYTHONPATH-${PYTHONPATH:-}}");
+    expect(result).toContain("HTTAP_ORIG_PYTHONPATH");
+    expect(result).toContain("${HTTAP_ORIG_PYTHONPATH-${PYTHONPATH:-}}");
   });
 
   it("prepends the override dir to PYTHONPATH", () => {
@@ -273,7 +273,7 @@ describe("formatPythonPathExport", () => {
 describe("formatPythonPathRestore", () => {
   it("restores PYTHONPATH from saved value", () => {
     const result = formatPythonPathRestore();
-    expect(result).toContain("HTAP_ORIG_PYTHONPATH");
+    expect(result).toContain("HTTAP_ORIG_PYTHONPATH");
   });
 
   it("unsets PYTHONPATH when original was empty", () => {
@@ -281,19 +281,19 @@ describe("formatPythonPathRestore", () => {
     expect(result).toContain("unset PYTHONPATH");
   });
 
-  it("cleans up HTAP_ORIG_PYTHONPATH", () => {
+  it("cleans up HTTAP_ORIG_PYTHONPATH", () => {
     const result = formatPythonPathRestore();
-    expect(result).toContain("unset HTAP_ORIG_PYTHONPATH");
+    expect(result).toContain("unset HTTAP_ORIG_PYTHONPATH");
   });
 });
 
 describe("formatRubyOptExport", () => {
-  const overridePath = "/Users/test/.htap/overrides/ruby/htap_intercept.rb";
+  const overridePath = "/Users/test/.httap/overrides/ruby/httap_intercept.rb";
 
   it("saves original RUBYOPT via ${param-word} guard", () => {
     const result = formatRubyOptExport(overridePath);
-    expect(result).toContain("HTAP_ORIG_RUBYOPT");
-    expect(result).toContain("${HTAP_ORIG_RUBYOPT-${RUBYOPT:-}}");
+    expect(result).toContain("HTTAP_ORIG_RUBYOPT");
+    expect(result).toContain("${HTTAP_ORIG_RUBYOPT-${RUBYOPT:-}}");
   });
 
   it("appends -r with the override path", () => {
@@ -329,7 +329,7 @@ describe("formatRubyOptExport", () => {
 describe("formatRubyOptRestore", () => {
   it("restores RUBYOPT from saved value", () => {
     const result = formatRubyOptRestore();
-    expect(result).toContain("HTAP_ORIG_RUBYOPT");
+    expect(result).toContain("HTTAP_ORIG_RUBYOPT");
   });
 
   it("unsets RUBYOPT when original was empty", () => {
@@ -337,19 +337,19 @@ describe("formatRubyOptRestore", () => {
     expect(result).toContain("unset RUBYOPT");
   });
 
-  it("cleans up HTAP_ORIG_RUBYOPT", () => {
+  it("cleans up HTTAP_ORIG_RUBYOPT", () => {
     const result = formatRubyOptRestore();
-    expect(result).toContain("unset HTAP_ORIG_RUBYOPT");
+    expect(result).toContain("unset HTTAP_ORIG_RUBYOPT");
   });
 });
 
 describe("formatPhpIniScanDirExport", () => {
-  const overrideDir = "/Users/test/.htap/overrides/php";
+  const overrideDir = "/Users/test/.httap/overrides/php";
 
   it("saves original PHP_INI_SCAN_DIR via ${param-word} guard", () => {
     const result = formatPhpIniScanDirExport(overrideDir);
-    expect(result).toContain("HTAP_ORIG_PHP_INI_SCAN_DIR");
-    expect(result).toContain("${HTAP_ORIG_PHP_INI_SCAN_DIR-${PHP_INI_SCAN_DIR:-}}");
+    expect(result).toContain("HTTAP_ORIG_PHP_INI_SCAN_DIR");
+    expect(result).toContain("${HTTAP_ORIG_PHP_INI_SCAN_DIR-${PHP_INI_SCAN_DIR:-}}");
   });
 
   it("exports PHP_INI_SCAN_DIR with colon prefix", () => {
@@ -382,7 +382,7 @@ describe("formatPhpIniScanDirExport", () => {
 describe("formatPhpIniScanDirRestore", () => {
   it("restores PHP_INI_SCAN_DIR from saved value", () => {
     const result = formatPhpIniScanDirRestore();
-    expect(result).toContain("HTAP_ORIG_PHP_INI_SCAN_DIR");
+    expect(result).toContain("HTTAP_ORIG_PHP_INI_SCAN_DIR");
   });
 
   it("unsets PHP_INI_SCAN_DIR when original was empty", () => {
@@ -390,8 +390,8 @@ describe("formatPhpIniScanDirRestore", () => {
     expect(result).toContain("unset PHP_INI_SCAN_DIR");
   });
 
-  it("cleans up HTAP_ORIG_PHP_INI_SCAN_DIR", () => {
+  it("cleans up HTTAP_ORIG_PHP_INI_SCAN_DIR", () => {
     const result = formatPhpIniScanDirRestore();
-    expect(result).toContain("unset HTAP_ORIG_PHP_INI_SCAN_DIR");
+    expect(result).toContain("unset HTTAP_ORIG_PHP_INI_SCAN_DIR");
   });
 });
