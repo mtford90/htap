@@ -70,9 +70,9 @@
     "url": "https://github.com/mtford90/httap/issues"
   },
   "homepage": "https://github.com/mtford90/httap#readme",
-  "packageManager": "pnpm@10.13.1",
+  "packageManager": "pnpm@11.25.0",
   "engines": {
-    "node": ">=20"
+    "node": ">=24"
   },
   "dependencies": {
     "@ink-tools/ink-mouse": "^2.1.0",
@@ -107,10 +107,5 @@
     "typescript": "^5.9.3",
     "typescript-eslint": "^8.54.0",
     "vitest": "^4.0.18"
-  },
-  "pnpm": {
-    "onlyBuiltDependencies": [
-      "better-sqlite3"
-    ]
   }
 }
