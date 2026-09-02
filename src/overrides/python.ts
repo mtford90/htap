@@ -71,7 +71,8 @@ export function writePythonOverride(outputDir: string, caCertPath: string): stri
     return outputDir;
   } catch (error) {
     throw new Error(
-      `Failed to write Python override to ${outputDir}: ${error instanceof Error ? error.message : String(error)}`
+      `Failed to write Python override to ${outputDir}: ${error instanceof Error ? error.message : String(error)}`,
+      { cause: error }
     );
   }
 }

@@ -67,7 +67,7 @@ Key design decisions:
 
 ## Technology Stack
 
-- **Runtime**: Node.js (>=20)
+- **Runtime**: Node.js (>=24)
 - **Language**: TypeScript
 - **CLI**: commander
 - **TUI**: ink (React for terminals)

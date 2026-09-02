@@ -52,7 +52,7 @@ Then `httap intercept` just works - no eval needed at call time.
 ## Technology Stack
 
 - **Language**: TypeScript
-- **Runtime**: Node.js (>=20)
+- **Runtime**: Node.js (>=24)
 - **CLI framework**: commander
 - **TUI**: ink (React-like terminal UI)
 - **Proxy**: mockttp (HTTP Toolkit's own library)
