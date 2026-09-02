@@ -145,7 +145,6 @@ export function useRequests(options: UseRequestsOptions = {}): UseRequestsResult
 
         if (delta.entries.length === 0) {
           afterChangeSeq = delta.cursor;
-          hasMore = false;
           break;
         }
 

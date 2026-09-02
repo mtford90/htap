@@ -48,7 +48,9 @@ export function validateRegexFilter(pattern: string, flags = ""): RegexFilterSpe
     // Validate by constructing a RegExp instance.
     compiled = new RegExp(pattern, flags);
   } catch (err) {
-    throw new Error(`Invalid regex pattern "${pattern}": ${getErrorMessage(err)}`);
+    throw new Error(`Invalid regex pattern "${pattern}": ${getErrorMessage(err)}`, {
+      cause: err,
+    });
   }
 
   if (!safe(compiled)) {

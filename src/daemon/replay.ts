@@ -1,4 +1,4 @@
-import { ProxyAgent } from "undici";
+import { fetch, ProxyAgent } from "undici";
 import {
   HTTAP_REPLAY_TOKEN_HEADER,
   HTTAP_RUNTIME_SOURCE_HEADER,
@@ -137,7 +137,7 @@ export async function replayViaProxy(
       redirect: "manual",
       signal: abortController.signal,
       dispatcher,
-    } as RequestInit & { dispatcher: ProxyAgent });
+    });
 
     // Drain response body so the request lifecycle completes.
     await response.arrayBuffer();
@@ -147,9 +147,11 @@ export async function replayViaProxy(
     };
   } catch (error) {
     if (error instanceof Error && error.name === "AbortError") {
-      throw new Error(`Replay timed out after ${timeoutMs}ms`);
+      throw new Error(`Replay timed out after ${timeoutMs}ms`, { cause: error });
     }
-    throw new Error(`Replay fetch failed: ${getErrorMessageWithCause(error)}`);
+    throw new Error(`Replay fetch failed: ${getErrorMessageWithCause(error)}`, {
+      cause: error,
+    });
   } finally {
     clearTimeout(timeout);
     await dispatcher.close();

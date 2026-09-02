@@ -67,13 +67,14 @@ Key design decisions:
 
 ## Technology Stack
 
-- **Runtime**: Node.js (>=20)
-- **Language**: TypeScript
+- **Runtime**: Node.js (>=24)
+- **Language**: TypeScript 7 (`@typescript/native` provides `tsc`; `typescript` is aliased to `@typescript/typescript6` because typescript-eslint needs the TS 6 API)
 - **CLI**: commander
 - **TUI**: ink (React for terminals)
 - **Proxy**: mockttp (HTTP Toolkit's MITM library)
 - **Storage**: better-sqlite3
 - **Testing**: Vitest
+- **Package manager**: pnpm 11; native build allowances live in `pnpm-workspace.yaml` (`allowBuilds`), not package.json
 
 ## Commands
 
@@ -258,3 +259,10 @@ CI will automatically publish to npm on version tags (requires `NPM_TOKEN` secre
 
 - **npm**: https://www.npmjs.com/package/httap
 - **GitHub**: https://github.com/mtford90/httap
+
+## Maintaining this file
+
+Keep this file for knowledge useful to almost every future agent session in this project.
+Do not repeat what the codebase already shows; point to the authoritative file or command instead.
+Prefer rewriting or pruning existing entries over appending new ones.
+When updating this file, preserve this bar for all agents and keep entries concise.

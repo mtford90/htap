@@ -1,0 +1,4 @@
+allowBuilds:
+  better-sqlite3: true
+  esbuild: false
+  tls-impersonate: true
