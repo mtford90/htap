@@ -1,7 +1,9 @@
 # Request List V2 Rebuild Plan (TUI)
 
 **Date:** 2026-02-24  
-**Status:** Milestone 1 complete; Milestone 2 in progress  
+**Status:** Superseded by the OpenTUI migration — the zustand store, the delta sync engine with its
+detail cache, and the windowed list now live under `src/tui/` (see `docs/PLAN.md`). The `src/cli/tui/`
+paths below describe the Ink tree this plan was written against and are kept as a record of intent.  
 **Primary goal:** Fix request-list jitter, flicker, and sluggish interaction under high traffic.
 
 ---
