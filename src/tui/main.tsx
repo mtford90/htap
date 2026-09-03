@@ -91,9 +91,15 @@ export const startTui = async ({
         `TUI teardown failed: ${error instanceof Error ? error.stack : String(error)}`
       );
     } finally {
-      // OpenTUI can leave the stdin handle registered, which would keep the
-      // event loop alive after the renderer is gone.
-      process.exit(code);
+      try {
+        // Buffered lines are only written synchronously on close, and the exit
+        // below lands in the same tick.
+        logger?.close();
+      } finally {
+        // OpenTUI can leave the stdin handle registered, which would keep the
+        // event loop alive after the renderer is gone.
+        process.exit(code);
+      }
     }
   };
 
