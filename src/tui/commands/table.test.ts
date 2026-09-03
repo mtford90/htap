@@ -111,6 +111,17 @@ describe("dispatch", () => {
     expect(store.getState().selection.focusedSection).toBe(1);
   });
 
+  it("the page keys do nothing while the detail pane is focused", () => {
+    const { store, actions, deps } = setup({ ids: ["c", "b", "a"] });
+    actions.setDetail("a", detail());
+    actions.focusSection(0);
+
+    dispatchKey(deps, named("d", { ctrl: true }));
+
+    expect(store.getState().selection.focusedSection).toBe(0);
+    expect(store.getState().selection.selectedId).toBeNull();
+  });
+
   it("Ctrl+d moves half a page and Ctrl+f a full page", () => {
     const rows = Array.from({ length: 40 }, (_, i) => `r${i}`);
     const { store, deps } = setup({ ids: rows });

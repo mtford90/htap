@@ -338,9 +338,12 @@ export const createTuiActions = (store: TuiStore) => {
         }
       }
 
+      const hasSelectionChange = Object.keys(nextSelection).length > 0;
       store.setState((current) => ({
         requests: { ...current.requests, items, loading: false, error: null },
-        selection: { ...current.selection, ...nextSelection },
+        selection: hasSelectionChange
+          ? { ...current.selection, ...nextSelection }
+          : current.selection,
       }));
     },
 

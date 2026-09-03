@@ -1,5 +1,5 @@
 /**
- * Tests for RequestListItem utility functions.
+ * Tests for request-list row formatting.
  */
 
 import { describe, it, expect } from "vitest";
@@ -9,7 +9,7 @@ import {
   getStatusIndicator,
   getInterceptionIndicator,
   getReplayIndicator,
-} from "./RequestListItem.js";
+} from "./row-format.js";
 
 describe("getMethodColour", () => {
   it("returns green for GET", () => {

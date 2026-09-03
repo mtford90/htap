@@ -103,12 +103,19 @@ const hasRequests = (state: TuiState): boolean => state.requests.items.length > 
 const halfPage = (state: TuiState): number => Math.floor(state.viewport.contentHeight / 2);
 const fullPage = (state: TuiState): number => state.viewport.contentHeight;
 
-/** j/k and the page keys move the cursor in the list and the focus in the detail pane. */
+/** j/k move the cursor in the list and the focus in the detail pane. */
 const navigate = (context: CommandContext, listDelta: number, sectionDelta: number): void => {
   if (context.state.selection.activePanel === "list") {
     context.actions.moveSelectionBy(listDelta);
   } else {
     context.actions.moveSectionBy(sectionDelta);
+  }
+};
+
+/** The page keys only apply to the list; the detail sections are too few to page. */
+const pageList = (context: CommandContext, delta: number): void => {
+  if (context.state.selection.activePanel === "list") {
+    context.actions.moveSelectionBy(delta);
   }
 };
 
@@ -211,22 +218,22 @@ export const COMMANDS: readonly Command[] = [
   {
     id: "nav.halfPageUp",
     keys: ["ctrl+u"],
-    run: (context) => navigate(context, -halfPage(context.state), -1),
+    run: (context) => pageList(context, -halfPage(context.state)),
   },
   {
     id: "nav.halfPageDown",
     keys: ["ctrl+d"],
-    run: (context) => navigate(context, halfPage(context.state), 1),
+    run: (context) => pageList(context, halfPage(context.state)),
   },
   {
     id: "nav.pageDown",
     keys: ["ctrl+f"],
-    run: (context) => navigate(context, fullPage(context.state), 1),
+    run: (context) => pageList(context, fullPage(context.state)),
   },
   {
     id: "nav.pageUp",
     keys: ["ctrl+b"],
-    run: (context) => navigate(context, -fullPage(context.state), -1),
+    run: (context) => pageList(context, -fullPage(context.state)),
   },
   {
     id: "panel.next",
