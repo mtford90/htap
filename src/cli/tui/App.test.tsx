@@ -112,6 +112,13 @@ const createMockFullRequest = (overrides: Partial<CapturedRequest> = {}): Captur
 // Helper to wait for React state updates
 const tick = (ms = 300) => new Promise((resolve) => setTimeout(resolve, ms));
 
+// The detail pane only renders the full request's headers once the async
+// getFullRequest has resolved, and export actions need that request.
+const waitForFullRequestLoaded = (lastFrame: () => string | undefined) =>
+  vi.waitFor(() => {
+    expect(lastFrame()).toContain("content-type: application/json");
+  });
+
 describe("App keyboard interactions", () => {
   const mockRefresh = vi.fn();
   const mockGetFullRequest = vi.fn();
@@ -986,13 +993,14 @@ describe("App keyboard interactions", () => {
       });
 
       const { lastFrame, stdin } = render(<App __testEnableInput />);
-      await tick();
+      await waitForFullRequestLoaded(lastFrame);
 
       stdin.write("e");
-      await tick();
+      await vi.waitFor(() => {
+        expect(lastFrame()).toContain("Export Request");
+      });
 
       const frame = lastFrame();
-      expect(frame).toContain("Export Request");
       expect(frame).toContain("cURL");
       expect(frame).toContain("Fetch");
       expect(frame).toContain("Python");
@@ -1013,15 +1021,20 @@ describe("App keyboard interactions", () => {
       });
 
       const { lastFrame, stdin } = render(<App __testEnableInput />);
-      await tick();
+      await waitForFullRequestLoaded(lastFrame);
 
       stdin.write("e");
-      await tick();
+      await vi.waitFor(() => {
+        expect(lastFrame()).toContain("Export Request");
+      });
       stdin.write("1");
-      await tick(100);
+      await vi.waitFor(() => {
+        expect(mockExportFormatToClipboard).toHaveBeenCalledWith(fullRequest, "curl");
+      });
 
-      expect(mockExportFormatToClipboard).toHaveBeenCalledWith(fullRequest, "curl");
-      expect(lastFrame()).toContain("copied to clipboard");
+      await vi.waitFor(() => {
+        expect(lastFrame()).toContain("copied to clipboard");
+      });
     });
 
     it("e then Escape closes modal without exporting", async () => {
@@ -1037,18 +1050,20 @@ describe("App keyboard interactions", () => {
       });
 
       const { lastFrame, stdin } = render(<App __testEnableInput />);
-      await tick();
+      await waitForFullRequestLoaded(lastFrame);
 
       stdin.write("e");
-      await tick();
+      await vi.waitFor(() => {
+        expect(lastFrame()).toContain("Export Request");
+      });
 
       // Escape closes the modal
       stdin.write("\x1b");
-      await tick();
+      await vi.waitFor(() => {
+        expect(lastFrame()).not.toContain("Export Request");
+      });
 
       expect(mockExportFormatToClipboard).not.toHaveBeenCalled();
-      const frame = lastFrame();
-      expect(frame).not.toContain("Export Request");
     });
 
     it("e without selection shows No request selected", async () => {
@@ -1085,7 +1100,7 @@ describe("App keyboard interactions", () => {
       });
 
       const { lastFrame, stdin } = render(<App __testEnableInput />);
-      await tick();
+      await waitForFullRequestLoaded(lastFrame);
 
       stdin.write("e");
       await vi.waitFor(() => {
@@ -1115,7 +1130,7 @@ describe("App keyboard interactions", () => {
       });
 
       const { lastFrame, stdin } = render(<App __testEnableInput />);
-      await tick();
+      await waitForFullRequestLoaded(lastFrame);
 
       stdin.write("e");
       await vi.waitFor(() => {
