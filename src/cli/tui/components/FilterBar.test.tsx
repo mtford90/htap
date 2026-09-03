@@ -240,10 +240,12 @@ describe("FilterBar", () => {
     stdin.write("p");
     await tick();
     stdin.write("i");
-    // Wait for debounce (150ms) + render
-    await tick(250);
 
-    expect(onFilterChange).toHaveBeenCalledWith({ search: "api" });
+    // Wait for debounce (150ms) + render
+    await vi.waitFor(() => expect(onFilterChange).toHaveBeenCalledWith({ search: "api" }), {
+      timeout: 5000,
+      interval: 25,
+    });
   });
 
   it("Enter closes the bar without additional onFilterChange call", async () => {

@@ -1449,11 +1449,14 @@ describe("App keyboard interactions", () => {
 
       // Press y to copy
       stdin.write("y");
-      await tick(100);
 
-      expect(mockCopyToClipboard).toHaveBeenCalledWith('{"data":"test"}');
-      const frame = lastFrame();
-      expect(frame).toContain("Body copied to clipboard");
+      await vi.waitFor(
+        () => {
+          expect(mockCopyToClipboard).toHaveBeenCalledWith('{"data":"test"}');
+          expect(lastFrame()).toContain("Body copied to clipboard");
+        },
+        { timeout: 5000, interval: 25 },
+      );
     });
 
     it("y rejects binary body with message", async () => {
@@ -1677,14 +1680,17 @@ describe("App keyboard interactions", () => {
       }
 
       // Wait for FilterBar debounce
-      await tick(500);
-
-      const latestCall = mockUseRequests.mock.calls.at(-1)?.[0] as {
-        filter?: unknown;
-        bodySearch?: unknown;
-      };
-      expect(latestCall.bodySearch).toEqual({ query: "error", target: "request" });
-      expect(latestCall.filter).toEqual({});
+      await vi.waitFor(
+        () => {
+          const latestCall = mockUseRequests.mock.calls.at(-1)?.[0] as {
+            filter?: unknown;
+            bodySearch?: unknown;
+          };
+          expect(latestCall.bodySearch).toEqual({ query: "error", target: "request" });
+          expect(latestCall.filter).toEqual({});
+        },
+        { timeout: 5000, interval: 25 },
+      );
     });
   });
 
