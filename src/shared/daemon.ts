@@ -159,7 +159,7 @@ async function spawnDaemon(projectRoot: string, logLevel: LogLevel): Promise<num
 
   const configOverride = getConfigOverride();
 
-  const child = spawn("node", [daemonPath], {
+  const child = spawn(process.execPath, [daemonPath], {
     env: {
       ...cleanEnv,
       PROJECT_ROOT: projectRoot,

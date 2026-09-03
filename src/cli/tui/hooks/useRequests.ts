@@ -33,8 +33,6 @@ interface UseRequestsResult {
   refresh: () => Promise<void>;
   /** Fetch full request data including body/headers */
   getFullRequest: (id: string) => Promise<CapturedRequest | null>;
-  /** Fetch all requests with full data (for exports) */
-  getAllFullRequests: () => Promise<CapturedRequest[]>;
   /** Replay a captured request by ID. Returns the new replayed request ID on success. */
   replayRequest?: (id: string) => Promise<string | null>;
   /** Toggle the saved/bookmark state of a request */
@@ -364,19 +362,6 @@ export function useRequests(options: UseRequestsOptions = {}): UseRequestsResult
     }
   }, []);
 
-  // Fetch all requests with full data (for exports like HAR)
-  const getAllFullRequests = useCallback(async (): Promise<CapturedRequest[]> => {
-    const client = clientRef.current;
-    if (!client) {
-      return [];
-    }
-    try {
-      return await client.listRequests({ limit: DEFAULT_QUERY_LIMIT });
-    } catch {
-      return [];
-    }
-  }, []);
-
   // Replay request and force refresh
   const replayRequest = useCallback(
     async (id: string): Promise<string | null> => {
@@ -450,7 +435,6 @@ export function useRequests(options: UseRequestsOptions = {}): UseRequestsResult
     error,
     refresh,
     getFullRequest,
-    getAllFullRequests,
     replayRequest,
     toggleSaved,
     clearRequests,

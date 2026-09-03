@@ -112,10 +112,16 @@ const createMockFullRequest = (overrides: Partial<CapturedRequest> = {}): Captur
 // Helper to wait for React state updates
 const tick = (ms = 300) => new Promise((resolve) => setTimeout(resolve, ms));
 
+// The detail pane only renders the full request's headers once the async
+// getFullRequest has resolved, and export actions need that request.
+const waitForFullRequestLoaded = (lastFrame: () => string | undefined) =>
+  vi.waitFor(() => {
+    expect(lastFrame()).toContain("content-type: application/json");
+  });
+
 describe("App keyboard interactions", () => {
   const mockRefresh = vi.fn();
   const mockGetFullRequest = vi.fn();
-  const mockGetAllFullRequests = vi.fn();
   const mockReplayRequest = vi.fn();
   const mockToggleSaved = vi.fn();
   const mockClearRequests = vi.fn();
@@ -124,7 +130,6 @@ describe("App keyboard interactions", () => {
     vi.clearAllMocks();
     mockRefresh.mockReset();
     mockGetFullRequest.mockReset();
-    mockGetAllFullRequests.mockReset();
     mockReplayRequest.mockReset().mockResolvedValue("replayed-1");
     mockToggleSaved.mockReset().mockResolvedValue(true);
     mockClearRequests.mockReset().mockResolvedValue(true);
@@ -148,15 +153,12 @@ describe("App keyboard interactions", () => {
       const req = fullRequests.find((r) => r.id === id);
       return Promise.resolve(req ?? null);
     });
-    mockGetAllFullRequests.mockResolvedValue(fullRequests);
-
     mockUseRequests.mockReturnValue({
       requests: summaries,
       isLoading: false,
       error: null,
       refresh: mockRefresh,
       getFullRequest: mockGetFullRequest,
-      getAllFullRequests: mockGetAllFullRequests,
       replayRequest: mockReplayRequest,
       toggleSaved: mockToggleSaved,
       clearRequests: mockClearRequests,
@@ -175,7 +177,6 @@ describe("App keyboard interactions", () => {
         error: null,
         refresh: vi.fn(),
         getFullRequest: vi.fn().mockResolvedValue(mockFullRequest),
-        getAllFullRequests: vi.fn().mockResolvedValue([mockFullRequest]),
         toggleSaved: mockToggleSaved,
         clearRequests: mockClearRequests,
       });
@@ -196,7 +197,6 @@ describe("App keyboard interactions", () => {
         error: null,
         refresh: vi.fn(),
         getFullRequest: vi.fn().mockResolvedValue(mockFullRequest),
-        getAllFullRequests: vi.fn().mockResolvedValue([mockFullRequest]),
         toggleSaved: mockToggleSaved,
         clearRequests: mockClearRequests,
       });
@@ -220,7 +220,6 @@ describe("App keyboard interactions", () => {
         error: null,
         refresh: vi.fn(),
         getFullRequest: vi.fn().mockResolvedValue(mockFullRequest),
-        getAllFullRequests: vi.fn().mockResolvedValue([mockFullRequest]),
         toggleSaved: mockToggleSaved,
         clearRequests: mockClearRequests,
       });
@@ -243,7 +242,6 @@ describe("App keyboard interactions", () => {
         error: null,
         refresh: vi.fn(),
         getFullRequest: vi.fn().mockResolvedValue(null),
-        getAllFullRequests: vi.fn().mockResolvedValue([]),
         toggleSaved: mockToggleSaved,
         clearRequests: mockClearRequests,
       });
@@ -679,7 +677,6 @@ describe("App keyboard interactions", () => {
         error: null,
         refresh: vi.fn(),
         getFullRequest: vi.fn().mockResolvedValue(null),
-        getAllFullRequests: vi.fn().mockResolvedValue([]),
         toggleSaved: mockToggleSaved,
         clearRequests: mockClearRequests,
       });
@@ -769,7 +766,6 @@ describe("App keyboard interactions", () => {
         error: null,
         refresh: mockRefresh,
         getFullRequest: vi.fn().mockResolvedValue(fullRequest),
-        getAllFullRequests: vi.fn().mockResolvedValue([fullRequest]),
         toggleSaved: mockToggleSaved,
         clearRequests: mockClearRequests,
       });
@@ -823,7 +819,6 @@ describe("App keyboard interactions", () => {
         error: null,
         refresh: mockRefresh,
         getFullRequest: vi.fn().mockResolvedValue(fullRequest),
-        getAllFullRequests: vi.fn().mockResolvedValue([fullRequest]),
         toggleSaved: mockToggleSaved,
         clearRequests: mockClearRequests,
       });
@@ -857,7 +852,6 @@ describe("App keyboard interactions", () => {
         error: null,
         refresh: mockRefresh,
         getFullRequest: vi.fn().mockResolvedValue(fullRequest),
-        getAllFullRequests: vi.fn().mockResolvedValue([fullRequest]),
         toggleSaved: mockToggleSaved,
         clearRequests: mockClearRequests,
       });
@@ -890,7 +884,6 @@ describe("App keyboard interactions", () => {
         error: null,
         refresh: mockRefresh,
         getFullRequest: vi.fn().mockResolvedValue(fullRequest),
-        getAllFullRequests: vi.fn().mockResolvedValue([fullRequest]),
         toggleSaved: mockToggleSaved,
         clearRequests: mockClearRequests,
       });
@@ -923,7 +916,6 @@ describe("App keyboard interactions", () => {
         error: null,
         refresh: mockRefresh,
         getFullRequest: vi.fn().mockResolvedValue(fullRequest),
-        getAllFullRequests: vi.fn().mockResolvedValue([fullRequest]),
         toggleSaved: mockToggleSaved,
         clearRequests: mockClearRequests,
       });
@@ -996,19 +988,19 @@ describe("App keyboard interactions", () => {
         error: null,
         refresh: mockRefresh,
         getFullRequest: vi.fn().mockResolvedValue(fullRequest),
-        getAllFullRequests: mockGetAllFullRequests,
         toggleSaved: mockToggleSaved,
         clearRequests: mockClearRequests,
       });
 
       const { lastFrame, stdin } = render(<App __testEnableInput />);
-      await tick();
+      await waitForFullRequestLoaded(lastFrame);
 
       stdin.write("e");
-      await tick();
+      await vi.waitFor(() => {
+        expect(lastFrame()).toContain("Export Request");
+      });
 
       const frame = lastFrame();
-      expect(frame).toContain("Export Request");
       expect(frame).toContain("cURL");
       expect(frame).toContain("Fetch");
       expect(frame).toContain("Python");
@@ -1024,21 +1016,25 @@ describe("App keyboard interactions", () => {
         error: null,
         refresh: mockRefresh,
         getFullRequest: vi.fn().mockResolvedValue(fullRequest),
-        getAllFullRequests: mockGetAllFullRequests,
         toggleSaved: mockToggleSaved,
         clearRequests: mockClearRequests,
       });
 
       const { lastFrame, stdin } = render(<App __testEnableInput />);
-      await tick();
+      await waitForFullRequestLoaded(lastFrame);
 
       stdin.write("e");
-      await tick();
+      await vi.waitFor(() => {
+        expect(lastFrame()).toContain("Export Request");
+      });
       stdin.write("1");
-      await tick(100);
+      await vi.waitFor(() => {
+        expect(mockExportFormatToClipboard).toHaveBeenCalledWith(fullRequest, "curl");
+      });
 
-      expect(mockExportFormatToClipboard).toHaveBeenCalledWith(fullRequest, "curl");
-      expect(lastFrame()).toContain("copied to clipboard");
+      await vi.waitFor(() => {
+        expect(lastFrame()).toContain("copied to clipboard");
+      });
     });
 
     it("e then Escape closes modal without exporting", async () => {
@@ -1049,24 +1045,25 @@ describe("App keyboard interactions", () => {
         error: null,
         refresh: mockRefresh,
         getFullRequest: vi.fn().mockResolvedValue(fullRequest),
-        getAllFullRequests: mockGetAllFullRequests,
         toggleSaved: mockToggleSaved,
         clearRequests: mockClearRequests,
       });
 
       const { lastFrame, stdin } = render(<App __testEnableInput />);
-      await tick();
+      await waitForFullRequestLoaded(lastFrame);
 
       stdin.write("e");
-      await tick();
+      await vi.waitFor(() => {
+        expect(lastFrame()).toContain("Export Request");
+      });
 
       // Escape closes the modal
       stdin.write("\x1b");
-      await tick();
+      await vi.waitFor(() => {
+        expect(lastFrame()).not.toContain("Export Request");
+      });
 
       expect(mockExportFormatToClipboard).not.toHaveBeenCalled();
-      const frame = lastFrame();
-      expect(frame).not.toContain("Export Request");
     });
 
     it("e without selection shows No request selected", async () => {
@@ -1076,7 +1073,6 @@ describe("App keyboard interactions", () => {
         error: null,
         refresh: mockRefresh,
         getFullRequest: vi.fn().mockResolvedValue(null),
-        getAllFullRequests: vi.fn().mockResolvedValue([]),
         toggleSaved: mockToggleSaved,
         clearRequests: mockClearRequests,
       });
@@ -1099,21 +1095,23 @@ describe("App keyboard interactions", () => {
         error: null,
         refresh: mockRefresh,
         getFullRequest: vi.fn().mockResolvedValue(fullRequest),
-        getAllFullRequests: mockGetAllFullRequests,
         toggleSaved: mockToggleSaved,
         clearRequests: mockClearRequests,
       });
 
       const { lastFrame, stdin } = render(<App __testEnableInput />);
-      await tick();
+      await waitForFullRequestLoaded(lastFrame);
 
       stdin.write("e");
-      await tick();
+      await vi.waitFor(() => {
+        expect(lastFrame()).toContain("Export Request");
+      });
       stdin.write("5");
-      await tick();
+      await vi.waitFor(() => {
+        expect(lastFrame()).toContain("Export as HAR");
+      });
 
       const frame = lastFrame();
-      expect(frame).toContain("Export as HAR");
       expect(frame).toContain(".httap/exports/");
       expect(frame).toContain("~/Downloads/");
       expect(frame).toContain("Custom path...");
@@ -1127,25 +1125,30 @@ describe("App keyboard interactions", () => {
         error: null,
         refresh: mockRefresh,
         getFullRequest: vi.fn().mockResolvedValue(fullRequest),
-        getAllFullRequests: mockGetAllFullRequests,
         toggleSaved: mockToggleSaved,
         clearRequests: mockClearRequests,
       });
 
       const { lastFrame, stdin } = render(<App __testEnableInput />);
-      await tick();
+      await waitForFullRequestLoaded(lastFrame);
 
       stdin.write("e");
-      await tick();
+      await vi.waitFor(() => {
+        expect(lastFrame()).toContain("Export Request");
+      });
       stdin.write("5");
-      await tick();
+      await vi.waitFor(() => {
+        expect(lastFrame()).toContain("Export as HAR");
+      });
       stdin.write("1");
-      await tick(100);
+      await vi.waitFor(() => {
+        expect(mockResolveTargetDir).toHaveBeenCalledWith("exports");
+      });
 
-      expect(mockResolveTargetDir).toHaveBeenCalledWith("exports");
       expect(mockExportHarToDir).toHaveBeenCalledWith([fullRequest], "/mock/exports");
-      const frame = lastFrame();
-      expect(frame).toContain("Exported");
+      await vi.waitFor(() => {
+        expect(lastFrame()).toContain("Exported");
+      });
     });
   });
 
@@ -1213,7 +1216,6 @@ describe("App keyboard interactions", () => {
         error: null,
         refresh: vi.fn(),
         getFullRequest: vi.fn().mockResolvedValue(null),
-        getAllFullRequests: vi.fn().mockResolvedValue([]),
         toggleSaved: mockToggleSaved,
         clearRequests: mockClearRequests,
       });
@@ -1351,7 +1353,6 @@ describe("App keyboard interactions", () => {
         error: null,
         refresh: vi.fn(),
         getFullRequest: vi.fn().mockResolvedValue(null),
-        getAllFullRequests: vi.fn().mockResolvedValue([]),
         toggleSaved: mockToggleSaved,
         clearRequests: mockClearRequests,
       });
@@ -1443,7 +1444,6 @@ describe("App keyboard interactions", () => {
         error: null,
         refresh: mockRefresh,
         getFullRequest: vi.fn().mockResolvedValue(fullRequest),
-        getAllFullRequests: mockGetAllFullRequests,
         toggleSaved: mockToggleSaved,
         clearRequests: mockClearRequests,
       });
@@ -1479,7 +1479,6 @@ describe("App keyboard interactions", () => {
         error: null,
         refresh: mockRefresh,
         getFullRequest: vi.fn().mockResolvedValue(fullRequest),
-        getAllFullRequests: mockGetAllFullRequests,
         toggleSaved: mockToggleSaved,
         clearRequests: mockClearRequests,
       });
@@ -1511,7 +1510,6 @@ describe("App keyboard interactions", () => {
         error: null,
         refresh: mockRefresh,
         getFullRequest: vi.fn().mockResolvedValue(fullRequest),
-        getAllFullRequests: mockGetAllFullRequests,
         toggleSaved: mockToggleSaved,
         clearRequests: mockClearRequests,
       });
@@ -1579,7 +1577,6 @@ describe("App keyboard interactions", () => {
         error: null,
         refresh: mockRefresh,
         getFullRequest: vi.fn().mockResolvedValue(fullRequest),
-        getAllFullRequests: mockGetAllFullRequests,
         toggleSaved: mockToggleSaved,
         clearRequests: mockClearRequests,
       });
@@ -1611,7 +1608,6 @@ describe("App keyboard interactions", () => {
         error: null,
         refresh: mockRefresh,
         getFullRequest: vi.fn().mockResolvedValue(fullRequest),
-        getAllFullRequests: mockGetAllFullRequests,
         toggleSaved: mockToggleSaved,
         clearRequests: mockClearRequests,
       });
@@ -1642,7 +1638,6 @@ describe("App keyboard interactions", () => {
         error: null,
         refresh: mockRefresh,
         getFullRequest: vi.fn().mockResolvedValue(fullRequest),
-        getAllFullRequests: mockGetAllFullRequests,
         toggleSaved: mockToggleSaved,
         clearRequests: mockClearRequests,
       });
@@ -1671,7 +1666,6 @@ describe("App keyboard interactions", () => {
         error: null,
         refresh: mockRefresh,
         getFullRequest: vi.fn().mockResolvedValue(createMockFullRequest()),
-        getAllFullRequests: mockGetAllFullRequests,
         toggleSaved: mockToggleSaved,
         clearRequests: mockClearRequests,
       });
@@ -1721,7 +1715,6 @@ describe("App keyboard interactions", () => {
         error: null,
         refresh: mockRefresh,
         getFullRequest: mockGetFull,
-        getAllFullRequests: mockGetAllFullRequests,
         replayRequest: mockReplayRequest,
         toggleSaved: mockToggleSaved,
         clearRequests: mockClearRequests,
@@ -1749,7 +1742,6 @@ describe("App keyboard interactions", () => {
         error: null,
         refresh: mockRefresh,
         getFullRequest: mockGetFull,
-        getAllFullRequests: mockGetAllFullRequests,
         replayRequest: mockReplayRequest,
         toggleSaved: mockToggleSaved,
         clearRequests: mockClearRequests,
@@ -1843,7 +1835,6 @@ describe("App keyboard interactions", () => {
         error: null,
         refresh: mockRefresh,
         getFullRequest: mockGetFull,
-        getAllFullRequests: mockGetAllFullRequests,
         replayRequest: mockReplayRequest,
         toggleSaved: mockToggleSaved,
         clearRequests: mockClearRequests,
@@ -1868,7 +1859,6 @@ describe("App keyboard interactions", () => {
         error: null,
         refresh: mockRefresh,
         getFullRequest: mockGetFull,
-        getAllFullRequests: mockGetAllFullRequests,
         replayRequest: mockReplayRequest,
         toggleSaved: mockToggleSaved,
         clearRequests: mockClearRequests,
@@ -1900,7 +1890,6 @@ describe("App keyboard interactions", () => {
         error: null,
         refresh: mockRefresh,
         getFullRequest: mockGetFull,
-        getAllFullRequests: mockGetAllFullRequests,
         replayRequest: mockReplayRequest,
         toggleSaved: mockToggleSaved,
         clearRequests: mockClearRequests,
@@ -1928,7 +1917,6 @@ describe("App keyboard interactions", () => {
           error: null,
           refresh: mockRefresh,
           getFullRequest: mockGetFull,
-          getAllFullRequests: mockGetAllFullRequests,
           replayRequest: mockReplayRequest,
           toggleSaved: mockToggleSaved,
           clearRequests: mockClearRequests,
@@ -2040,7 +2028,6 @@ describe("App keyboard interactions", () => {
         error: null,
         refresh: mockRefresh,
         getFullRequest: mockGetFull,
-        getAllFullRequests: mockGetAllFullRequests,
         replayRequest: mockReplayRequest,
         toggleSaved: mockToggleSaved,
         clearRequests: mockClearRequests,
@@ -2073,7 +2060,6 @@ describe("App keyboard interactions", () => {
         error: null,
         refresh: mockRefresh,
         getFullRequest: mockGetFull,
-        getAllFullRequests: mockGetAllFullRequests,
         replayRequest: mockReplayRequest,
         toggleSaved: mockToggleSaved,
         clearRequests: mockClearRequests,

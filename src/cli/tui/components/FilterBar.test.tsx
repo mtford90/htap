@@ -591,7 +591,7 @@ describe("FilterBar", () => {
 
   it("saved filter applies live (debounced)", async () => {
     const onFilterChange = vi.fn();
-    const { stdin } = render(
+    const { lastFrame, stdin } = render(
       <FilterBar {...defaultProps} onFilterChange={onFilterChange} />,
     );
 
@@ -605,9 +605,13 @@ describe("FilterBar", () => {
 
     // Press right arrow (toggles to YES)
     stdin.write("\x1b[C");
-    // Wait for debounce
-    await tick(250);
+    await vi.waitFor(() => {
+      expect(lastFrame()).toContain("YES");
+    });
 
-    expect(onFilterChange).toHaveBeenCalledWith({ saved: true });
+    // Wait for debounce
+    await vi.waitFor(() => {
+      expect(onFilterChange).toHaveBeenCalledWith({ saved: true });
+    });
   });
 });

@@ -178,24 +178,32 @@ httap request a1b2c3d              # full detail view
 httap request a1b2c3d --json       # JSON output
 ```
 
-### `httap request <id> body`
+### `httap request body <id>`
 
 Dump the response body to stdout (raw, pipeable). Use `--request` for the request body instead.
 
 ```bash
-httap request a1b2c3d body                # response body
-httap request a1b2c3d body --request      # request body
-httap request a1b2c3d body | jq .         # pipe to jq
+httap request body a1b2c3d                # response body
+httap request body a1b2c3d --request      # request body
+httap request body a1b2c3d | jq .         # pipe to jq
 ```
 
-### `httap request <id> export <format>`
+### `httap request export <format> <id>`
 
-Export a request as `curl` or `har`.
+Export a request as `curl`, `har`, `fetch`, `requests` (Python), `python`, or `httpie`.
 
 ```bash
-httap request a1b2c3d export curl
-httap request a1b2c3d export har
+httap request export curl a1b2c3d
+httap request export har a1b2c3d
 ```
+
+### `httap request save <id>` / `httap request unsave <id>`
+
+Bookmark or un-bookmark a request so it persists across `httap requests clear`.
+
+### `httap request replay <id>`
+
+Replay the captured request through the proxy, optionally overriding method, URL, headers, or body.
 
 ## `httap sessions`
 
