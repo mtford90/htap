@@ -48,6 +48,8 @@ export interface Command {
   id: string;
   keys: readonly string[];
   hint?: CommandHint;
+  /** Global commands run in every mode, even with a modal or the filter bar open. */
+  global?: boolean;
   run: (context: CommandContext) => void;
 }
 
@@ -370,6 +372,12 @@ export const COMMANDS: readonly Command[] = [
     run: (context) => context.exit(),
   },
   {
+    id: "app.interrupt",
+    keys: ["ctrl+c"],
+    global: true,
+    run: (context) => context.exit(),
+  },
+  {
     id: "requests.refresh",
     keys: ["r"],
     run: (context) => {
@@ -450,6 +458,12 @@ const runConfirm = (deps: CommandDeps, state: TuiState, key: KeyLike): void => {
  */
 export const dispatchKey = (deps: CommandDeps, key: KeyLike): boolean => {
   const state = deps.store.getState();
+
+  const globalCommand = COMMANDS.find((entry) => entry.global && matchesAnyKey(key, entry.keys));
+  if (globalCommand) {
+    globalCommand.run({ ...deps, state });
+    return true;
+  }
 
   if (state.ui.modal !== null || state.ui.filterOpen) {
     return false;

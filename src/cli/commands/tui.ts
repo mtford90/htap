@@ -57,6 +57,15 @@ const runOpenTui = async (options: TuiLaunchOptions): Promise<void> => {
   const result = spawnSync(process.execPath, [...FFI_FLAGS, entry, JSON.stringify(options)], {
     stdio: "inherit",
   });
+
+  if (result.error) {
+    console.error(`httap tui could not start: ${result.error.message}`);
+    process.exit(1);
+  }
+  if (result.signal) {
+    console.error(`httap tui stopped on ${result.signal}.`);
+    process.exit(1);
+  }
   process.exit(result.status ?? 1);
 };
 

@@ -172,6 +172,26 @@ describe("App keyboard", () => {
     await waitUntil(setup, () => expect(onExit).toHaveBeenCalled());
   });
 
+  it("exits on ctrl+c", async () => {
+    const onExit = vi.fn();
+    const { setup } = await renderApp({ onExit });
+
+    setup.mockInput.pressKey("c", { ctrl: true });
+
+    await waitUntil(setup, () => expect(onExit).toHaveBeenCalled());
+  });
+
+  it("exits on ctrl+c while a modal is open", async () => {
+    const onExit = vi.fn();
+    const { setup } = await renderApp({ onExit });
+    setup.mockInput.pressKey("?");
+    await waitForText(setup, "Toggle follow mode");
+
+    setup.mockInput.pressKey("c", { ctrl: true });
+
+    await waitUntil(setup, () => expect(onExit).toHaveBeenCalled());
+  });
+
   it("opens and closes the help modal", async () => {
     const { setup } = await renderApp();
 
@@ -332,6 +352,43 @@ describe("App body actions", () => {
     result.setup.mockInput.pressKey("e");
 
     await waitForText(result.setup, "Export Request");
+  });
+});
+
+describe("App stale detail", () => {
+  it("shows the response section once the delta reports it", async () => {
+    const pending = fullRequest({ id: "a", responseStatus: undefined, responseHeaders: undefined });
+    const completed = fullRequest({
+      id: "a",
+      responseStatus: 200,
+      responseHeaders: { "content-type": "application/json" },
+    });
+    const responses = [pending, completed];
+    const getRequest = vi.fn(async () => responses.shift() ?? completed);
+    const deltas = [
+      { entries: [{ summary: summary("a", { responseStatus: undefined }), orderSeq: 1, changeSeq: 1 }], cursor: 1, hasMore: false },
+      { entries: [{ summary: summary("a"), orderSeq: 2, changeSeq: 2 }], cursor: 2, hasMore: false },
+      { entries: [], cursor: 2, hasMore: false },
+    ];
+    const listRequestsSummaryDelta = vi.fn(async () => deltas.shift() ?? { entries: [], cursor: 2, hasMore: false });
+
+    const harness = createHarness({ getRequest, listRequestsSummaryDelta });
+    const setup = await renderTui(
+      <App
+        store={harness.store}
+        actions={harness.actions}
+        engine={harness.engine}
+        onExit={vi.fn()}
+      />,
+      { width: WIDTH, height: HEIGHT }
+    );
+
+    await harness.engine.syncRequests();
+    await waitForText(setup, "(pending response)");
+
+    await harness.engine.syncRequests();
+
+    await waitForText(setup, "200 OK");
   });
 });
 

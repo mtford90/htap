@@ -160,6 +160,32 @@ describe("dispatch", () => {
     expect(deps.exit).toHaveBeenCalled();
   });
 
+  it("ctrl+c exits", () => {
+    const { deps } = setup({ ids: ["a"] });
+
+    expect(dispatchKey(deps, named("c", { ctrl: true }))).toBe(true);
+
+    expect(deps.exit).toHaveBeenCalled();
+  });
+
+  it("ctrl+c exits even with a modal open", () => {
+    const { actions, deps } = setup({ ids: ["a"] });
+    actions.openModal({ kind: "help" });
+
+    expect(dispatchKey(deps, named("c", { ctrl: true }))).toBe(true);
+
+    expect(deps.exit).toHaveBeenCalled();
+  });
+
+  it("ctrl+c exits even with the filter bar open", () => {
+    const { actions, deps } = setup({ ids: ["a"] });
+    actions.setFilterOpen(true);
+
+    dispatchKey(deps, named("c", { ctrl: true }));
+
+    expect(deps.exit).toHaveBeenCalled();
+  });
+
   it("/ opens the filter bar", () => {
     const { store, deps } = setup();
 

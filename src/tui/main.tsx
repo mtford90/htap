@@ -64,15 +64,19 @@ export const startTui = async ({
   });
 
   const renderer = await createCliRenderer({
-    exitOnCtrlC: true,
+    // Ctrl+C is a command in the table instead: OpenTUI's own handler only
+    // destroys the renderer, which would leave the sync engine polling and the
+    // parent blocked in spawnSync.
+    exitOnCtrlC: false,
     // The TUI runs in a child process, so it must fall over with its terminal
     // rather than outliving the shell that started it.
     exitSignals: ["SIGINT", "SIGTERM", "SIGHUP"],
+    onDestroy: () => shutdown(),
   });
   const root = createRoot(renderer);
 
   let shuttingDown = false;
-  const shutdown = (): void => {
+  const shutdown = (code = 0): void => {
     if (shuttingDown) {
       return;
     }
@@ -83,12 +87,21 @@ export const startTui = async ({
     logger?.info("TUI exited");
     // OpenTUI can leave the stdin handle registered, which would keep the
     // event loop alive after the renderer is gone.
-    process.exit(0);
+    process.exit(code);
   };
 
   for (const signal of ["SIGHUP", "SIGTERM", "SIGINT"] as const) {
     process.on(signal, shutdown);
   }
+
+  // OpenTUI installs its own handlers that only log, which would otherwise
+  // leave a half-drawn alternate screen and a live process after a crash.
+  const crash = (error: unknown): void => {
+    logger?.error(`TUI crashed: ${error instanceof Error ? error.stack : String(error)}`);
+    shutdown(1);
+  };
+  process.on("uncaughtException", crash);
+  process.on("unhandledRejection", crash);
 
   root.render(<App store={store} actions={actions} engine={engine} onExit={shutdown} />);
 

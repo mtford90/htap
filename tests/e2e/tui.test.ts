@@ -18,6 +18,7 @@ import * as fs from "node:fs";
 import * as path from "node:path";
 import * as os from "node:os";
 import * as http from "node:http";
+import { spawn } from "node:child_process";
 import { generateCACertificate } from "mockttp";
 import { RequestRepository } from "../../src/daemon/storage.js";
 import { createProxy } from "../../src/daemon/proxy.js";
@@ -235,6 +236,34 @@ describe("httap tui e2e", () => {
 
       await findByText(/\[1\] Requests/);
       await findByText(/\/legac/i);
+    });
+
+    it("exits promptly on SIGINT", { timeout: 20_000 }, async () => {
+      // Ctrl+C in a terminal signals the whole foreground group, which reaches
+      // the TUI process itself; the parent CLI is blocked in spawnSync and
+      // cannot forward a signal, so this drives the TUI process directly.
+      const tuiEntry = path.resolve(process.cwd(), "dist/tui/index.js");
+      const child = spawn(
+        process.execPath,
+        [
+          "--experimental-ffi",
+          "--disable-warning=ExperimentalWarning",
+          tuiEntry,
+          JSON.stringify({ projectRoot: tempDir, ci: false, verbose: 0 }),
+        ],
+        { stdio: ["ignore", "pipe", "pipe"], env: testEnv }
+      );
+
+      const exited = new Promise<number | null>((resolve) => {
+        child.on("exit", (code) => resolve(code));
+      });
+      await new Promise<void>((resolve) => child.stdout.once("data", () => resolve()));
+
+      const startedAt = Date.now();
+      child.kill("SIGINT");
+
+      await expect(exited).resolves.toBe(0);
+      expect(Date.now() - startedAt).toBeLessThan(5000);
     });
 
     it("exits with code 0", async () => {
