@@ -7,6 +7,7 @@ export const tuiCommand = new Command("tui")
   .description("Browse captured HTTP traffic")
   .option("--ci", "CI mode: render once and exit after a short delay (for testing)")
   .action(async (options: { ci?: boolean }, command: Command) => {
+    process.env["NODE_ENV"] = process.env["NODE_ENV"] ?? "production";
     const { render } = await import("ink");
     const { default: React } = await import("react");
     const { App } = await import("../tui/App.js");
