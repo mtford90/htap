@@ -241,7 +241,7 @@ Rules derived from the [2026-02-05 code review](docs/reviews/2026-02-05/code-rev
 
 ## Pull requests
 
-PR body: a human summary of five lines or fewer at the top (what, why, how verified, risk); generated or pipeline material goes below it in one collapsed `<details>` block labelled for agents.
+PR body: a terse, plain human summary at the top (what, why, how verified, risk) — as long as it needs and no longer; generated or pipeline material goes below it in one collapsed `<details>` block labelled for agents.
 
 ## Version Control — GitButler Virtual Branches
 
