@@ -19,8 +19,8 @@ const listenedEvents = [
   "unhandledRejection",
 ] as const;
 
-const preexisting = new Map(
-  listenedEvents.map((event) => [event, new Set(process.listeners(event))])
+const preexisting = new Map<(typeof listenedEvents)[number], Set<unknown>>(
+  listenedEvents.map((event) => [event, new Set<unknown>(process.listeners(event))])
 );
 
 afterEach(() => {
@@ -59,7 +59,12 @@ describe("startTui", () => {
     const { startTui } = await import("./main.js");
 
     await startTui({});
-    process.emit("unhandledRejection", new Error("export failed"), Promise.resolve());
+    const installed = process
+      .listeners("unhandledRejection")
+      .filter((listener) => !preexisting.get("unhandledRejection")?.has(listener));
+
+    expect(installed).toHaveLength(1);
+    installed[0]?.(new Error("export failed"), Promise.resolve());
 
     expect(exit).not.toHaveBeenCalled();
   });

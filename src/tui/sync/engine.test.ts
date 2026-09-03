@@ -262,6 +262,23 @@ describe("detail loading", () => {
     await vi.waitFor(() => expect(store.getState().detail.request?.responseStatus).toBe(200));
   });
 
+  it("refetches the open request on a poll while a body search is active", async () => {
+    const responses = [fullRequest("a"), { ...fullRequest("a"), responseStatus: 200 }];
+    const getRequest = vi.fn(async () => responses.shift() ?? null);
+    const searchBodies = vi.fn(async () => [summary("a", 1)]);
+    const { store, engine } = setup({ getRequest, searchBodies });
+
+    engine.setFilter({}, { query: "token", target: "request" });
+    await engine.syncRequests();
+    engine.selectDetail("a");
+    await vi.waitFor(() => expect(store.getState().detail.request).not.toBeNull());
+    expect(store.getState().detail.request?.responseStatus).toBeUndefined();
+
+    await engine.syncRequests();
+
+    await vi.waitFor(() => expect(store.getState().detail.request?.responseStatus).toBe(200));
+  });
+
   it("keeps the last known detail when a refetch after a delta fails", async () => {
     const getRequest = vi
       .fn<SyncClient["getRequest"]>()

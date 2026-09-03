@@ -219,7 +219,7 @@ export class SyncEngine {
           filter: this.filter,
         });
         if (generation === this.generation) {
-          this.actions.setRequests(results);
+          this.commitRequests(results);
         }
         return;
       }
@@ -269,8 +269,7 @@ export class SyncEngine {
     this.orderSeqById = orderSeqById;
     this.cursor = afterChangeSeq;
     this.snapshotRequested = false;
-    this.actions.setRequests(ordered);
-    this.invalidateAllDetails();
+    this.commitRequests(ordered);
   }
 
   private async applyDeltas(generation: number): Promise<void> {
@@ -312,8 +311,7 @@ export class SyncEngine {
     this.cursor = cursor;
 
     if (changed) {
-      this.actions.setRequests(buildOrderedList(summaryById, orderSeqById));
-      this.invalidateChangedDetails(changedIds);
+      this.commitRequests(buildOrderedList(summaryById, orderSeqById), changedIds);
     } else {
       this.actions.setError(null);
     }
@@ -417,10 +415,21 @@ export class SyncEngine {
   }
 
   /**
-   * A delta means the daemon has newer data for those rows, so their cached
-   * detail is stale; the one on screen is refetched straight away.
+   * The single path by which the list reaches the store, so detail freshness
+   * cannot be forgotten on one of them. `changedIds` names the rows the daemon
+   * reports as newer; without it the list came from a source with no cursor
+   * continuity and nothing cached can be trusted.
    */
-  private invalidateChangedDetails(changedIds: ReadonlySet<string>): void {
+  private commitRequests(items: CapturedRequestSummary[], changedIds?: ReadonlySet<string>): void {
+    this.actions.setRequests(items);
+
+    if (changedIds === undefined) {
+      this.detailCache.clear();
+      this.detailInFlight.clear();
+      this.refreshOpenDetail();
+      return;
+    }
+
     for (const id of changedIds) {
       this.detailCache.delete(id);
       // An open fetch predates the change, so it must not be reused for it.
@@ -429,16 +438,6 @@ export class SyncEngine {
     if (this.detailRequestId !== null && changedIds.has(this.detailRequestId)) {
       this.refreshOpenDetail();
     }
-  }
-
-  /**
-   * A snapshot has no cursor continuity, so nothing cached can be trusted and
-   * no row reports itself as changed.
-   */
-  private invalidateAllDetails(): void {
-    this.detailCache.clear();
-    this.detailInFlight.clear();
-    this.refreshOpenDetail();
   }
 
   private refreshOpenDetail(): void {
