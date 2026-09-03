@@ -41,15 +41,29 @@ const stubExit = () =>
   }) as never);
 
 describe("startTui", () => {
-  it("exits when the renderer is destroyed before it is returned", async () => {
+  it("reports a setup failure that destroys the renderer instead of exiting cleanly", async () => {
     const exit = stubExit();
     createCliRenderer.mockImplementation(async (options: { onDestroy: () => void }) => {
       options.onDestroy();
-      return fakeRenderer();
+      throw new Error("terminal setup failed");
     });
     const { startTui } = await import("./main.js");
 
-    await expect(startTui({})).rejects.toThrow(`${EXIT_SENTINEL}:0`);
+    await expect(startTui({})).rejects.toThrow("terminal setup failed");
+    expect(exit).not.toHaveBeenCalled();
+  });
+
+  it("exits when the renderer is destroyed after startup", async () => {
+    const exit = stubExit();
+    let destroyed: (() => void) | undefined;
+    createCliRenderer.mockImplementation(async (options: { onDestroy: () => void }) => {
+      destroyed = options.onDestroy;
+      return fakeRenderer();
+    });
+    const { startTui } = await import("./main.js");
+    await startTui({});
+
+    expect(() => destroyed?.()).toThrow(`${EXIT_SENTINEL}:0`);
     expect(exit).toHaveBeenCalledWith(0);
   });
 

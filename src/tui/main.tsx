@@ -65,6 +65,7 @@ export const startTui = async ({
 
   let renderer: CliRenderer | undefined = undefined;
   let root: ReturnType<typeof createRoot> | undefined = undefined;
+  let startupComplete = false;
 
   let shuttingDown = false;
   const shutdown = (code = 0): void => {
@@ -122,11 +123,18 @@ export const startTui = async ({
     // The TUI runs in a child process, so it must fall over with its terminal
     // rather than outliving the shell that started it.
     exitSignals: ["SIGINT", "SIGTERM", "SIGHUP"],
-    onDestroy: () => shutdown(),
+    // A failed setup destroys the renderer before this call returns, and
+    // exiting here would report that failure as a clean quit.
+    onDestroy: () => {
+      if (startupComplete) {
+        shutdown();
+      }
+    },
   });
   root = createRoot(renderer);
 
   root.render(<App store={store} actions={actions} engine={engine} onExit={shutdown} />);
+  startupComplete = true;
 
   if (paths) {
     engine.start();
