@@ -906,8 +906,8 @@ export class RequestRepository {
         replayed_from_id,
         replay_initiator,
         saved,
-        COALESCE(order_seq, 0) as order_seq,
-        COALESCE(change_seq, 0) as change_seq
+        order_seq,
+        change_seq
       FROM requests
       ${deltaWhere}
       ORDER BY change_seq ASC, order_seq ASC

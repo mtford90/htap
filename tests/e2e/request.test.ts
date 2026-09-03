@@ -137,6 +137,13 @@ describe("httap request <subcommand> <id> e2e", () => {
     expect(stderr).not.toContain("missing required argument");
   });
 
+  it("points at the new argument order for the old `request <id> body` form", async () => {
+    const { stderr, code } = await runCli(tempDir, ["request", requestId, "body"]);
+
+    expect(code).toBe(1);
+    expect(stderr).toContain("httap request body <id>");
+  });
+
   it("accepts --set-header more than once", async () => {
     const { stderr } = await runCli(tempDir, [
       "request",

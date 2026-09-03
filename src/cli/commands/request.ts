@@ -26,6 +26,23 @@ const PREFIX_MATCH_SEARCH_LIMIT = 1000;
  */
 const collectRepeated = (value: string, previous: string[]): string[] => [...previous, value];
 
+/** Subcommands that used to be written after `<id>` and now come before it. */
+const REORDERED_SUBCOMMANDS = ["body", "export", "save", "unsave", "replay"];
+
+/**
+ * `httap request <id> body` parses as one excess positional. Point the user at
+ * the new order rather than letting commander's generic message surface.
+ */
+const rejectExcessArguments = (command: Command, excess: string[]): never => {
+  const [first] = excess;
+  if (first !== undefined && REORDERED_SUBCOMMANDS.includes(first)) {
+    command.error(
+      `error: 'httap request <id> ${first}' is no longer supported — use 'httap request ${first} <id>'`
+    );
+  }
+  return command.error(`error: too many arguments for 'request'`);
+};
+
 /**
  * Resolve a potentially abbreviated ID to a full request.
  * Tries exact match first, then prefix match.
@@ -287,6 +304,7 @@ const unsaveSubcommand = new Command("unsave")
 export const requestCommand = new Command("request")
   .description("View a single request in detail")
   .argument("<id>", "request ID (full or abbreviated prefix)")
+  .allowExcessArguments(true)
   .option("--json", "JSON output")
   .addCommand(bodySubcommand)
   .addCommand(exportSubcommand)
@@ -294,6 +312,8 @@ export const requestCommand = new Command("request")
   .addCommand(unsaveSubcommand)
   .addCommand(replaySubcommand)
   .action(async (id: string, opts: { json?: boolean }, command: Command) => {
+    if (command.args.length > 1) rejectExcessArguments(command, command.args.slice(1));
+
     const { client } = await connectToDaemon(command);
     try {
       const request = await resolveRequest(client, id);
