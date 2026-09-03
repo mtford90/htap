@@ -1,5 +1,16 @@
-import { describe, expect, it } from "vitest";
-import { supportsFfiFlag } from "./tui.js";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import { supportsFfiFlag, tuiCommand } from "./tui.js";
+
+const runTui = vi.fn<(options: unknown) => Promise<void>>();
+const startTui = vi.fn<(options: unknown) => Promise<void>>();
+
+vi.mock("../../tui/main.js", () => ({ runTui, startTui }));
+
+afterEach(() => {
+  runTui.mockReset();
+  startTui.mockReset();
+  vi.unstubAllEnvs();
+});
 
 describe("supportsFfiFlag", () => {
   it("accepts the first release that carries node:ffi", () => {
@@ -18,5 +29,23 @@ describe("supportsFfiFlag", () => {
 
   it("reads a version without the leading v", () => {
     expect(supportsFfiFlag("26.4.0")).toBe(true);
+  });
+});
+
+describe("httap tui", () => {
+  it("reports a startup failure on the in-process launch path", async () => {
+    vi.stubEnv("HTTAP_TUI", "");
+    runTui.mockResolvedValue(undefined);
+    const originalExecArgv = process.execArgv;
+    process.execArgv = ["--experimental-ffi"];
+
+    try {
+      await tuiCommand.parseAsync([], { from: "user" });
+    } finally {
+      process.execArgv = originalExecArgv;
+    }
+
+    expect(runTui).toHaveBeenCalledTimes(1);
+    expect(startTui).not.toHaveBeenCalled();
   });
 });

@@ -41,8 +41,8 @@ const runInkTui = async (options: TuiLaunchOptions): Promise<void> => {
 
 const runOpenTui = async (options: TuiLaunchOptions): Promise<void> => {
   if (ffiAlreadyEnabled()) {
-    const { startTui } = await import("../../tui/main.js");
-    await startTui(options);
+    const { runTui } = await import("../../tui/main.js");
+    await runTui(options);
     return;
   }
 

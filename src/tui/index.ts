@@ -5,7 +5,7 @@
  * options here as one JSON argument.
  */
 
-import { startTui, type StartTuiOptions } from "./main.js";
+import { runTui, type StartTuiOptions } from "./main.js";
 
 const parseOptions = (raw: string | undefined): StartTuiOptions => {
   if (!raw) {
@@ -33,12 +33,4 @@ const parseOptions = (raw: string | undefined): StartTuiOptions => {
   };
 };
 
-// The running session deliberately survives a stray rejection, so a failure to
-// start has to be reported here rather than by that listener.
-try {
-  await startTui(parseOptions(process.argv[2]));
-} catch (error) {
-  const cause = error instanceof Error ? (error.stack ?? error.message) : String(error);
-  process.stderr.write(`httap tui failed to start: ${cause}\n`);
-  process.exit(1);
-}
+await runTui(parseOptions(process.argv[2]));

@@ -67,6 +67,24 @@ describe("startTui", () => {
     expect(exit).toHaveBeenCalledWith(0);
   });
 
+  it("hands the terminal back when the render throws", async () => {
+    const exit = stubExit();
+    const renderer = fakeRenderer();
+    createCliRenderer.mockImplementation(async () => renderer);
+    createRoot.mockImplementationOnce(() => ({
+      render: vi.fn(() => {
+        throw new Error("render failed");
+      }),
+      unmount: vi.fn(),
+    }));
+    const { startTui } = await import("./main.js");
+
+    await expect(startTui({})).rejects.toThrow("render failed");
+
+    expect(renderer.destroy).toHaveBeenCalled();
+    expect(exit).not.toHaveBeenCalled();
+  });
+
   it("keeps the TUI running after an unhandled rejection", async () => {
     const exit = stubExit();
     createCliRenderer.mockImplementation(async () => fakeRenderer());
@@ -81,5 +99,21 @@ describe("startTui", () => {
     installed[0]?.(new Error("export failed"), Promise.resolve());
 
     expect(exit).not.toHaveBeenCalled();
+  });
+});
+
+describe("runTui", () => {
+  it("reports a startup failure on stderr and exits non-zero", async () => {
+    const exit = stubExit();
+    const write = vi.spyOn(process.stderr, "write").mockReturnValue(true);
+    createCliRenderer.mockImplementation(async () => {
+      throw new Error("terminal setup failed");
+    });
+    const { runTui } = await import("./main.js");
+
+    await expect(runTui({})).rejects.toThrow(`${EXIT_SENTINEL}:1`);
+
+    expect(write).toHaveBeenCalledWith(expect.stringContaining("terminal setup failed"));
+    expect(exit).toHaveBeenCalledWith(1);
   });
 });

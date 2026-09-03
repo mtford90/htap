@@ -79,9 +79,7 @@ export const startTui = async ({
       renderer?.destroy();
       logger?.info("TUI exited");
     } catch (error) {
-      logger?.error(
-        `TUI teardown failed: ${error instanceof Error ? error.stack : String(error)}`
-      );
+      logger?.error(`TUI teardown failed: ${error instanceof Error ? error.stack : String(error)}`);
     } finally {
       try {
         // Buffered lines are only written synchronously on close, and the exit
@@ -131,10 +129,22 @@ export const startTui = async ({
       }
     },
   });
-  root = createRoot(renderer);
-
-  root.render(<App store={store} actions={actions} engine={engine} onExit={shutdown} />);
-  startupComplete = true;
+  try {
+    root = createRoot(renderer);
+    root.render(<App store={store} actions={actions} engine={engine} onExit={shutdown} />);
+    startupComplete = true;
+  } catch (error) {
+    // The terminal is already in the alternate screen, so it has to be handed
+    // back before the failure is reported on it.
+    try {
+      renderer.destroy();
+    } catch (destroyError) {
+      logger?.error(
+        `TUI renderer teardown failed: ${destroyError instanceof Error ? destroyError.stack : String(destroyError)}`
+      );
+    }
+    throw error;
+  }
 
   if (paths) {
     engine.start();
@@ -142,5 +152,21 @@ export const startTui = async ({
 
   if (ci) {
     setTimeout(shutdown, CI_EXIT_DELAY_MS);
+  }
+};
+
+/**
+ * Reports a failure to start on stderr and exits non-zero.
+ *
+ * The running session deliberately survives a stray rejection, so the
+ * `unhandledRejection` listener cannot be the one to notice this.
+ */
+export const runTui = async (options: StartTuiOptions): Promise<void> => {
+  try {
+    await startTui(options);
+  } catch (error) {
+    const cause = error instanceof Error ? (error.stack ?? error.message) : String(error);
+    process.stderr.write(`httap tui failed to start: ${cause}\n`);
+    process.exit(1);
   }
 };
