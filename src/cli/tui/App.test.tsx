@@ -1088,12 +1088,15 @@ describe("App keyboard interactions", () => {
       await tick();
 
       stdin.write("e");
-      await tick();
+      await vi.waitFor(() => {
+        expect(lastFrame()).toContain("Export Request");
+      });
       stdin.write("5");
-      await tick();
+      await vi.waitFor(() => {
+        expect(lastFrame()).toContain("Export as HAR");
+      });
 
       const frame = lastFrame();
-      expect(frame).toContain("Export as HAR");
       expect(frame).toContain(".httap/exports/");
       expect(frame).toContain("~/Downloads/");
       expect(frame).toContain("Custom path...");
@@ -1115,16 +1118,22 @@ describe("App keyboard interactions", () => {
       await tick();
 
       stdin.write("e");
-      await tick();
+      await vi.waitFor(() => {
+        expect(lastFrame()).toContain("Export Request");
+      });
       stdin.write("5");
-      await tick();
+      await vi.waitFor(() => {
+        expect(lastFrame()).toContain("Export as HAR");
+      });
       stdin.write("1");
-      await tick(100);
+      await vi.waitFor(() => {
+        expect(mockResolveTargetDir).toHaveBeenCalledWith("exports");
+      });
 
-      expect(mockResolveTargetDir).toHaveBeenCalledWith("exports");
       expect(mockExportHarToDir).toHaveBeenCalledWith([fullRequest], "/mock/exports");
-      const frame = lastFrame();
-      expect(frame).toContain("Exported");
+      await vi.waitFor(() => {
+        expect(lastFrame()).toContain("Exported");
+      });
     });
   });
 
