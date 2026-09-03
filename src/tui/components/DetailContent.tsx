@@ -145,7 +145,23 @@ export function BodyContent({
     return <BinaryBodyContent body={body} contentType={contentType} />;
   }
 
-  const lines = bodyDisplayLines(body, contentType);
+  return <HighlightedBody body={body} contentType={contentType} maxLines={maxLines} />;
+}
+
+/**
+ * Highlighting is expensive, so it is keyed on the body and content type and
+ * survives re-renders driven by hover, focus or the status message.
+ */
+function HighlightedBody({
+  body,
+  contentType,
+  maxLines,
+}: {
+  body: Buffer;
+  contentType?: string;
+  maxLines: number;
+}): React.ReactNode {
+  const lines = React.useMemo(() => bodyDisplayLines(body, contentType), [body, contentType]);
   const visibleLines = lines.slice(0, maxLines);
   const remaining = lines.length - visibleLines.length;
 

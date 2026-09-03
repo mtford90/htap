@@ -275,6 +275,21 @@ describe("interceptor sync", () => {
     expect(getInterceptorEvents.mock.calls[1]?.[0]?.afterSeq).toBe(1);
   });
 
+  it("leaves the interceptor slice alone when an idle poll changes nothing", async () => {
+    const counts = { info: 1, warn: 0, error: 0 };
+    const getInterceptorEvents = vi
+      .fn<SyncClient["getInterceptorEvents"]>()
+      .mockResolvedValueOnce({ events: [{ seq: 1, level: "info" } as never], counts })
+      .mockResolvedValue({ events: [], counts });
+    const { store, engine } = setup({ getInterceptorEvents });
+    await engine.syncInterceptors();
+    const slice = store.getState().interceptors;
+
+    await engine.syncInterceptors();
+
+    expect(store.getState().interceptors).toBe(slice);
+  });
+
   it("drops the oldest events once the cap is reached", async () => {
     const events = Array.from(
       { length: MAX_INTERCEPTOR_EVENTS + 50 },

@@ -373,6 +373,16 @@ export const createTuiActions = (store: TuiStore) => {
       counts: InterceptorEventCounts,
       count: number
     ): void => {
+      const current = store.getState().interceptors;
+      if (
+        current.events === events &&
+        current.count === count &&
+        current.counts.info === counts.info &&
+        current.counts.warn === counts.warn &&
+        current.counts.error === counts.error
+      ) {
+        return;
+      }
       store.setState({ interceptors: { events, counts, count } });
     },
 
