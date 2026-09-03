@@ -34,6 +34,7 @@
     "test:watch": "vitest",
     "test:unit": "vitest run --dir src",
     "test:int": "vitest run --dir tests/integration",
+    "test:tui": "vitest run --project tui",
     "lint": "eslint src tests",
     "lint:fix": "eslint src tests --fix",
     "format": "prettier --write \"src/**/*.ts\" \"tests/**/*.ts\"",

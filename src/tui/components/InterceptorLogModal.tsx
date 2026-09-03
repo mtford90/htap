@@ -245,7 +245,7 @@ export function InterceptorLogModal({
     return (
       <box flexDirection="column" width={width} height={height}>
         <text fg="cyan">{headerBorder}</text>
-        <box height={1} paddingLeft={1} paddingRight={1}>
+        <box height={1} flexShrink={0} paddingLeft={1} paddingRight={1}>
           <text wrapMode="none" attributes={DIM}>
             {hasActiveFilter
               ? "No matching events | Press / to change filter"
@@ -258,7 +258,7 @@ export function InterceptorLogModal({
           <text attributes={DIM}>No interceptor events</text>
         </box>
         <text fg="cyan">{divider}</text>
-        <box height={1} paddingLeft={1} paddingRight={1}>
+        <box height={1} flexShrink={0} paddingLeft={1} paddingRight={1}>
           <Hints hints={LOG_MODAL_HINTS} />
         </box>
         <text fg="cyan">{footerBorder}</text>
@@ -271,7 +271,7 @@ export function InterceptorLogModal({
   return (
     <box flexDirection="column" width={width} height={height}>
       <text fg="cyan">{headerBorder}</text>
-      <box height={1} paddingLeft={1} paddingRight={1}>
+      <box height={1} flexShrink={0} paddingLeft={1} paddingRight={1}>
         <text wrapMode="none" attributes={DIM}>
           {displayRows.length > availableHeight
             ? `Showing ${scrollOffset + 1}–${Math.min(scrollOffset + availableHeight, displayRows.length)} of ${displayRows.length} rows`
@@ -286,7 +286,7 @@ export function InterceptorLogModal({
         ))}
       </box>
       <text fg="cyan">{divider}</text>
-      <box height={1} paddingLeft={1} paddingRight={1}>
+      <box height={1} flexShrink={0} paddingLeft={1} paddingRight={1}>
         <Hints hints={LOG_MODAL_HINTS} />
       </box>
       <text fg="cyan">{footerBorder}</text>

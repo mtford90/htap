@@ -118,6 +118,12 @@ export function App({ store, actions, engine, onExit }: AppProps): React.ReactNo
   );
 
   useKeyboard((key) => {
+    // Modals and the filter bar mount below this handler, so they see the key
+    // first and stop it; without this check their close key would immediately
+    // be read again as a main-view command.
+    if (key.propagationStopped) {
+      return;
+    }
     if (dispatchKey(commandDeps, toKeyLike(key))) {
       key.stopPropagation();
     }

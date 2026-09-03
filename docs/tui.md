@@ -8,6 +8,16 @@ Open the interactive TUI with `httap tui`.
 
 Mouse support: click to select, scroll to navigate, click panels to focus.
 
+## Runtime
+
+The TUI is rendered by [OpenTUI](https://opentui.com), whose native library is
+loaded through `node:ffi`. Node gates that module behind `--experimental-ffi`
+until it is enabled by default, so `httap tui` re-executes Node with the flag
+and runs the TUI in that child process. Nothing else in httap needs it.
+
+Set `HTTAP_TUI=ink` to run the previous Ink interface instead. That escape
+hatch exists for one minor release and is removed with the Ink tree.
+
 ## Main View
 
 ### Navigation

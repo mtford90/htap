@@ -8,7 +8,7 @@ import { getGlobalOptions } from "./helpers.js";
 const FFI_FLAGS = ["--experimental-ffi", "--disable-warning=ExperimentalWarning"];
 const MIN_FFI_NODE = { major: 26, minor: 4 };
 
-const supportsFfiFlag = (version: string): boolean => {
+export const supportsFfiFlag = (version: string): boolean => {
   const [major = 0, minor = 0] = version.replace(/^v/, "").split(".").map(Number);
   return (
     major > MIN_FFI_NODE.major || (major === MIN_FFI_NODE.major && minor >= MIN_FFI_NODE.minor)

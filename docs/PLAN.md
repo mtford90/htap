@@ -17,6 +17,18 @@
 </details>
 
 <details>
+<summary>OpenTUI migration</summary>
+
+The TUI moved from Ink to OpenTUI (`@opentui/core` + `@opentui/react`).
+
+- `src/tui/` holds a zustand store, a sync engine outside React, and a command table that drives both key dispatch and the status-bar hints
+- The view layer is rebuilt on OpenTUI; `cli-highlight` output is converted from ANSI escapes to spans
+- `httap tui` re-executes Node with `--experimental-ffi` and runs the TUI there; `HTTAP_TUI=ink` selects the old Ink tree for one minor release
+- Component tests use `@opentui/react/test-utils` in a `tui` vitest project
+
+</details>
+
+<details>
 <summary>Phase 1: Read-only MCP — Traffic Inspection</summary>
 
 MCP server (`httap mcp`) connecting to the daemon's control socket for AI-driven traffic inspection.
@@ -106,12 +118,12 @@ Each feature should be considered across all four surfaces where applicable:
   - **Implementation checklist:**
     - [x] Add a monotonic request order key in storage and control responses; sort deterministically (not timestamp-only)
     - [x] Replace `countRequests + listRequestsSummary` polling with single-flight delta sync (`afterSeq`/cursor) and stale-response dropping
-    - [ ] Introduce a request-list reducer (`selectedId`, `topVisibleId`, follow state) so selection/scroll anchoring updates atomically
+    - [x] Introduce a request-list reducer (`selectedId`, `topVisibleId`, follow state) so selection/scroll anchoring updates atomically
     - [x] Extract request-list state logic into dedicated TUI modules (`hooks/useRequestListState.ts` + `state/request-list-state.ts`) as a precursor to the reducer/store cutover
-    - [ ] Add full-request detail cache + stale-response guard so rapid selection changes cannot paint old request details
+    - [x] Add full-request detail cache + stale-response guard so rapid selection changes cannot paint old request details
     - [x] Browse mode viewport freeze + "new items" indicator; follow mode remains explicit and auto-scrolls to newest
     - [ ] Fetch/render only viewport + overscan window, with paged loading for older rows
-    - [ ] Split list state/rendering out of `App.tsx` and minimise per-row prop churn
+    - [x] Split list state/rendering out of `App.tsx` and minimise per-row prop churn
     - [ ] Add burst-load tests (component + integration) for selection stability, ordering stability, and input responsiveness
   - **Validation target:** no visible row jitter/reorder artifacts and responsive key navigation during sustained high request throughput
 

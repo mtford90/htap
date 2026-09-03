@@ -70,7 +70,7 @@ Key design decisions:
 - **Runtime**: Node.js (>=26.4)
 - **Language**: TypeScript 7 (`@typescript/native` provides `tsc`; `typescript` is aliased to `@typescript/typescript6` because typescript-eslint needs the TS 6 API)
 - **CLI**: commander
-- **TUI**: ink (React for terminals)
+- **TUI**: OpenTUI (`@opentui/core` + `@opentui/react`); the Ink tree under `src/cli/tui/` survives behind `HTTAP_TUI=ink` for one minor release
 - **Proxy**: mockttp (HTTP Toolkit's MITM library)
 - **Storage**: `node:sqlite` (`DatabaseSync`) — no native addons in the dependency tree
 - **Testing**: Vitest
@@ -90,8 +90,9 @@ npm run dev        # Watch mode for development
 
 ### Tools
 
-- **Vitest** - Test runner (configured in `vitest.config.ts`)
-- **ink-testing-library** - Component-level TUI testing with keyboard input simulation
+- **Vitest** - Test runner. `vitest.config.ts` defines two projects: `core` for everything, and `tui` for `src/tui/**/*.test.tsx`, which runs in forks with `--experimental-ffi` because OpenTUI loads its native library through `node:ffi`.
+- **@opentui/react/test-utils** - Component-level TUI testing; `testRender` gives a frame buffer plus `mockInput` and `mockMouse`
+- **ink-testing-library** - Component tests for the surviving Ink tree
 - **cli-testing-library** - Full CLI process spawning for e2e tests
 
 ### Test Conventions
@@ -107,22 +108,25 @@ Pure functions with no external dependencies. Fast, isolated, deterministic.
 
 **Use for**: Formatters, utilities, data transformations, SQLite operations (with temp files)
 
-**Examples**: `src/daemon/storage.test.ts`, `src/cli/tui/utils/curl.test.ts`, `src/daemon/proxy.test.ts`
+**Examples**: `src/daemon/storage.test.ts`, `src/tui/utils/curl.test.ts`, `src/daemon/proxy.test.ts`
 
-#### Component Tests (co-located in `src/cli/tui/`)
-ink components tested with ink-testing-library. Can simulate keyboard input.
+#### Component Tests (co-located in `src/tui/`)
+OpenTUI components rendered with `@opentui/react/test-utils`. Fixtures and the
+frame-waiting helpers live in `src/tui/test-support/render.tsx`.
 
-**Use for**: TUI component behaviour, keyboard interactions, state changes
+**Use for**: TUI component behaviour, keyboard interactions, mouse, state changes
 
-**Key pattern** - Use `__testEnableInput` prop to bypass TTY check:
+**Key pattern** - never sleep; wait for the frame:
 ```tsx
-const { lastFrame, stdin } = render(<App __testEnableInput />);
-stdin.write("u");
-await new Promise((resolve) => setTimeout(resolve, 50)); // Wait for re-render
-expect(lastFrame()).toContain("expected text");
+const setup = await renderTui(<FilterBar {...props} />, { width: 140, height: 4 });
+await setup.mockInput.typeText("api");
+await waitForText(setup, "api");
 ```
 
-**Note**: `stdin.write()` requires async handling - React needs time to process state updates.
+**Note**: React commits on its own scheduler and OpenTUI holds a lone Escape
+briefly to rule out an escape sequence, so use `waitForText`/`waitUntil` rather
+than a fixed delay, and `settle(setup)` between key presses that must be seen
+in order.
 
 #### Integration Tests (`tests/integration/`)
 Tests that spin up real daemon/proxy but don't spawn CLI processes.
@@ -145,7 +149,7 @@ Full CLI process spawning with cli-testing-library. Tests the complete user flow
 | Scenario | Test Type |
 |----------|-----------|
 | New utility/formatter function | Unit |
-| New TUI keyboard shortcut | Component (ink-testing-library) |
+| New TUI keyboard shortcut | Command-table unit test, plus a component test if it changes the frame |
 | New CLI command output | E2E |
 | Daemon/proxy behaviour | Integration |
 | Data persistence | Unit (SQLite with temp file) |
@@ -153,9 +157,10 @@ Full CLI process spawning with cli-testing-library. Tests the complete user flow
 ### Running Tests
 
 ```bash
-npm test                           # All tests
+npm test                           # All tests (both vitest projects)
 npm run test:unit                  # Unit tests only (co-located in src/)
 npm run test:int                   # Integration tests only
+npm run test:tui                   # OpenTUI component tests only
 npm test -- src/daemon/proxy.test  # Specific file
 npm run test:watch                 # Watch mode
 ```
@@ -172,7 +177,11 @@ npm run typecheck && npm run lint && npm test
 | `src/cli/index.ts` | CLI entry point |
 | `src/cli/commands/` | Command implementations |
 | `src/daemon/` | Proxy daemon (mockttp, control API) |
-| `src/tui/` | ink TUI components |
+| `src/tui/` | OpenTUI TUI: store, sync engine, command table, components |
+| `src/tui/store/` | zustand store and the pure list geometry helpers |
+| `src/tui/sync/engine.ts` | Delta sync, detail cache and polling, all outside React |
+| `src/tui/commands/table.ts` | Keybindings and the status-bar hints |
+| `src/cli/tui/` | Ink TUI, reachable with `HTTAP_TUI=ink` until it is removed |
 | `src/shared/project.ts` | Project root detection, .httap paths |
 | `src/shared/daemon.ts` | Daemon lifecycle management |
 
@@ -180,12 +189,14 @@ npm run typecheck && npm run lint && npm test
 
 Rules derived from the [2026-02-05 code review](docs/reviews/2026-02-05/code-review.md). Follow these when writing new code.
 
-### React/Ink
+### React
 
 - **Always clean up timers and subscriptions.** Every `setTimeout`, `setInterval`, or event listener set inside a component or hook MUST have a corresponding cleanup in a `useEffect` return or equivalent. Store timer IDs in refs and clear them on unmount.
 - **Use refs for values accessed in stable callbacks.** When a `useCallback` with an empty dependency array (or an event handler that shouldn't change identity) needs the latest value of state/props, sync that value into a ref via a separate effect. Never close over stale state in scroll/wheel/keyboard handlers.
 - **Wrap list item components in `React.memo()`.** Any component rendered inside a `.map()` or list should be memoised to avoid unnecessary re-renders.
 - **Calculate new state before using it.** When toggling state and also calling a side-effect with the new value, compute the new value first, then pass it to both `setState` and the side-effect — don't read state after setting it (stale closure).
+- **Keep TUI domain state in the store, not in components.** Keyboard, mouse and sync callbacks read `store.getState()` synchronously, so nothing has to be mirrored into a ref to stay current.
+- **Never return a fresh object or array from a store selector** without a shallow comparator; `useStore(store, useShallow(selector))` is the escape hatch. A new reference every read re-renders forever.
 
 ### TypeScript
 
@@ -223,10 +234,14 @@ Rules derived from the [2026-02-05 code review](docs/reviews/2026-02-05/code-rev
 
 ### Testing
 
-- **Every new TUI component or keyboard shortcut needs a component test** using ink-testing-library.
+- **Every new TUI component or keyboard shortcut needs a test**: keybindings in `src/tui/commands/table.test.ts`, rendering in a `@opentui/react/test-utils` component test.
 - **Every new utility/formatter function needs unit tests**, including edge cases (zero values, negative numbers, empty strings, boundary values).
 - **Don't write "coverage theatre" tests** that simply assert types exist or interfaces compile. Tests must exercise behaviour.
 - **Test error paths, not just happy paths.** Include tests for malformed input, missing data, timeouts, and concurrent operations.
+
+## Pull requests
+
+PR body: a human summary of five lines or fewer at the top (what, why, how verified, risk); generated or pipeline material goes below it in one collapsed `<details>` block labelled for agents.
 
 ## Version Control — GitButler Virtual Branches
 

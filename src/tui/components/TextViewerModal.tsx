@@ -28,8 +28,8 @@ const TEXT_VIEWER_HINTS: HintItem[] = [
 const STATUS_MESSAGE_TIMEOUT_MS = 3000;
 /** Title, info row and divider. */
 const HEADER_ROWS = 3;
-/** Divider and hint bar. */
-const FOOTER_ROWS = 2;
+/** Divider, hint bar and bottom border. */
+const FOOTER_ROWS = 3;
 
 const TextLine = React.memo(function TextLine({
   lineNumber,
@@ -240,7 +240,7 @@ export function TextViewerModal({
     <box flexDirection="column" width={width} height={height}>
       <text fg="cyan">{headerBorder}</text>
 
-      <box height={1} paddingLeft={1} paddingRight={1}>
+      <box height={1} flexShrink={0} paddingLeft={1} paddingRight={1}>
         {searchMode ? (
           <text wrapMode="none">
             <span fg="yellow">search: </span>
@@ -275,7 +275,7 @@ export function TextViewerModal({
       </box>
 
       <text fg="cyan">{divider}</text>
-      <box height={1} paddingLeft={1} paddingRight={1}>
+      <box height={1} flexShrink={0} paddingLeft={1} paddingRight={1}>
         {statusMessage ? (
           <text wrapMode="none" fg="green">
             {statusMessage}
