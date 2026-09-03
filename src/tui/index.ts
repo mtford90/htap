@@ -33,4 +33,12 @@ const parseOptions = (raw: string | undefined): StartTuiOptions => {
   };
 };
 
-await startTui(parseOptions(process.argv[2]));
+// The running session deliberately survives a stray rejection, so a failure to
+// start has to be reported here rather than by that listener.
+try {
+  await startTui(parseOptions(process.argv[2]));
+} catch (error) {
+  const cause = error instanceof Error ? (error.stack ?? error.message) : String(error);
+  process.stderr.write(`httap tui failed to start: ${cause}\n`);
+  process.exit(1);
+}
