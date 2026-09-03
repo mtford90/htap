@@ -43,9 +43,7 @@ const rejectExcessArguments = (command: Command, excess: string[]): never => {
   const [first] = excess;
   const newForm = first === undefined ? undefined : REORDERED_SUBCOMMANDS[first];
   if (newForm !== undefined) {
-    command.error(
-      `error: 'httap request <id> ${first}' is no longer supported — use '${newForm}'`
-    );
+    command.error(`error: 'httap request <id> ${first}' is no longer supported — use '${newForm}'`);
   }
   return command.error(`error: too many arguments for 'request'`);
 };

@@ -190,7 +190,7 @@ httap request body a1b2c3d | jq .         # pipe to jq
 
 ### `httap request export <format> <id>`
 
-Export a request as `curl` or `har`.
+Export a request as `curl`, `har`, `fetch`, `requests` (Python), `python`, or `httpie`.
 
 ```bash
 httap request export curl a1b2c3d
@@ -199,7 +199,7 @@ httap request export har a1b2c3d
 
 ### `httap request save <id>` / `httap request unsave <id>`
 
-Bookmark or un-bookmark a request so it persists across `httap clear`.
+Bookmark or un-bookmark a request so it persists across `httap requests clear`.
 
 ### `httap request replay <id>`
 
