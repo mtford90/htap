@@ -85,7 +85,8 @@ export interface SyncEngineOptions {
  */
 const buildOrderedList = (
   summaryById: Map<string, CapturedRequestSummary>,
-  orderSeqById: Map<string, number>
+  orderSeqById: Map<string, number>,
+  changeSeqById: Map<string, number>
 ): CapturedRequestSummary[] => {
   const ids = Array.from(summaryById.keys());
   ids.sort((a, b) => {
@@ -107,6 +108,7 @@ const buildOrderedList = (
     if (!limitedIdSet.has(id)) {
       summaryById.delete(id);
       orderSeqById.delete(id);
+      changeSeqById.delete(id);
     }
   }
 
@@ -278,7 +280,7 @@ export class SyncEngine {
       batches += 1;
     }
 
-    const ordered = buildOrderedList(summaryById, orderSeqById);
+    const ordered = buildOrderedList(summaryById, orderSeqById, changeSeqById);
     this.summaryById = summaryById;
     this.orderSeqById = orderSeqById;
     this.changeSeqById = changeSeqById;
@@ -329,7 +331,7 @@ export class SyncEngine {
     this.cursor = cursor;
 
     if (changed) {
-      this.commitRequests(buildOrderedList(summaryById, orderSeqById), changedIds);
+      this.commitRequests(buildOrderedList(summaryById, orderSeqById, changeSeqById), changedIds);
     } else {
       this.actions.setError(null);
     }
