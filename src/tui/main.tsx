@@ -81,13 +81,20 @@ export const startTui = async ({
       return;
     }
     shuttingDown = true;
-    engine.stop();
-    root.unmount();
-    renderer.destroy();
-    logger?.info("TUI exited");
-    // OpenTUI can leave the stdin handle registered, which would keep the
-    // event loop alive after the renderer is gone.
-    process.exit(code);
+    try {
+      engine.stop();
+      root.unmount();
+      renderer.destroy();
+      logger?.info("TUI exited");
+    } catch (error) {
+      logger?.error(
+        `TUI teardown failed: ${error instanceof Error ? error.stack : String(error)}`
+      );
+    } finally {
+      // OpenTUI can leave the stdin handle registered, which would keep the
+      // event loop alive after the renderer is gone.
+      process.exit(code);
+    }
   };
 
   for (const signal of ["SIGHUP", "SIGTERM", "SIGINT"] as const) {
