@@ -72,7 +72,7 @@
   "homepage": "https://github.com/mtford90/httap#readme",
   "packageManager": "pnpm@11.25.0",
   "engines": {
-    "node": ">=24"
+    "node": ">=26.4.0"
   },
   "dependencies": {
     "@ink-tools/ink-mouse": "^2.1.0",

@@ -67,7 +67,7 @@ Key design decisions:
 
 ## Technology Stack
 
-- **Runtime**: Node.js (>=24)
+- **Runtime**: Node.js (>=26.4)
 - **Language**: TypeScript 7 (`@typescript/native` provides `tsc`; `typescript` is aliased to `@typescript/typescript6` because typescript-eslint needs the TS 6 API)
 - **CLI**: commander
 - **TUI**: ink (React for terminals)
