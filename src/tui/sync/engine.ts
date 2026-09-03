@@ -270,6 +270,7 @@ export class SyncEngine {
     this.cursor = afterChangeSeq;
     this.snapshotRequested = false;
     this.actions.setRequests(ordered);
+    this.invalidateAllDetails();
   }
 
   private async applyDeltas(generation: number): Promise<void> {
@@ -426,6 +427,22 @@ export class SyncEngine {
       this.detailInFlight.delete(id);
     }
     if (this.detailRequestId !== null && changedIds.has(this.detailRequestId)) {
+      this.refreshOpenDetail();
+    }
+  }
+
+  /**
+   * A snapshot has no cursor continuity, so nothing cached can be trusted and
+   * no row reports itself as changed.
+   */
+  private invalidateAllDetails(): void {
+    this.detailCache.clear();
+    this.detailInFlight.clear();
+    this.refreshOpenDetail();
+  }
+
+  private refreshOpenDetail(): void {
+    if (this.detailRequestId !== null) {
       this.loadDetail(this.detailRequestId, { keepOnFailure: true });
     }
   }
