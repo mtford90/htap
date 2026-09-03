@@ -279,6 +279,31 @@ describe("detail loading", () => {
     await vi.waitFor(() => expect(store.getState().detail.request?.responseStatus).toBe(200));
   });
 
+  it("never leaves another request in the pane when the selected row fails to load", async () => {
+    const resolvers = new Map<string, (request: CapturedRequest | null) => void>();
+    const getRequest = vi.fn(
+      (id: string) =>
+        new Promise<CapturedRequest | null>((resolve) => {
+          resolvers.set(id, resolve);
+        })
+    );
+    const searchBodies = vi.fn(async () => [summary("a", 1), summary("b", 2)]);
+    const { store, engine } = setup({ getRequest, searchBodies });
+
+    engine.setFilter({}, { query: "token", target: "request" });
+    await engine.syncRequests();
+    engine.selectDetail("a");
+    resolvers.get("a")?.({ ...fullRequest("a"), responseStatus: 200 });
+    await vi.waitFor(() => expect(store.getState().detail.request?.id).toBe("a"));
+
+    engine.selectDetail("b");
+    await engine.syncRequests();
+    resolvers.get("b")?.(null);
+
+    await vi.waitFor(() => expect(store.getState().detail.requestId).toBe("b"));
+    expect(store.getState().detail.request).toBeNull();
+  });
+
   it("keeps the last known detail when a refetch after a delta fails", async () => {
     const getRequest = vi
       .fn<SyncClient["getRequest"]>()
@@ -321,8 +346,9 @@ describe("detail loading", () => {
     await vi.waitFor(() => expect(resolvers).toHaveLength(1));
 
     await engine.syncRequests();
-    await vi.waitFor(() => expect(resolvers).toHaveLength(2));
     resolvers[0]?.(fullRequest("a"));
+    await vi.waitFor(() => expect(resolvers).toHaveLength(2));
+    expect(store.getState().detail.request).toBeNull();
     resolvers[1]?.({ ...fullRequest("a"), responseStatus: 200 });
 
     await vi.waitFor(() => expect(store.getState().detail.request?.responseStatus).toBe(200));

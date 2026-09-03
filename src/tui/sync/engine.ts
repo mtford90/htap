@@ -57,10 +57,20 @@ export interface SyncClient {
   close(): void;
 }
 
-/** A detail fetch is superseded when an invalidation replaced it mid-flight. */
+/** A detail fetch is superseded when a later selection replaced it mid-flight. */
 interface DetailFetchResult {
   request: CapturedRequest | null;
   superseded: boolean;
+}
+
+/**
+ * A cached detail carries the change sequence its row reported when the fetch
+ * started, so a newer sequence for that row marks the copy stale without
+ * anything having to remember to evict it.
+ */
+interface CachedDetail {
+  request: CapturedRequest;
+  changeSeq: number | undefined;
 }
 
 export interface SyncEngineOptions {
@@ -122,6 +132,7 @@ export class SyncEngine {
 
   private summaryById = new Map<string, CapturedRequestSummary>();
   private orderSeqById = new Map<string, number>();
+  private changeSeqById = new Map<string, number>();
   private cursor = 0;
   private snapshotRequested = true;
 
@@ -132,7 +143,7 @@ export class SyncEngine {
   private lastEventSeq = 0;
   private events: InterceptorEvent[] = [];
 
-  private readonly detailCache = new Map<string, CapturedRequest>();
+  private readonly detailCache = new Map<string, CachedDetail>();
   private readonly detailInFlight = new Map<string, Promise<DetailFetchResult>>();
   private detailRequestId: string | null = null;
 
@@ -177,6 +188,7 @@ export class SyncEngine {
     this.generation += 1;
     this.summaryById = new Map();
     this.orderSeqById = new Map();
+    this.changeSeqById = new Map();
     this.cursor = 0;
     this.snapshotRequested = true;
   }
@@ -238,6 +250,7 @@ export class SyncEngine {
   private async loadSnapshot(generation: number): Promise<void> {
     const summaryById = new Map<string, CapturedRequestSummary>();
     const orderSeqById = new Map<string, number>();
+    const changeSeqById = new Map<string, number>();
     let afterChangeSeq = 0;
     let hasMore = true;
     let batches = 0;
@@ -258,6 +271,7 @@ export class SyncEngine {
       for (const entry of delta.entries) {
         summaryById.set(entry.summary.id, entry.summary);
         orderSeqById.set(entry.summary.id, entry.orderSeq);
+        changeSeqById.set(entry.summary.id, entry.changeSeq);
       }
       afterChangeSeq = delta.cursor;
       hasMore = delta.hasMore;
@@ -267,6 +281,7 @@ export class SyncEngine {
     const ordered = buildOrderedList(summaryById, orderSeqById);
     this.summaryById = summaryById;
     this.orderSeqById = orderSeqById;
+    this.changeSeqById = changeSeqById;
     this.cursor = afterChangeSeq;
     this.snapshotRequested = false;
     this.commitRequests(ordered);
@@ -275,6 +290,7 @@ export class SyncEngine {
   private async applyDeltas(generation: number): Promise<void> {
     const summaryById = new Map(this.summaryById);
     const orderSeqById = new Map(this.orderSeqById);
+    const changeSeqById = new Map(this.changeSeqById);
     const changedIds = new Set<string>();
     let cursor = this.cursor;
     let batches = 0;
@@ -296,6 +312,7 @@ export class SyncEngine {
       for (const entry of delta.entries) {
         summaryById.set(entry.summary.id, entry.summary);
         orderSeqById.set(entry.summary.id, entry.orderSeq);
+        changeSeqById.set(entry.summary.id, entry.changeSeq);
         changedIds.add(entry.summary.id);
       }
       cursor = delta.cursor;
@@ -308,6 +325,7 @@ export class SyncEngine {
 
     this.summaryById = summaryById;
     this.orderSeqById = orderSeqById;
+    this.changeSeqById = changeSeqById;
     this.cursor = cursor;
 
     if (changed) {
@@ -349,7 +367,7 @@ export class SyncEngine {
       return;
     }
 
-    const cached = this.detailCache.get(id);
+    const cached = this.freshDetail(id);
     if (cached) {
       this.actions.setDetail(id, cached);
       return;
@@ -378,6 +396,7 @@ export class SyncEngine {
       return existing;
     }
 
+    const startedAt = this.changeSeqById.get(id);
     const pending: Promise<DetailFetchResult> = this.client
       .getRequest(id)
       .catch(() => null)
@@ -385,12 +404,17 @@ export class SyncEngine {
         if (this.detailInFlight.get(id) !== pending) {
           return { request, superseded: true };
         }
+        this.detailInFlight.delete(id);
+        // The row changed while this was in flight, so the answer predates the
+        // change and must not be shown or cached.
+        if (this.hasChangedSince(id, startedAt)) {
+          return this.fetchDetail(id);
+        }
         // A request that has no response yet will change, so caching it would
         // pin an empty Response section for the life of the process.
         if (request?.responseStatus !== undefined) {
-          this.cacheDetail(id, request);
+          this.cacheDetail(id, request, startedAt);
         }
-        this.detailInFlight.delete(id);
         return { request, superseded: false };
       });
 
@@ -398,9 +422,26 @@ export class SyncEngine {
     return pending;
   }
 
-  private cacheDetail(id: string, request: CapturedRequest): void {
+  private hasChangedSince(id: string, changeSeq: number | undefined): boolean {
+    const current = this.changeSeqById.get(id);
+    if (current === undefined) {
+      return false;
+    }
+    return changeSeq === undefined || current > changeSeq;
+  }
+
+  /** Returns the cached detail only while the row still reports it as current. */
+  private freshDetail(id: string): CapturedRequest | undefined {
+    const entry = this.detailCache.get(id);
+    if (!entry || this.hasChangedSince(id, entry.changeSeq)) {
+      return undefined;
+    }
+    return entry.request;
+  }
+
+  private cacheDetail(id: string, request: CapturedRequest, changeSeq: number | undefined): void {
     this.detailCache.delete(id);
-    this.detailCache.set(id, request);
+    this.detailCache.set(id, { request, changeSeq });
     if (this.detailCache.size > DETAIL_CACHE_LIMIT) {
       const oldest = this.detailCache.keys().next();
       if (!oldest.done) {
@@ -415,27 +456,19 @@ export class SyncEngine {
   }
 
   /**
-   * The single path by which the list reaches the store, so detail freshness
-   * cannot be forgotten on one of them. `changedIds` names the rows the daemon
-   * reports as newer; without it the list came from a source with no cursor
-   * continuity and nothing cached can be trusted.
+   * The single path by which the list reaches the store, so the row on screen
+   * cannot be left behind on one of them. Cached copies need no eviction here:
+   * they are keyed on the change sequence the list has just recorded.
+   *
+   * `changedIds` names the rows the daemon reports as newer; without it the
+   * list came from a source with no change sequences, so the open row is
+   * refetched rather than guessed at.
    */
   private commitRequests(items: CapturedRequestSummary[], changedIds?: ReadonlySet<string>): void {
     this.actions.setRequests(items);
 
-    if (changedIds === undefined) {
-      this.detailCache.clear();
-      this.detailInFlight.clear();
-      this.refreshOpenDetail();
-      return;
-    }
-
-    for (const id of changedIds) {
-      this.detailCache.delete(id);
-      // An open fetch predates the change, so it must not be reused for it.
-      this.detailInFlight.delete(id);
-    }
-    if (this.detailRequestId !== null && changedIds.has(this.detailRequestId)) {
+    const openId = this.detailRequestId;
+    if (changedIds === undefined || (openId !== null && changedIds.has(openId))) {
       this.refreshOpenDetail();
     }
   }
