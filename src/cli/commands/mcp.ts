@@ -1,5 +1,4 @@
 import { Command } from "commander";
-import { createHttapMcpServer } from "../../mcp/server.js";
 import { getGlobalOptions, requireProjectRoot } from "./helpers.js";
 
 const SEPARATOR_WIDTH = 48;
@@ -79,6 +78,7 @@ export const mcpCommand = new Command("mcp")
     const globalOpts = getGlobalOptions(command);
     const projectRoot = requireProjectRoot(globalOpts.dir);
 
+    const { createHttapMcpServer } = await import("../../mcp/server.js");
     const mcp = createHttapMcpServer({ projectRoot });
 
     let closing = false;

@@ -1,7 +1,4 @@
 import { Command } from "commander";
-import { render } from "ink";
-import React from "react";
-import { App } from "../tui/App.js";
 import { findProjectRoot, setConfigOverride, resolveOverridePath } from "../../shared/project.js";
 import { createLogger, parseVerbosity } from "../../shared/logger.js";
 import { getGlobalOptions } from "./helpers.js";
@@ -9,7 +6,10 @@ import { getGlobalOptions } from "./helpers.js";
 export const tuiCommand = new Command("tui")
   .description("Browse captured HTTP traffic")
   .option("--ci", "CI mode: render once and exit after a short delay (for testing)")
-  .action((options: { ci?: boolean }, command: Command) => {
+  .action(async (options: { ci?: boolean }, command: Command) => {
+    const { render } = await import("ink");
+    const { default: React } = await import("react");
+    const { App } = await import("../tui/App.js");
     const globalOpts = getGlobalOptions(command);
     const verbosity = globalOpts.verbose;
     const logLevel = parseVerbosity(verbosity);
