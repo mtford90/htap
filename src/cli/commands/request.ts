@@ -21,6 +21,12 @@ const EXPORT_FORMATS = ["curl", "har", "fetch", "requests", "python", "httpie"];
 const PREFIX_MATCH_SEARCH_LIMIT = 1000;
 
 /**
+ * Collector for repeatable options. Variadic options would swallow the
+ * trailing `<id>` positional, so each flag takes exactly one value.
+ */
+const collectRepeated = (value: string, previous: string[]): string[] => [...previous, value];
+
+/**
  * Resolve a potentially abbreviated ID to a full request.
  * Tries exact match first, then prefix match.
  */
@@ -68,15 +74,9 @@ async function resolveRequest(client: ControlClient, idPrefix: string): Promise<
 
 const bodySubcommand = new Command("body")
   .description("Dump request or response body (raw, pipeable)")
+  .argument("<id>", "request ID (full or abbreviated prefix)")
   .option("--request", "dump request body instead of response body")
-  .action(async (opts: { request?: boolean }, command: Command) => {
-    const parentOpts = command.parent?.args ?? [];
-    const idPrefix = parentOpts[0];
-    if (!idPrefix || typeof idPrefix !== "string") {
-      console.error("Usage: httap request <id> body");
-      process.exit(1);
-    }
-
+  .action(async (idPrefix: string, opts: { request?: boolean }, command: Command) => {
     const { client } = await connectToDaemon(command);
     try {
       const request = await resolveRequest(client, idPrefix);
@@ -92,7 +92,7 @@ const bodySubcommand = new Command("body")
         const hasNullBytes = body.includes(0x00);
         if (hasNullBytes) {
           console.error("Binary body detected — pipe to a file instead:");
-          console.error(`  httap request ${idPrefix} body > output.bin`);
+          console.error(`  httap request body ${idPrefix} > output.bin`);
           return;
         }
       }
@@ -110,53 +110,43 @@ const bodySubcommand = new Command("body")
 const exportSubcommand = new Command("export")
   .description("Export request in various formats")
   .argument("<format>", `output format (${EXPORT_FORMATS.join(", ")})`)
-  .action(async (format: string, _opts: Record<string, unknown>, command: Command) => {
-    if (!EXPORT_FORMATS.includes(format)) {
-      console.error(`Unknown export format: "${format}"`);
-      console.error(`Supported formats: ${EXPORT_FORMATS.join(", ")}`);
-      process.exit(1);
-    }
-
-    const parentOpts = command.parent?.args ?? [];
-    const idPrefix = parentOpts[0];
-    if (!idPrefix || typeof idPrefix !== "string") {
-      console.error("Usage: httap request <id> export <format>");
-      process.exit(1);
-    }
-
-    const { client } = await connectToDaemon(command);
-    try {
-      const request = await resolveRequest(client, idPrefix);
-
-      if (format === "curl") {
-        console.log(generateCurl(request));
-      } else if (format === "har") {
-        console.log(generateHarString([request]));
-      } else if (format === "fetch") {
-        console.log(generateFetch(request));
-      } else if (format === "requests" || format === "python") {
-        console.log(generatePythonRequests(request));
-      } else if (format === "httpie") {
-        console.log(generateHttpie(request));
+  .argument("<id>", "request ID (full or abbreviated prefix)")
+  .action(
+    async (format: string, idPrefix: string, _opts: Record<string, unknown>, command: Command) => {
+      if (!EXPORT_FORMATS.includes(format)) {
+        console.error(`Unknown export format: "${format}"`);
+        console.error(`Supported formats: ${EXPORT_FORMATS.join(", ")}`);
+        process.exit(1);
       }
-    } catch (err) {
-      console.error(`Error: ${getErrorMessage(err)}`);
-      process.exit(1);
-    } finally {
-      client.close();
+
+      const { client } = await connectToDaemon(command);
+      try {
+        const request = await resolveRequest(client, idPrefix);
+
+        if (format === "curl") {
+          console.log(generateCurl(request));
+        } else if (format === "har") {
+          console.log(generateHarString([request]));
+        } else if (format === "fetch") {
+          console.log(generateFetch(request));
+        } else if (format === "requests" || format === "python") {
+          console.log(generatePythonRequests(request));
+        } else if (format === "httpie") {
+          console.log(generateHttpie(request));
+        }
+      } catch (err) {
+        console.error(`Error: ${getErrorMessage(err)}`);
+        process.exit(1);
+      } finally {
+        client.close();
+      }
     }
-  });
+  );
 
 const saveSubcommand = new Command("save")
   .description("Save (bookmark) a request so it persists across clear operations")
-  .action(async (_opts: Record<string, unknown>, command: Command) => {
-    const parentOpts = command.parent?.args ?? [];
-    const idPrefix = parentOpts[0];
-    if (!idPrefix || typeof idPrefix !== "string") {
-      console.error("Usage: httap request <id> save");
-      process.exit(1);
-    }
-
+  .argument("<id>", "request ID (full or abbreviated prefix)")
+  .action(async (idPrefix: string, _opts: Record<string, unknown>, command: Command) => {
     const { client } = await connectToDaemon(command);
     try {
       const request = await resolveRequest(client, idPrefix);
@@ -177,21 +167,28 @@ const saveSubcommand = new Command("save")
 
 const replaySubcommand = new Command("replay")
   .description("Replay the captured request through the proxy")
+  .argument("<id>", "request ID (full or abbreviated prefix)")
   .option("--method <method>", "override HTTP method")
   .option("--url <url>", "override target URL")
-  .option("--set-header <header...>", "set/override headers (name:value)")
-  .option("--remove-header <header...>", "remove headers by name")
+  .option(
+    "--set-header <header>",
+    "set/override a header (name:value); repeatable",
+    collectRepeated,
+    []
+  )
+  .option("--remove-header <name>", "remove a header by name; repeatable", collectRepeated, [])
   .option("--body <text>", "override request body (UTF-8 text)")
   .option("--body-base64 <data>", "override request body (base64-encoded)")
   .option("--timeout <ms>", "replay timeout in milliseconds")
   .option("--json", "JSON output")
   .action(
     async (
+      idPrefix: string,
       opts: {
         method?: string;
         url?: string;
-        setHeader?: string[];
-        removeHeader?: string[];
+        setHeader: string[];
+        removeHeader: string[];
         body?: string;
         bodyBase64?: string;
         timeout?: string;
@@ -199,20 +196,13 @@ const replaySubcommand = new Command("replay")
       },
       command: Command
     ) => {
-      const parentOpts = command.parent?.args ?? [];
-      const idPrefix = parentOpts[0];
-      if (!idPrefix || typeof idPrefix !== "string") {
-        console.error("Usage: httap request <id> replay");
-        process.exit(1);
-      }
-
       const { client } = await connectToDaemon(command);
       try {
         const request = await resolveRequest(client, idPrefix);
 
         // Parse --set-header values into a record (split on first ":")
         let setHeaders: Record<string, string> | undefined;
-        if (opts.setHeader && opts.setHeader.length > 0) {
+        if (opts.setHeader.length > 0) {
           setHeaders = {};
           for (const header of opts.setHeader) {
             const colonIndex = header.indexOf(":");
@@ -241,7 +231,7 @@ const replaySubcommand = new Command("replay")
           method: opts.method,
           url: opts.url,
           setHeaders,
-          removeHeaders: opts.removeHeader,
+          removeHeaders: opts.removeHeader.length > 0 ? opts.removeHeader : undefined,
           body: opts.body,
           bodyBase64: opts.bodyBase64,
           timeoutMs,
@@ -272,14 +262,8 @@ const replaySubcommand = new Command("replay")
 
 const unsaveSubcommand = new Command("unsave")
   .description("Remove the saved/bookmark flag from a request")
-  .action(async (_opts: Record<string, unknown>, command: Command) => {
-    const parentOpts = command.parent?.args ?? [];
-    const idPrefix = parentOpts[0];
-    if (!idPrefix || typeof idPrefix !== "string") {
-      console.error("Usage: httap request <id> unsave");
-      process.exit(1);
-    }
-
+  .argument("<id>", "request ID (full or abbreviated prefix)")
+  .action(async (idPrefix: string, _opts: Record<string, unknown>, command: Command) => {
     const { client } = await connectToDaemon(command);
     try {
       const request = await resolveRequest(client, idPrefix);
@@ -322,10 +306,10 @@ export const requestCommand = new Command("request")
       console.log(formatRequestDetail(request));
 
       const hint = formatHint([
-        "body for full body",
-        "export curl|har|fetch|python|httpie",
-        "save|unsave to bookmark",
-        "replay to re-send",
+        `body ${id} for full body`,
+        `export curl|har|fetch|python|httpie ${id}`,
+        `save|unsave ${id} to bookmark`,
+        `replay ${id} to re-send`,
       ]);
       if (hint) {
         console.log("");

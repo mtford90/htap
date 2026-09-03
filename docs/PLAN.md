@@ -66,8 +66,8 @@ Scriptable CLI commands exposing the same search/filter/export capabilities as t
 - `httap requests count` — count matching requests
 - `httap requests clear` — clear captured requests (with confirmation)
 - `httap request <id>` — single request detail (supports abbreviated IDs)
-- `httap request <id> body` — dump response body (raw, pipeable); `--request` for request body
-- `httap request <id> export curl|har` — export in various formats
+- `httap request body <id>` — dump response body (raw, pipeable); `--request` for request body
+- `httap request export curl|har <id>` — export in various formats
 - `httap sessions` — list active proxy sessions
 - `httap interceptors logs` — event log with `--name`, `--level`, `--follow` (live tail), `--json`
 - `httap interceptors logs clear` — clear event log
@@ -118,7 +118,7 @@ Each feature should be considered across all four surfaces where applicable:
 - [x] **Saved requests (bookmarks)** — save/bookmark individual requests for later reference, persisting them beyond `clear` operations
   - **Storage:** new `saved_requests` table in SQLite (or a `saved` flag on the requests table); saved requests excluded from `clear` by default
   - **TUI:** keybinding (e.g. `b`) to toggle bookmark on selected request, visual indicator on bookmarked rows, filter to show only saved requests
-  - **CLI:** `httap requests --saved` filter flag; `httap request <id> save` / `httap request <id> unsave` to toggle
+  - **CLI:** `httap requests --saved` filter flag; `httap request save <id>` / `httap request unsave <id>` to toggle
   - **MCP:** `saved` filter param on `httap_list_requests`, `httap_save_request` / `httap_unsave_request` tools
 
 - [x] **Request sources** — automatically identify where requests come from, with optional user override
