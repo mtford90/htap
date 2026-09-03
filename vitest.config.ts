@@ -3,6 +3,18 @@ import { defineConfig } from "vitest/config";
 /** OpenTUI's renderer loads its native library through node:ffi, which Node 26.4 gates behind a flag. */
 const TUI_EXEC_ARGV = ["--experimental-ffi", "--disable-warning=ExperimentalWarning"];
 
+/**
+ * The Ink tree's component tests synchronise with fixed sleeps, which miss under
+ * macOS runner load; they fail on master too. They still run on Linux, and they
+ * go away with the Ink tree itself after the HTTAP_TUI=ink escape hatch expires.
+ */
+const INK_TESTS_FLAKY_ON_DARWIN = [
+  "src/cli/tui/App.test.tsx",
+  "src/cli/tui/components/FilterBar.test.tsx",
+];
+
+const quarantined = process.platform === "darwin" ? INK_TESTS_FLAKY_ON_DARWIN : [];
+
 const shared = {
   globals: true,
   environment: "node" as const,
@@ -31,7 +43,7 @@ export default defineConfig({
             "tests/**/*.test.ts",
             "tests/**/*.test.tsx",
           ],
-          exclude: ["**/node_modules/**", "**/dist/**", "src/tui/**/*.test.tsx"],
+          exclude: ["**/node_modules/**", "**/dist/**", "src/tui/**/*.test.tsx", ...quarantined],
         },
       },
       {
