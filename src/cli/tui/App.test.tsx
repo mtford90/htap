@@ -115,7 +115,6 @@ const tick = (ms = 300) => new Promise((resolve) => setTimeout(resolve, ms));
 describe("App keyboard interactions", () => {
   const mockRefresh = vi.fn();
   const mockGetFullRequest = vi.fn();
-  const mockGetAllFullRequests = vi.fn();
   const mockReplayRequest = vi.fn();
   const mockToggleSaved = vi.fn();
   const mockClearRequests = vi.fn();
@@ -124,7 +123,6 @@ describe("App keyboard interactions", () => {
     vi.clearAllMocks();
     mockRefresh.mockReset();
     mockGetFullRequest.mockReset();
-    mockGetAllFullRequests.mockReset();
     mockReplayRequest.mockReset().mockResolvedValue("replayed-1");
     mockToggleSaved.mockReset().mockResolvedValue(true);
     mockClearRequests.mockReset().mockResolvedValue(true);
@@ -148,15 +146,12 @@ describe("App keyboard interactions", () => {
       const req = fullRequests.find((r) => r.id === id);
       return Promise.resolve(req ?? null);
     });
-    mockGetAllFullRequests.mockResolvedValue(fullRequests);
-
     mockUseRequests.mockReturnValue({
       requests: summaries,
       isLoading: false,
       error: null,
       refresh: mockRefresh,
       getFullRequest: mockGetFullRequest,
-      getAllFullRequests: mockGetAllFullRequests,
       replayRequest: mockReplayRequest,
       toggleSaved: mockToggleSaved,
       clearRequests: mockClearRequests,
@@ -175,7 +170,6 @@ describe("App keyboard interactions", () => {
         error: null,
         refresh: vi.fn(),
         getFullRequest: vi.fn().mockResolvedValue(mockFullRequest),
-        getAllFullRequests: vi.fn().mockResolvedValue([mockFullRequest]),
         toggleSaved: mockToggleSaved,
         clearRequests: mockClearRequests,
       });
@@ -196,7 +190,6 @@ describe("App keyboard interactions", () => {
         error: null,
         refresh: vi.fn(),
         getFullRequest: vi.fn().mockResolvedValue(mockFullRequest),
-        getAllFullRequests: vi.fn().mockResolvedValue([mockFullRequest]),
         toggleSaved: mockToggleSaved,
         clearRequests: mockClearRequests,
       });
@@ -220,7 +213,6 @@ describe("App keyboard interactions", () => {
         error: null,
         refresh: vi.fn(),
         getFullRequest: vi.fn().mockResolvedValue(mockFullRequest),
-        getAllFullRequests: vi.fn().mockResolvedValue([mockFullRequest]),
         toggleSaved: mockToggleSaved,
         clearRequests: mockClearRequests,
       });
@@ -243,7 +235,6 @@ describe("App keyboard interactions", () => {
         error: null,
         refresh: vi.fn(),
         getFullRequest: vi.fn().mockResolvedValue(null),
-        getAllFullRequests: vi.fn().mockResolvedValue([]),
         toggleSaved: mockToggleSaved,
         clearRequests: mockClearRequests,
       });
@@ -679,7 +670,6 @@ describe("App keyboard interactions", () => {
         error: null,
         refresh: vi.fn(),
         getFullRequest: vi.fn().mockResolvedValue(null),
-        getAllFullRequests: vi.fn().mockResolvedValue([]),
         toggleSaved: mockToggleSaved,
         clearRequests: mockClearRequests,
       });
@@ -769,7 +759,6 @@ describe("App keyboard interactions", () => {
         error: null,
         refresh: mockRefresh,
         getFullRequest: vi.fn().mockResolvedValue(fullRequest),
-        getAllFullRequests: vi.fn().mockResolvedValue([fullRequest]),
         toggleSaved: mockToggleSaved,
         clearRequests: mockClearRequests,
       });
@@ -823,7 +812,6 @@ describe("App keyboard interactions", () => {
         error: null,
         refresh: mockRefresh,
         getFullRequest: vi.fn().mockResolvedValue(fullRequest),
-        getAllFullRequests: vi.fn().mockResolvedValue([fullRequest]),
         toggleSaved: mockToggleSaved,
         clearRequests: mockClearRequests,
       });
@@ -857,7 +845,6 @@ describe("App keyboard interactions", () => {
         error: null,
         refresh: mockRefresh,
         getFullRequest: vi.fn().mockResolvedValue(fullRequest),
-        getAllFullRequests: vi.fn().mockResolvedValue([fullRequest]),
         toggleSaved: mockToggleSaved,
         clearRequests: mockClearRequests,
       });
@@ -890,7 +877,6 @@ describe("App keyboard interactions", () => {
         error: null,
         refresh: mockRefresh,
         getFullRequest: vi.fn().mockResolvedValue(fullRequest),
-        getAllFullRequests: vi.fn().mockResolvedValue([fullRequest]),
         toggleSaved: mockToggleSaved,
         clearRequests: mockClearRequests,
       });
@@ -923,7 +909,6 @@ describe("App keyboard interactions", () => {
         error: null,
         refresh: mockRefresh,
         getFullRequest: vi.fn().mockResolvedValue(fullRequest),
-        getAllFullRequests: vi.fn().mockResolvedValue([fullRequest]),
         toggleSaved: mockToggleSaved,
         clearRequests: mockClearRequests,
       });
@@ -996,7 +981,6 @@ describe("App keyboard interactions", () => {
         error: null,
         refresh: mockRefresh,
         getFullRequest: vi.fn().mockResolvedValue(fullRequest),
-        getAllFullRequests: mockGetAllFullRequests,
         toggleSaved: mockToggleSaved,
         clearRequests: mockClearRequests,
       });
@@ -1024,7 +1008,6 @@ describe("App keyboard interactions", () => {
         error: null,
         refresh: mockRefresh,
         getFullRequest: vi.fn().mockResolvedValue(fullRequest),
-        getAllFullRequests: mockGetAllFullRequests,
         toggleSaved: mockToggleSaved,
         clearRequests: mockClearRequests,
       });
@@ -1049,7 +1032,6 @@ describe("App keyboard interactions", () => {
         error: null,
         refresh: mockRefresh,
         getFullRequest: vi.fn().mockResolvedValue(fullRequest),
-        getAllFullRequests: mockGetAllFullRequests,
         toggleSaved: mockToggleSaved,
         clearRequests: mockClearRequests,
       });
@@ -1076,7 +1058,6 @@ describe("App keyboard interactions", () => {
         error: null,
         refresh: mockRefresh,
         getFullRequest: vi.fn().mockResolvedValue(null),
-        getAllFullRequests: vi.fn().mockResolvedValue([]),
         toggleSaved: mockToggleSaved,
         clearRequests: mockClearRequests,
       });
@@ -1099,7 +1080,6 @@ describe("App keyboard interactions", () => {
         error: null,
         refresh: mockRefresh,
         getFullRequest: vi.fn().mockResolvedValue(fullRequest),
-        getAllFullRequests: mockGetAllFullRequests,
         toggleSaved: mockToggleSaved,
         clearRequests: mockClearRequests,
       });
@@ -1127,7 +1107,6 @@ describe("App keyboard interactions", () => {
         error: null,
         refresh: mockRefresh,
         getFullRequest: vi.fn().mockResolvedValue(fullRequest),
-        getAllFullRequests: mockGetAllFullRequests,
         toggleSaved: mockToggleSaved,
         clearRequests: mockClearRequests,
       });
@@ -1205,7 +1184,6 @@ describe("App keyboard interactions", () => {
         error: null,
         refresh: vi.fn(),
         getFullRequest: vi.fn().mockResolvedValue(null),
-        getAllFullRequests: vi.fn().mockResolvedValue([]),
         toggleSaved: mockToggleSaved,
         clearRequests: mockClearRequests,
       });
@@ -1343,7 +1321,6 @@ describe("App keyboard interactions", () => {
         error: null,
         refresh: vi.fn(),
         getFullRequest: vi.fn().mockResolvedValue(null),
-        getAllFullRequests: vi.fn().mockResolvedValue([]),
         toggleSaved: mockToggleSaved,
         clearRequests: mockClearRequests,
       });
@@ -1435,7 +1412,6 @@ describe("App keyboard interactions", () => {
         error: null,
         refresh: mockRefresh,
         getFullRequest: vi.fn().mockResolvedValue(fullRequest),
-        getAllFullRequests: mockGetAllFullRequests,
         toggleSaved: mockToggleSaved,
         clearRequests: mockClearRequests,
       });
@@ -1468,7 +1444,6 @@ describe("App keyboard interactions", () => {
         error: null,
         refresh: mockRefresh,
         getFullRequest: vi.fn().mockResolvedValue(fullRequest),
-        getAllFullRequests: mockGetAllFullRequests,
         toggleSaved: mockToggleSaved,
         clearRequests: mockClearRequests,
       });
@@ -1500,7 +1475,6 @@ describe("App keyboard interactions", () => {
         error: null,
         refresh: mockRefresh,
         getFullRequest: vi.fn().mockResolvedValue(fullRequest),
-        getAllFullRequests: mockGetAllFullRequests,
         toggleSaved: mockToggleSaved,
         clearRequests: mockClearRequests,
       });
@@ -1568,7 +1542,6 @@ describe("App keyboard interactions", () => {
         error: null,
         refresh: mockRefresh,
         getFullRequest: vi.fn().mockResolvedValue(fullRequest),
-        getAllFullRequests: mockGetAllFullRequests,
         toggleSaved: mockToggleSaved,
         clearRequests: mockClearRequests,
       });
@@ -1600,7 +1573,6 @@ describe("App keyboard interactions", () => {
         error: null,
         refresh: mockRefresh,
         getFullRequest: vi.fn().mockResolvedValue(fullRequest),
-        getAllFullRequests: mockGetAllFullRequests,
         toggleSaved: mockToggleSaved,
         clearRequests: mockClearRequests,
       });
@@ -1631,7 +1603,6 @@ describe("App keyboard interactions", () => {
         error: null,
         refresh: mockRefresh,
         getFullRequest: vi.fn().mockResolvedValue(fullRequest),
-        getAllFullRequests: mockGetAllFullRequests,
         toggleSaved: mockToggleSaved,
         clearRequests: mockClearRequests,
       });
@@ -1660,7 +1631,6 @@ describe("App keyboard interactions", () => {
         error: null,
         refresh: mockRefresh,
         getFullRequest: vi.fn().mockResolvedValue(createMockFullRequest()),
-        getAllFullRequests: mockGetAllFullRequests,
         toggleSaved: mockToggleSaved,
         clearRequests: mockClearRequests,
       });
@@ -1707,7 +1677,6 @@ describe("App keyboard interactions", () => {
         error: null,
         refresh: mockRefresh,
         getFullRequest: mockGetFull,
-        getAllFullRequests: mockGetAllFullRequests,
         replayRequest: mockReplayRequest,
         toggleSaved: mockToggleSaved,
         clearRequests: mockClearRequests,
@@ -1735,7 +1704,6 @@ describe("App keyboard interactions", () => {
         error: null,
         refresh: mockRefresh,
         getFullRequest: mockGetFull,
-        getAllFullRequests: mockGetAllFullRequests,
         replayRequest: mockReplayRequest,
         toggleSaved: mockToggleSaved,
         clearRequests: mockClearRequests,
@@ -1829,7 +1797,6 @@ describe("App keyboard interactions", () => {
         error: null,
         refresh: mockRefresh,
         getFullRequest: mockGetFull,
-        getAllFullRequests: mockGetAllFullRequests,
         replayRequest: mockReplayRequest,
         toggleSaved: mockToggleSaved,
         clearRequests: mockClearRequests,
@@ -1854,7 +1821,6 @@ describe("App keyboard interactions", () => {
         error: null,
         refresh: mockRefresh,
         getFullRequest: mockGetFull,
-        getAllFullRequests: mockGetAllFullRequests,
         replayRequest: mockReplayRequest,
         toggleSaved: mockToggleSaved,
         clearRequests: mockClearRequests,
@@ -1886,7 +1852,6 @@ describe("App keyboard interactions", () => {
         error: null,
         refresh: mockRefresh,
         getFullRequest: mockGetFull,
-        getAllFullRequests: mockGetAllFullRequests,
         replayRequest: mockReplayRequest,
         toggleSaved: mockToggleSaved,
         clearRequests: mockClearRequests,
@@ -1914,7 +1879,6 @@ describe("App keyboard interactions", () => {
           error: null,
           refresh: mockRefresh,
           getFullRequest: mockGetFull,
-          getAllFullRequests: mockGetAllFullRequests,
           replayRequest: mockReplayRequest,
           toggleSaved: mockToggleSaved,
           clearRequests: mockClearRequests,
@@ -2026,7 +1990,6 @@ describe("App keyboard interactions", () => {
         error: null,
         refresh: mockRefresh,
         getFullRequest: mockGetFull,
-        getAllFullRequests: mockGetAllFullRequests,
         replayRequest: mockReplayRequest,
         toggleSaved: mockToggleSaved,
         clearRequests: mockClearRequests,
@@ -2059,7 +2022,6 @@ describe("App keyboard interactions", () => {
         error: null,
         refresh: mockRefresh,
         getFullRequest: mockGetFull,
-        getAllFullRequests: mockGetAllFullRequests,
         replayRequest: mockReplayRequest,
         toggleSaved: mockToggleSaved,
         clearRequests: mockClearRequests,

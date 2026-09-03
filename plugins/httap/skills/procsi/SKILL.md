@@ -1,1 +1,0 @@
-../../../../skills/procsi/SKILL.md
