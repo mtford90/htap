@@ -72,7 +72,7 @@ Key design decisions:
 - **CLI**: commander
 - **TUI**: ink (React for terminals)
 - **Proxy**: mockttp (HTTP Toolkit's MITM library)
-- **Storage**: better-sqlite3
+- **Storage**: `node:sqlite` (`DatabaseSync`) — no native addons in the dependency tree
 - **Testing**: Vitest
 - **Package manager**: pnpm 11; native build allowances live in `pnpm-workspace.yaml` (`allowBuilds`), not package.json
 
