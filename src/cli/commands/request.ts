@@ -26,8 +26,14 @@ const PREFIX_MATCH_SEARCH_LIMIT = 1000;
  */
 const collectRepeated = (value: string, previous: string[]): string[] => [...previous, value];
 
-/** Subcommands that used to be written after `<id>` and now come before it. */
-const REORDERED_SUBCOMMANDS = ["body", "export", "save", "unsave", "replay"];
+/** Subcommands that used to be written after `<id>`, with their new forms. */
+const REORDERED_SUBCOMMANDS: Record<string, string> = {
+  body: "httap request body <id>",
+  export: "httap request export <format> <id>",
+  save: "httap request save <id>",
+  unsave: "httap request unsave <id>",
+  replay: "httap request replay <id>",
+};
 
 /**
  * `httap request <id> body` parses as one excess positional. Point the user at
@@ -35,9 +41,10 @@ const REORDERED_SUBCOMMANDS = ["body", "export", "save", "unsave", "replay"];
  */
 const rejectExcessArguments = (command: Command, excess: string[]): never => {
   const [first] = excess;
-  if (first !== undefined && REORDERED_SUBCOMMANDS.includes(first)) {
+  const newForm = first === undefined ? undefined : REORDERED_SUBCOMMANDS[first];
+  if (newForm !== undefined) {
     command.error(
-      `error: 'httap request <id> ${first}' is no longer supported — use 'httap request ${first} <id>'`
+      `error: 'httap request <id> ${first}' is no longer supported — use '${newForm}'`
     );
   }
   return command.error(`error: too many arguments for 'request'`);

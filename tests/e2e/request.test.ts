@@ -144,6 +144,13 @@ describe("httap request <subcommand> <id> e2e", () => {
     expect(stderr).toContain("httap request body <id>");
   });
 
+  it("includes <format> in the hint for the old `request <id> export` form", async () => {
+    const { stderr, code } = await runCli(tempDir, ["request", requestId, "export"]);
+
+    expect(code).toBe(1);
+    expect(stderr).toContain("httap request export <format> <id>");
+  });
+
   it("accepts --set-header more than once", async () => {
     const { stderr } = await runCli(tempDir, [
       "request",
