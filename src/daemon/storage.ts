@@ -31,6 +31,7 @@ const REGEX_CACHE_MAX_ENTRIES = 100;
 const DEFAULT_DELTA_LIMIT = 500;
 const ORDER_SEQ_COLUMN = "order_seq";
 const CHANGE_SEQ_COLUMN = "change_seq";
+const BUSY_TIMEOUT_MS = 5000;
 
 const SCHEMA = `
 CREATE TABLE IF NOT EXISTS sessions (
@@ -389,7 +390,7 @@ export class RequestRepository {
     logLevel?: LogLevel,
     options?: RepositoryOptions
   ) {
-    this.db = new DatabaseSync(dbPath);
+    this.db = new DatabaseSync(dbPath, { timeout: BUSY_TIMEOUT_MS });
     this.db.exec("PRAGMA journal_mode = WAL");
     this.db.exec(SCHEMA);
     this.registerSqlFunctions();
@@ -455,7 +456,9 @@ export class RequestRepository {
       fn();
       this.db.exec("COMMIT");
     } catch (error) {
-      this.db.exec("ROLLBACK");
+      if (this.db.isTransaction) {
+        this.db.exec("ROLLBACK");
+      }
       throw error;
     }
   }
@@ -592,7 +595,7 @@ export class RequestRepository {
       WHERE id = ? AND internal_token = ?
       LIMIT 1
     `);
-    const row = stmt.get(id, token) as unknown as DbSessionAuthRow | undefined | undefined;
+    const row = stmt.get(id, token) as unknown as DbSessionAuthRow | undefined;
     if (!row) {
       return undefined;
     }
@@ -611,7 +614,7 @@ export class RequestRepository {
       WHERE id = ?
     `);
 
-    const row = stmt.get(id) as unknown as DbSessionRow | undefined | undefined;
+    const row = stmt.get(id) as unknown as DbSessionRow | undefined;
 
     if (!row) {
       return undefined;
@@ -786,7 +789,7 @@ export class RequestRepository {
       SELECT * FROM requests WHERE id = ?
     `);
 
-    const row = stmt.get(id) as unknown as DbRequestRow | undefined | undefined;
+    const row = stmt.get(id) as unknown as DbRequestRow | undefined;
 
     return row ? this.rowToRequest(row) : undefined;
   }
@@ -968,7 +971,7 @@ export class RequestRepository {
       const moreWhere = `WHERE ${moreConditions.join(" AND ")}`;
       const moreStmt = this.db.prepare(`SELECT 1 as has_more FROM requests ${moreWhere} LIMIT 1`);
       const moreRow = moreStmt.get(...moreParams) as unknown as
-        DbHasMoreRow | undefined | undefined;
+        DbHasMoreRow | undefined;
       hasMore = moreRow !== undefined;
     }
 
