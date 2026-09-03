@@ -7,7 +7,7 @@
  * by the time it loads the renderer's native library is available.
  */
 
-import { createCliRenderer } from "@opentui/core";
+import { createCliRenderer, type CliRenderer } from "@opentui/core";
 import { createRoot } from "@opentui/react";
 import React from "react";
 import { ControlClient } from "../shared/control-client.js";
@@ -63,17 +63,8 @@ export const startTui = async ({
     pollInterval: config?.pollInterval,
   });
 
-  const renderer = await createCliRenderer({
-    // Ctrl+C is a command in the table instead: OpenTUI's own handler only
-    // destroys the renderer, which would leave the sync engine polling and the
-    // parent blocked in spawnSync.
-    exitOnCtrlC: false,
-    // The TUI runs in a child process, so it must fall over with its terminal
-    // rather than outliving the shell that started it.
-    exitSignals: ["SIGINT", "SIGTERM", "SIGHUP"],
-    onDestroy: () => shutdown(),
-  });
-  const root = createRoot(renderer);
+  let renderer: CliRenderer | undefined = undefined;
+  let root: ReturnType<typeof createRoot> | undefined = undefined;
 
   let shuttingDown = false;
   const shutdown = (code = 0): void => {
@@ -83,8 +74,8 @@ export const startTui = async ({
     shuttingDown = true;
     try {
       engine.stop();
-      root.unmount();
-      renderer.destroy();
+      root?.unmount();
+      renderer?.destroy();
       logger?.info("TUI exited");
     } catch (error) {
       logger?.error(
@@ -107,14 +98,33 @@ export const startTui = async ({
     process.on(signal, () => shutdown());
   }
 
-  // OpenTUI installs its own handlers that only log, which would otherwise
+  // OpenTUI installs its own handler that only logs, which would otherwise
   // leave a half-drawn alternate screen and a live process after a crash.
-  const crash = (error: unknown): void => {
+  process.on("uncaughtException", (error: unknown) => {
     logger?.error(`TUI crashed: ${error instanceof Error ? error.stack : String(error)}`);
     shutdown(1);
-  };
-  process.on("uncaughtException", crash);
-  process.on("unhandledRejection", crash);
+  });
+
+  // A stray rejection is not worth the session: it leaves the screen intact.
+  process.on("unhandledRejection", (reason: unknown) => {
+    logger?.error(
+      `Unhandled rejection: ${reason instanceof Error ? reason.stack : String(reason)}`
+    );
+  });
+
+  // OpenTUI registers its signal handlers inside the renderer constructor, so
+  // onDestroy can fire before this call returns.
+  renderer = await createCliRenderer({
+    // Ctrl+C is a command in the table instead: OpenTUI's own handler only
+    // destroys the renderer, which would leave the sync engine polling and the
+    // parent blocked in spawnSync.
+    exitOnCtrlC: false,
+    // The TUI runs in a child process, so it must fall over with its terminal
+    // rather than outliving the shell that started it.
+    exitSignals: ["SIGINT", "SIGTERM", "SIGHUP"],
+    onDestroy: () => shutdown(),
+  });
+  root = createRoot(renderer);
 
   root.render(<App store={store} actions={actions} engine={engine} onExit={shutdown} />);
 
