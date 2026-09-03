@@ -195,8 +195,11 @@ describe("detail loading", () => {
     expect(store.getState().detail.request?.id).toBe("a");
   });
 
-  it("serves a repeat selection from the cache", async () => {
-    const getRequest = vi.fn(async (id: string) => fullRequest(id));
+  it("serves a repeat selection of a completed request from the cache", async () => {
+    const getRequest = vi.fn(async (id: string) => ({
+      ...fullRequest(id),
+      responseStatus: 200,
+    }));
     const { store, engine } = setup({ getRequest });
 
     engine.selectDetail("a");
@@ -207,6 +210,62 @@ describe("detail loading", () => {
 
     expect(store.getState().detail.request?.id).toBe("a");
     expect(getRequest).toHaveBeenCalledTimes(2);
+  });
+
+  it("does not cache a request that has no response yet", async () => {
+    const pending = fullRequest("slow");
+    const getRequest = vi.fn(async () => pending);
+    const { store, engine } = setup({ getRequest });
+
+    engine.selectDetail("slow");
+    await vi.waitFor(() => expect(store.getState().detail.request).not.toBeNull());
+    engine.selectDetail("other");
+    await vi.waitFor(() => expect(store.getState().detail.requestId).toBe("other"));
+    engine.selectDetail("slow");
+
+    await vi.waitFor(() => expect(getRequest).toHaveBeenCalledTimes(3));
+  });
+
+  it("refetches the open request when a delta reports a change to it", async () => {
+    const responses = [fullRequest("a"), { ...fullRequest("a"), responseStatus: 200 }];
+    const getRequest = vi.fn(async () => responses.shift() ?? responses[0] ?? null);
+    const listRequestsSummaryDelta = vi
+      .fn<SyncClient["listRequestsSummaryDelta"]>()
+      .mockResolvedValueOnce(batch([["a", 1]], 1))
+      .mockResolvedValueOnce(batch([["a", 2]], 2))
+      .mockResolvedValue(batch([], 2));
+    const { store, engine } = setup({ getRequest, listRequestsSummaryDelta });
+
+    await engine.syncRequests();
+    engine.selectDetail("a");
+    await vi.waitFor(() => expect(store.getState().detail.request).not.toBeNull());
+    expect(store.getState().detail.request?.responseStatus).toBeUndefined();
+
+    await engine.syncRequests();
+
+    await vi.waitFor(() => expect(store.getState().detail.request?.responseStatus).toBe(200));
+  });
+
+  it("leaves the detail alone when a delta changes a different request", async () => {
+    const getRequest = vi.fn(async (id: string) => ({
+      ...fullRequest(id),
+      responseStatus: 200,
+    }));
+    const listRequestsSummaryDelta = vi
+      .fn<SyncClient["listRequestsSummaryDelta"]>()
+      .mockResolvedValueOnce(batch([["a", 1]], 1))
+      .mockResolvedValueOnce(batch([["b", 2]], 2))
+      .mockResolvedValue(batch([], 2));
+    const { store, engine } = setup({ getRequest, listRequestsSummaryDelta });
+
+    await engine.syncRequests();
+    engine.selectDetail("a");
+    await vi.waitFor(() => expect(store.getState().detail.request).not.toBeNull());
+
+    await engine.syncRequests();
+    await vi.waitFor(() => expect(store.getState().requests.items).toHaveLength(2));
+
+    expect(getRequest).toHaveBeenCalledTimes(1);
   });
 
   it("ignores a response that a newer selection has superseded", async () => {
@@ -349,7 +408,10 @@ describe("mutations", () => {
   });
 
   it("drops cached detail after a bookmark change", async () => {
-    const getRequest = vi.fn(async (id: string) => fullRequest(id));
+    const getRequest = vi.fn(async (id: string) => ({
+      ...fullRequest(id),
+      responseStatus: 200,
+    }));
     const { store, engine } = setup({ getRequest });
     engine.selectDetail("a");
     await vi.waitFor(() => expect(store.getState().detail.request).not.toBeNull());

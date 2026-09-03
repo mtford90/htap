@@ -269,6 +269,7 @@ export class SyncEngine {
   private async applyDeltas(generation: number): Promise<void> {
     const summaryById = new Map(this.summaryById);
     const orderSeqById = new Map(this.orderSeqById);
+    const changedIds = new Set<string>();
     let cursor = this.cursor;
     let batches = 0;
     let changed = false;
@@ -289,6 +290,7 @@ export class SyncEngine {
       for (const entry of delta.entries) {
         summaryById.set(entry.summary.id, entry.summary);
         orderSeqById.set(entry.summary.id, entry.orderSeq);
+        changedIds.add(entry.summary.id);
       }
       cursor = delta.cursor;
       changed = true;
@@ -304,6 +306,7 @@ export class SyncEngine {
 
     if (changed) {
       this.actions.setRequests(buildOrderedList(summaryById, orderSeqById));
+      this.invalidateChangedDetails(changedIds);
     } else {
       this.actions.setError(null);
     }
@@ -364,7 +367,9 @@ export class SyncEngine {
       .getRequest(id)
       .catch(() => null)
       .then((request) => {
-        if (request) {
+        // A request that has no response yet will change, so caching it would
+        // pin an empty Response section for the life of the process.
+        if (request?.responseStatus !== undefined) {
           this.cacheDetail(id, request);
         }
         this.detailInFlight.delete(id);
@@ -389,6 +394,19 @@ export class SyncEngine {
   /** Drops cached detail for one request so the next selection refetches it. */
   invalidateDetail(id: string): void {
     this.detailCache.delete(id);
+  }
+
+  /**
+   * A delta means the daemon has newer data for those rows, so their cached
+   * detail is stale; the one on screen is refetched straight away.
+   */
+  private invalidateChangedDetails(changedIds: ReadonlySet<string>): void {
+    for (const id of changedIds) {
+      this.detailCache.delete(id);
+    }
+    if (this.detailRequestId !== null && changedIds.has(this.detailRequestId)) {
+      this.selectDetail(this.detailRequestId);
+    }
   }
 
   async replay(id: string): Promise<string | null> {
