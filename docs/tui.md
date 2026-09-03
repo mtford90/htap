@@ -14,6 +14,8 @@ The TUI is rendered by [OpenTUI](https://opentui.com), whose native library is
 loaded through `node:ffi`. Node gates that module behind `--experimental-ffi`
 until it is enabled by default, so `httap tui` re-executes Node with the flag
 and runs the TUI in that child process. Nothing else in httap needs it.
+That flag needs Node 26.4 or newer, which is httap's minimum version
+anyway; on anything older `httap tui` says so and exits.
 
 Set `HTTAP_TUI=ink` to run the previous Ink interface instead. That escape
 hatch exists for one minor release and is removed with the Ink tree.

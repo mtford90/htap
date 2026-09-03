@@ -282,9 +282,9 @@ Anything that respects `HTTP_PROXY` works. httap sets the right CA cert env vars
 
 `j`/`k` to navigate, `Tab` to switch panels, `/` to filter, `e` to export, `Enter` to inspect bodies, `q` to quit. Mouse support included.
 
-The TUI is drawn by [OpenTUI](https://opentui.com), which needs Node 26.4 or
-newer; `httap tui` starts it for you. Set `HTTAP_TUI=ink` to fall back to the
-previous Ink interface, which will be removed in the next minor release.
+The TUI is drawn by [OpenTUI](https://opentui.com). Set `HTTAP_TUI=ink` to fall
+back to the previous Ink interface, which will be removed in the next minor
+release — see [TUI runtime](docs/tui.md#runtime).
 
 See [full TUI documentation](docs/tui.md) for all keybindings and export features.
 
