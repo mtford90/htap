@@ -970,8 +970,7 @@ export class RequestRepository {
       const moreParams: (string | number)[] = [...baseParams, cursor];
       const moreWhere = `WHERE ${moreConditions.join(" AND ")}`;
       const moreStmt = this.db.prepare(`SELECT 1 as has_more FROM requests ${moreWhere} LIMIT 1`);
-      const moreRow = moreStmt.get(...moreParams) as unknown as
-        DbHasMoreRow | undefined;
+      const moreRow = moreStmt.get(...moreParams) as unknown as DbHasMoreRow | undefined;
       hasMore = moreRow !== undefined;
     }
 
@@ -1214,6 +1213,8 @@ export class RequestRepository {
     }
 
     const stmt = this.db.prepare(sql);
+    // An extracted JSON integer can exceed Number.MAX_SAFE_INTEGER (64-bit ids);
+    // node:sqlite throws on those unless they are read as BigInt.
     stmt.setReadBigInts(true);
     const rows = stmt.all(...allParams) as unknown as DbJsonQueryRow[];
 
