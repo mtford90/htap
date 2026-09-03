@@ -1,4 +1,4 @@
-import Database from "better-sqlite3";
+import { DatabaseSync } from "node:sqlite";
 import { randomBytes } from "node:crypto";
 import { v4 as uuidv4 } from "uuid";
 import type {
@@ -186,6 +186,14 @@ const STATUS_RANGE_MULTIPLIER = 100;
 const MIN_HTTP_STATUS = 100;
 const MAX_HTTP_STATUS = 599;
 
+/**
+ * node:sqlite returns BLOB columns as Uint8Array rather than Buffer.
+ */
+function toBuffer(value: Uint8Array | null): Buffer | undefined {
+  if (!value) return undefined;
+  return Buffer.from(value.buffer, value.byteOffset, value.byteLength);
+}
+
 function generateSessionToken(): string {
   return randomBytes(SESSION_TOKEN_BYTES).toString("hex");
 }
@@ -368,7 +376,7 @@ export interface RepositoryOptions {
 }
 
 export class RequestRepository {
-  private db: Database.Database;
+  private db: DatabaseSync;
   private logger: Logger | undefined;
   private maxStoredRequests: number;
   private insertsSinceLastEvictionCheck = 0;
@@ -381,8 +389,8 @@ export class RequestRepository {
     logLevel?: LogLevel,
     options?: RepositoryOptions
   ) {
-    this.db = new Database(dbPath);
-    this.db.pragma("journal_mode = WAL");
+    this.db = new DatabaseSync(dbPath);
+    this.db.exec("PRAGMA journal_mode = WAL");
     this.db.exec(SCHEMA);
     this.registerSqlFunctions();
 
@@ -390,14 +398,15 @@ export class RequestRepository {
 
     // Fresh databases already have the latest schema — stamp to latest version
     // so migrations don't try to re-apply what's already in the CREATE TABLE.
-    const currentVersion = this.db.pragma("user_version", { simple: true }) as number;
+    const currentVersion = this.readUserVersion();
     if (currentVersion === 0) {
       const hasData =
-        (this.db.prepare("SELECT COUNT(*) as count FROM requests").get() as DbCountRow).count > 0;
+        (this.db.prepare("SELECT COUNT(*) as count FROM requests").get() as unknown as DbCountRow)
+          .count > 0;
       if (!hasData) {
         const lastMigration = MIGRATIONS[MIGRATIONS.length - 1];
         const latestVersion = lastMigration ? lastMigration.version : 0;
-        this.db.pragma(`user_version = ${latestVersion}`);
+        this.db.exec(`PRAGMA user_version = ${latestVersion}`);
       }
     }
 
@@ -415,23 +424,46 @@ export class RequestRepository {
    * Apply pending database migrations using SQLite's user_version pragma for tracking.
    */
   private applyMigrations(): void {
-    const currentVersion = this.db.pragma("user_version", { simple: true }) as number;
+    const currentVersion = this.readUserVersion();
 
     const pending = MIGRATIONS.filter((m) => m.version > currentVersion);
     if (pending.length === 0) return;
 
-    const applyAll = this.db.transaction(() => {
+    this.runInTransaction(() => {
       for (const migration of pending) {
         this.db.exec(migration.sql);
-        this.db.pragma(`user_version = ${migration.version}`);
+        this.db.exec(`PRAGMA user_version = ${migration.version}`);
       }
     });
+  }
 
-    applyAll();
+  /**
+   * Read the database's user_version pragma.
+   */
+  private readUserVersion(): number {
+    const row = this.db.prepare("PRAGMA user_version").get() as unknown as DbUserVersionRow;
+    return row.user_version;
+  }
+
+  /**
+   * node:sqlite has no transaction() helper, so wrap a block of statements
+   * in an explicit BEGIN/COMMIT, rolling back on error.
+   */
+  private runInTransaction(fn: () => void): void {
+    this.db.exec("BEGIN");
+    try {
+      fn();
+      this.db.exec("COMMIT");
+    } catch (error) {
+      this.db.exec("ROLLBACK");
+      throw error;
+    }
   }
 
   private ensureSequenceIndexes(): void {
-    const columns = this.db.prepare("PRAGMA table_info(requests)").all() as DbTableInfoRow[];
+    const columns = this.db
+      .prepare("PRAGMA table_info(requests)")
+      .all() as unknown as DbTableInfoRow[];
     const columnNames = new Set(columns.map((column) => column.name));
 
     if (columnNames.has(ORDER_SEQ_COLUMN)) {
@@ -447,7 +479,7 @@ export class RequestRepository {
 
   private readMaxSequence(column: "order_seq" | "change_seq"): number {
     const stmt = this.db.prepare(`SELECT COALESCE(MAX(${column}), 0) as maxSeq FROM requests`);
-    const row = stmt.get() as DbMaxSequenceRow;
+    const row = stmt.get() as unknown as DbMaxSequenceRow;
     return row.maxSeq;
   }
 
@@ -560,7 +592,7 @@ export class RequestRepository {
       WHERE id = ? AND internal_token = ?
       LIMIT 1
     `);
-    const row = stmt.get(id, token) as DbSessionAuthRow | undefined;
+    const row = stmt.get(id, token) as unknown as DbSessionAuthRow | undefined | undefined;
     if (!row) {
       return undefined;
     }
@@ -579,7 +611,7 @@ export class RequestRepository {
       WHERE id = ?
     `);
 
-    const row = stmt.get(id) as DbSessionRow | undefined;
+    const row = stmt.get(id) as unknown as DbSessionRow | undefined | undefined;
 
     if (!row) {
       return undefined;
@@ -598,7 +630,9 @@ export class RequestRepository {
    * Count all sessions.
    */
   countSessions(): number {
-    const row = this.db.prepare("SELECT COUNT(*) as count FROM sessions").get() as DbCountRow;
+    const row = this.db
+      .prepare("SELECT COUNT(*) as count FROM sessions")
+      .get() as unknown as DbCountRow;
     return row.count;
   }
 
@@ -612,7 +646,7 @@ export class RequestRepository {
       ORDER BY started_at DESC
     `);
 
-    const rows = stmt.all() as DbSessionRow[];
+    const rows = stmt.all() as unknown as DbSessionRow[];
 
     return rows.map((row) => ({
       id: row.id,
@@ -752,7 +786,7 @@ export class RequestRepository {
       SELECT * FROM requests WHERE id = ?
     `);
 
-    const row = stmt.get(id) as DbRequestRow | undefined;
+    const row = stmt.get(id) as unknown as DbRequestRow | undefined | undefined;
 
     return row ? this.rowToRequest(row) : undefined;
   }
@@ -797,7 +831,7 @@ export class RequestRepository {
 
     params.push(limit, offset);
 
-    const rows = stmt.all(...params) as DbRequestRow[];
+    const rows = stmt.all(...params) as unknown as DbRequestRow[];
 
     return rows.map((row) => this.rowToRequest(row));
   }
@@ -862,7 +896,7 @@ export class RequestRepository {
 
     params.push(limit, offset);
 
-    const rows = stmt.all(...params) as DbRequestSummaryRow[];
+    const rows = stmt.all(...params) as unknown as DbRequestSummaryRow[];
 
     return rows.map((row) => this.rowToSummary(row));
   }
@@ -914,7 +948,7 @@ export class RequestRepository {
       LIMIT ?
     `);
 
-    const rows = stmt.all(...deltaParams, limit) as DbRequestSummaryRow[];
+    const rows = stmt.all(...deltaParams, limit) as unknown as DbRequestSummaryRow[];
 
     const entries: RequestListDeltaEntry[] = rows.map((row) => ({
       summary: this.rowToSummary(row),
@@ -933,7 +967,8 @@ export class RequestRepository {
       const moreParams: (string | number)[] = [...baseParams, cursor];
       const moreWhere = `WHERE ${moreConditions.join(" AND ")}`;
       const moreStmt = this.db.prepare(`SELECT 1 as has_more FROM requests ${moreWhere} LIMIT 1`);
-      const moreRow = moreStmt.get(...moreParams) as DbHasMoreRow | undefined;
+      const moreRow = moreStmt.get(...moreParams) as unknown as
+        DbHasMoreRow | undefined | undefined;
       hasMore = moreRow !== undefined;
     }
 
@@ -967,7 +1002,7 @@ export class RequestRepository {
       SELECT COUNT(*) as count FROM requests ${whereClause}
     `);
 
-    const result = stmt.get(...params) as DbCountRow;
+    const result = stmt.get(...params) as unknown as DbCountRow;
 
     return result.count;
   }
@@ -1041,7 +1076,7 @@ export class RequestRepository {
 
     params.push(limit, offset);
 
-    const rows = stmt.all(...params) as DbRequestSummaryRow[];
+    const rows = stmt.all(...params) as unknown as DbRequestSummaryRow[];
 
     return rows.map((row) => this.rowToSummary(row));
   }
@@ -1176,7 +1211,7 @@ export class RequestRepository {
     }
 
     const stmt = this.db.prepare(sql);
-    const rows = stmt.all(...allParams) as DbJsonQueryRow[];
+    const rows = stmt.all(...allParams) as unknown as DbJsonQueryRow[];
 
     return rows.map((row) => ({
       id: row.id,
@@ -1229,7 +1264,7 @@ export class RequestRepository {
    * Intended for use during shutdown — not suitable for the hot path.
    */
   compactDatabase(): void {
-    this.db.pragma("wal_checkpoint(TRUNCATE)");
+    this.db.exec("PRAGMA wal_checkpoint(TRUNCATE)");
     this.db.exec("VACUUM");
   }
 
@@ -1256,7 +1291,7 @@ export class RequestRepository {
 
     const { count } = this.db
       .prepare("SELECT COUNT(*) as count FROM requests WHERE saved = 0")
-      .get() as DbCountRow;
+      .get() as unknown as DbCountRow;
 
     if (count <= this.maxStoredRequests) {
       return;
@@ -1327,13 +1362,13 @@ export class RequestRepository {
       host: row.host,
       path: row.path,
       requestHeaders: row.request_headers ? this.safeParseHeaders(row.request_headers) : {},
-      requestBody: row.request_body ?? undefined,
+      requestBody: toBuffer(row.request_body),
       requestBodyTruncated: row.request_body_truncated === 1,
       responseStatus: row.response_status ?? undefined,
       responseHeaders: row.response_headers
         ? this.safeParseHeaders(row.response_headers)
         : undefined,
-      responseBody: row.response_body ?? undefined,
+      responseBody: toBuffer(row.response_body),
       responseBodyTruncated: row.response_body_truncated === 1,
       durationMs: row.duration_ms ?? undefined,
       interceptedBy: row.intercepted_by ?? undefined,
@@ -1362,11 +1397,11 @@ interface DbRequestRow {
   host: string;
   path: string;
   request_headers: string | null;
-  request_body: Buffer | null;
+  request_body: Uint8Array | null;
   request_body_truncated: number;
   response_status: number | null;
   response_headers: string | null;
-  response_body: Buffer | null;
+  response_body: Uint8Array | null;
   response_body_truncated: number;
   duration_ms: number | null;
   intercepted_by: string | null;
@@ -1440,6 +1475,10 @@ interface DbHasMoreRow {
 
 interface DbMaxSequenceRow {
   maxSeq: number;
+}
+
+interface DbUserVersionRow {
+  user_version: number;
 }
 
 interface DbTableInfoRow {

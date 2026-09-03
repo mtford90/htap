@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import * as fs from "node:fs";
 import * as path from "node:path";
 import * as os from "node:os";
-import Database from "better-sqlite3";
+import { DatabaseSync } from "node:sqlite";
 import { RequestRepository } from "./storage.js";
 import { DEFAULT_MAX_STORED_REQUESTS } from "../shared/config.js";
 
@@ -1224,7 +1224,7 @@ describe("RequestRepository", () => {
       const migrationDir = fs.mkdtempSync(path.join(os.tmpdir(), "httap-migration-test-"));
       const migrationDbPath = path.join(migrationDir, "old.db");
 
-      const rawDb = new Database(migrationDbPath);
+      const rawDb = new DatabaseSync(migrationDbPath);
       rawDb.exec(OLD_SCHEMA);
 
       // Insert a row so it looks like an existing DB
@@ -1246,8 +1246,9 @@ describe("RequestRepository", () => {
       expect(request?.responseBodyTruncated).toBe(false);
 
       // Verify user_version was set to latest migration
-      const checkDb = new Database(migrationDbPath);
-      const version = checkDb.pragma("user_version", { simple: true });
+      const checkDb = new DatabaseSync(migrationDbPath);
+      const version = (checkDb.prepare("PRAGMA user_version").get() as { user_version: number })
+        .user_version;
       expect(version).toBe(12);
       checkDb.close();
 
@@ -1257,8 +1258,9 @@ describe("RequestRepository", () => {
 
     it("skips migrations on fresh database", () => {
       // The default repo from beforeEach is a fresh DB
-      const checkDb = new Database(dbPath);
-      const version = checkDb.pragma("user_version", { simple: true });
+      const checkDb = new DatabaseSync(dbPath);
+      const version = (checkDb.prepare("PRAGMA user_version").get() as { user_version: number })
+        .user_version;
       expect(version).toBe(12);
       checkDb.close();
     });
@@ -1284,7 +1286,7 @@ describe("RequestRepository", () => {
       // Create an old-schema DB with data and only ONE of the truncation columns.
       // The column detection requires BOTH to stamp as v1, so migration v1 will run
       // and fail on the duplicate column — verifying errors propagate.
-      const rawDb = new Database(errorDbPath);
+      const rawDb = new DatabaseSync(errorDbPath);
       rawDb.exec(OLD_SCHEMA);
       rawDb.exec(`
         INSERT INTO sessions (id, label, pid, started_at)
@@ -1308,7 +1310,7 @@ describe("RequestRepository", () => {
       const rollbackDbPath = path.join(rollbackDir, "rollback.db");
 
       // Create a DB with old schema and data
-      const rawDb = new Database(rollbackDbPath);
+      const rawDb = new DatabaseSync(rollbackDbPath);
       rawDb.exec(OLD_SCHEMA);
       rawDb.exec(`
         INSERT INTO sessions (id, label, pid, started_at)
@@ -1323,7 +1325,7 @@ describe("RequestRepository", () => {
       // Open will try migration v1 which should succeed on this old schema
       // To test rollback, we need a multi-migration scenario where the second fails.
       // Apply v1 manually and set version to 0 so it tries again, causing failure.
-      const setupDb = new Database(rollbackDbPath);
+      const setupDb = new DatabaseSync(rollbackDbPath);
       setupDb.exec("ALTER TABLE requests ADD COLUMN request_body_truncated INTEGER DEFAULT 0");
       // Leave response_body_truncated missing — so v1 migration will partially succeed
       // then fail on the second ALTER (request_body_truncated already exists)
@@ -1337,7 +1339,7 @@ describe("RequestRepository", () => {
       setupDb.close();
 
       // Undo our manual changes and set up correctly for the test
-      const resetDb = new Database(rollbackDbPath);
+      const resetDb = new DatabaseSync(rollbackDbPath);
       // Drop and recreate to get clean state
       resetDb.exec("DROP TABLE requests");
       resetDb.exec("DROP TABLE sessions");
@@ -1352,7 +1354,7 @@ describe("RequestRepository", () => {
       `);
       // Add only response_body_truncated — so v1's second ALTER will fail
       resetDb.exec("ALTER TABLE requests ADD COLUMN response_body_truncated INTEGER DEFAULT 0");
-      resetDb.pragma("user_version = 0");
+      resetDb.exec("PRAGMA user_version = 0");
       resetDb.close();
 
       // RequestRepository should fail because migration v1 will try to add
@@ -1360,8 +1362,9 @@ describe("RequestRepository", () => {
       expect(() => new RequestRepository(rollbackDbPath)).toThrow();
 
       // Verify version stayed at 0 (transaction rolled back)
-      const checkDb = new Database(rollbackDbPath);
-      const version = checkDb.pragma("user_version", { simple: true });
+      const checkDb = new DatabaseSync(rollbackDbPath);
+      const version = (checkDb.prepare("PRAGMA user_version").get() as { user_version: number })
+        .user_version;
       expect(version).toBe(0);
 
       // Verify request_body_truncated was NOT added (rolled back)
