@@ -246,6 +246,55 @@ describe("detail loading", () => {
     await vi.waitFor(() => expect(store.getState().detail.request?.responseStatus).toBe(200));
   });
 
+  it("keeps the last known detail when a refetch after a delta fails", async () => {
+    const getRequest = vi
+      .fn<SyncClient["getRequest"]>()
+      .mockResolvedValueOnce({ ...fullRequest("a"), responseStatus: 200 })
+      .mockRejectedValue(new Error("socket closed"));
+    const listRequestsSummaryDelta = vi
+      .fn<SyncClient["listRequestsSummaryDelta"]>()
+      .mockResolvedValueOnce(batch([["a", 1]], 1))
+      .mockResolvedValueOnce(batch([["a", 2]], 2))
+      .mockResolvedValue(batch([], 2));
+    const { store, engine } = setup({ getRequest, listRequestsSummaryDelta });
+
+    await engine.syncRequests();
+    engine.selectDetail("a");
+    await vi.waitFor(() => expect(store.getState().detail.request).not.toBeNull());
+
+    await engine.syncRequests();
+    await vi.waitFor(() => expect(getRequest).toHaveBeenCalledTimes(2));
+
+    expect(store.getState().detail.request?.id).toBe("a");
+  });
+
+  it("refetches instead of reusing a fetch that a delta has superseded", async () => {
+    const resolvers: ((request: CapturedRequest) => void)[] = [];
+    const getRequest = vi.fn(
+      () =>
+        new Promise<CapturedRequest | null>((resolve) => {
+          resolvers.push(resolve);
+        })
+    );
+    const listRequestsSummaryDelta = vi
+      .fn<SyncClient["listRequestsSummaryDelta"]>()
+      .mockResolvedValueOnce(batch([["a", 1]], 1))
+      .mockResolvedValueOnce(batch([["a", 2]], 2))
+      .mockResolvedValue(batch([], 2));
+    const { store, engine } = setup({ getRequest, listRequestsSummaryDelta });
+
+    await engine.syncRequests();
+    engine.selectDetail("a");
+    await vi.waitFor(() => expect(resolvers).toHaveLength(1));
+
+    await engine.syncRequests();
+    await vi.waitFor(() => expect(resolvers).toHaveLength(2));
+    resolvers[0]?.(fullRequest("a"));
+    resolvers[1]?.({ ...fullRequest("a"), responseStatus: 200 });
+
+    await vi.waitFor(() => expect(store.getState().detail.request?.responseStatus).toBe(200));
+  });
+
   it("leaves the detail alone when a delta changes a different request", async () => {
     const getRequest = vi.fn(async (id: string) => ({
       ...fullRequest(id),

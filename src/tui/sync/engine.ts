@@ -57,6 +57,12 @@ export interface SyncClient {
   close(): void;
 }
 
+/** A detail fetch is superseded when an invalidation replaced it mid-flight. */
+interface DetailFetchResult {
+  request: CapturedRequest | null;
+  superseded: boolean;
+}
+
 export interface SyncEngineOptions {
   client: SyncClient;
   actions: TuiActions;
@@ -127,7 +133,7 @@ export class SyncEngine {
   private events: InterceptorEvent[] = [];
 
   private readonly detailCache = new Map<string, CapturedRequest>();
-  private readonly detailInFlight = new Map<string, Promise<CapturedRequest | null>>();
+  private readonly detailInFlight = new Map<string, Promise<DetailFetchResult>>();
   private detailRequestId: string | null = null;
 
   private timer: NodeJS.Timeout | null = null;
@@ -350,30 +356,43 @@ export class SyncEngine {
       return;
     }
 
-    void this.fetchDetail(id).then((request) => {
-      if (this.detailRequestId === id) {
-        this.actions.setDetail(id, request);
+    this.loadDetail(id, { keepOnFailure: false });
+  }
+
+  private loadDetail(id: string, { keepOnFailure }: { keepOnFailure: boolean }): void {
+    void this.fetchDetail(id).then(({ request, superseded }) => {
+      if (superseded || this.detailRequestId !== id) {
+        return;
       }
+      // A refresh that failed leaves the pane on the last good copy rather than
+      // blanking it and closing every modal built on it.
+      if (request === null && keepOnFailure) {
+        return;
+      }
+      this.actions.setDetail(id, request);
     });
   }
 
-  private fetchDetail(id: string): Promise<CapturedRequest | null> {
+  private fetchDetail(id: string): Promise<DetailFetchResult> {
     const existing = this.detailInFlight.get(id);
     if (existing) {
       return existing;
     }
 
-    const pending = this.client
+    const pending: Promise<DetailFetchResult> = this.client
       .getRequest(id)
       .catch(() => null)
       .then((request) => {
+        if (this.detailInFlight.get(id) !== pending) {
+          return { request, superseded: true };
+        }
         // A request that has no response yet will change, so caching it would
         // pin an empty Response section for the life of the process.
         if (request?.responseStatus !== undefined) {
           this.cacheDetail(id, request);
         }
         this.detailInFlight.delete(id);
-        return request;
+        return { request, superseded: false };
       });
 
     this.detailInFlight.set(id, pending);
@@ -403,9 +422,11 @@ export class SyncEngine {
   private invalidateChangedDetails(changedIds: ReadonlySet<string>): void {
     for (const id of changedIds) {
       this.detailCache.delete(id);
+      // An open fetch predates the change, so it must not be reused for it.
+      this.detailInFlight.delete(id);
     }
     if (this.detailRequestId !== null && changedIds.has(this.detailRequestId)) {
-      this.selectDetail(this.detailRequestId);
+      this.loadDetail(this.detailRequestId, { keepOnFailure: true });
     }
   }
 

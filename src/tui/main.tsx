@@ -91,7 +91,7 @@ export const startTui = async ({
   };
 
   for (const signal of ["SIGHUP", "SIGTERM", "SIGINT"] as const) {
-    process.on(signal, shutdown);
+    process.on(signal, () => shutdown());
   }
 
   // OpenTUI installs its own handlers that only log, which would otherwise
