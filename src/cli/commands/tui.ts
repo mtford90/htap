@@ -4,7 +4,11 @@ import { Command } from "commander";
 import { findProjectRoot, setConfigOverride, resolveOverridePath } from "../../shared/project.js";
 import { getGlobalOptions } from "./helpers.js";
 
-/** OpenTUI's renderer needs node:ffi, which Node gates behind a flag until 26.9. */
+/**
+ * OpenTUI's renderer loads its native library through node:ffi, which Node gates
+ * behind this flag. Node has since made the flag a no-op; drop this whole branch
+ * once the floor is a release that enables node:ffi by default.
+ */
 const FFI_FLAGS = ["--experimental-ffi", "--disable-warning=ExperimentalWarning"];
 const MIN_FFI_NODE = { major: 26, minor: 4 };
 

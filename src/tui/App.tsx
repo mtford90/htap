@@ -22,10 +22,8 @@ import type { SyncEngine } from "./sync/engine.js";
 import { dispatchKey, visibleHints, type CommandDeps } from "./commands/table.js";
 import { toKeyLike } from "./commands/keys.js";
 import { copyToClipboard } from "./utils/clipboard.js";
-import { isBinaryContent } from "./utils/binary.js";
-import { openInExternalApp } from "./utils/open-external.js";
 import { isFilterActive } from "./utils/filters.js";
-import { generateFilename, saveBodyContent } from "./hooks/useBodyExport.js";
+import { exportBody } from "./export-body.js";
 import { useSpinner } from "./hooks/useSpinner.js";
 import { ListPane } from "./components/ListPane.js";
 import { DetailPane } from "./components/DetailPane.js";
@@ -137,48 +135,8 @@ export function App({ store, actions, engine, onExit }: AppProps): React.ReactNo
       if (!request || modal?.kind !== "bodyExport") {
         return;
       }
-
-      const isRequestBody = modal.bodyType === "request";
-      const body = isRequestBody ? request.requestBody : request.responseBody;
-      const contentType = isRequestBody
-        ? request.requestHeaders["content-type"]
-        : request.responseHeaders?.["content-type"];
-
       actions.closeModal();
-
-      if (!body) {
-        showStatus("No body to export");
-        return;
-      }
-
-      if (action === "clipboard") {
-        if (isBinaryContent(body, contentType).isBinary) {
-          showStatus("Cannot copy binary content to clipboard — use a file export option");
-          return;
-        }
-        void copyToClipboard(body.toString("utf-8")).then(
-          () => showStatus("Body copied to clipboard"),
-          () => showStatus("Failed to copy to clipboard")
-        );
-        return;
-      }
-
-      if (action === "open-external") {
-        const filename = generateFilename(request.id, contentType, request.url);
-        void openInExternalApp(body, filename).then((result) => {
-          showStatus(result.success ? result.message : `Error: ${result.message}`);
-        });
-        return;
-      }
-
-      void saveBodyContent(
-        body,
-        generateFilename(request.id, contentType, request.url),
-        action,
-        customPath
-      ).then((result) => {
-        showStatus(result.success ? result.message : `Error: ${result.message}`);
-      });
+      exportBody({ request, bodyType: modal.bodyType, action, customPath, showStatus });
     },
     [store, actions, showStatus]
   );
