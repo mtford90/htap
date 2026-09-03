@@ -1964,6 +1964,27 @@ describe("RequestRepository", () => {
       expect(results[0]?.extractedValue).toBe("Alice");
     });
 
+    it("returns integers beyond the safe range as rounded numbers", () => {
+      repo.saveRequest({
+        sessionId,
+        timestamp: Date.now(),
+        method: "POST",
+        url: "https://api.example.com/events",
+        host: "api.example.com",
+        path: "/events",
+        requestHeaders: { "content-type": "application/json" },
+        requestBody: Buffer.from('{"n":9007199254740993}'),
+      });
+
+      const results = repo.queryJsonBodies({
+        jsonPath: "$.n",
+        target: "request",
+      });
+
+      expect(results).toHaveLength(1);
+      expect(results[0]?.extractedValue).toBe(9007199254740992);
+    });
+
     it("skips non-JSON bodies", () => {
       seedJsonRequests();
       // The HTML response should not be queried

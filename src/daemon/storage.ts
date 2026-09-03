@@ -1214,22 +1214,24 @@ export class RequestRepository {
     }
 
     const stmt = this.db.prepare(sql);
+    stmt.setReadBigInts(true);
     const rows = stmt.all(...allParams) as unknown as DbJsonQueryRow[];
 
     return rows.map((row) => ({
       id: row.id,
       sessionId: row.session_id,
       label: row.label ?? undefined,
-      timestamp: row.timestamp,
+      timestamp: Number(row.timestamp),
       method: row.method,
       url: row.url,
       host: row.host,
       path: row.path,
-      responseStatus: row.response_status ?? undefined,
-      durationMs: row.duration_ms ?? undefined,
-      requestBodySize: row.request_body_size,
-      responseBodySize: row.response_body_size,
-      extractedValue: row.extracted_value,
+      responseStatus: row.response_status === null ? undefined : Number(row.response_status),
+      durationMs: row.duration_ms === null ? undefined : Number(row.duration_ms),
+      requestBodySize: Number(row.request_body_size),
+      responseBodySize: Number(row.response_body_size),
+      extractedValue:
+        typeof row.extracted_value === "bigint" ? Number(row.extracted_value) : row.extracted_value,
     }));
   }
 
@@ -1456,15 +1458,15 @@ interface DbJsonQueryRow {
   id: string;
   session_id: string;
   label: string | null;
-  timestamp: number;
+  timestamp: bigint;
   method: string;
   url: string;
   host: string;
   path: string;
-  response_status: number | null;
-  duration_ms: number | null;
-  request_body_size: number;
-  response_body_size: number;
+  response_status: bigint | null;
+  duration_ms: bigint | null;
+  request_body_size: bigint;
+  response_body_size: bigint;
   extracted_value: unknown;
 }
 
