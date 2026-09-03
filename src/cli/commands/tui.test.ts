@@ -35,12 +35,14 @@ describe("supportsFfiFlag", () => {
 describe("httap tui", () => {
   it("reports a startup failure on the in-process launch path", async () => {
     vi.stubEnv("HTTAP_TUI", "");
-    runTui.mockResolvedValue(undefined);
+    runTui.mockRejectedValue(new Error("renderer setup failed"));
     const originalExecArgv = process.execArgv;
     process.execArgv = ["--experimental-ffi"];
 
     try {
-      await tuiCommand.parseAsync([], { from: "user" });
+      await expect(tuiCommand.parseAsync([], { from: "user" })).rejects.toThrow(
+        "renderer setup failed"
+      );
     } finally {
       process.execArgv = originalExecArgv;
     }

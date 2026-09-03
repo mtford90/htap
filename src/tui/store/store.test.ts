@@ -84,6 +84,29 @@ describe("selection", () => {
     expect(store.getState().selection.following).toBe(true);
   });
 
+  it("scrolls the viewport when the cursor moves past the bottom edge", () => {
+    const { store, actions } = setup(["a", "b", "c", "d", "e", "f", "g"], 3);
+
+    actions.moveSelectionBy(4);
+
+    const state = store.getState();
+    expect(state.selection.selectedId).toBe("e");
+    expect(listScrollOffset(state)).toBe(2);
+    expect(state.selection.topVisibleId).toBe("c");
+  });
+
+  it("scrolls the viewport when the cursor moves above the top edge", () => {
+    const { store, actions } = setup(["a", "b", "c", "d", "e", "f", "g"], 3);
+    actions.scrollListBy(4);
+
+    actions.moveSelectionBy(1);
+
+    const state = store.getState();
+    expect(state.selection.selectedId).toBe("b");
+    expect(listScrollOffset(state)).toBe(1);
+    expect(state.selection.topVisibleId).toBe("b");
+  });
+
   it("jumps to the last row and scrolls it into view", () => {
     const { store, actions } = setup(["a", "b", "c", "d", "e", "f", "g"], 3);
 
@@ -152,6 +175,18 @@ describe("scrolling", () => {
     expect(state.selection.topVisibleId).toBe("c");
     expect(listScrollOffset(state)).toBe(2);
     expect(state.selection.selectedId).toBeNull();
+  });
+
+  it("scrolls the viewport away from the selection without snapping back", () => {
+    const { store, actions } = setup(["a", "b", "c", "d", "e", "f"], 3);
+    actions.moveSelectionBy(1);
+
+    actions.scrollListBy(3);
+
+    const state = store.getState();
+    expect(state.selection.selectedId).toBe("b");
+    expect(listScrollOffset(state)).toBe(3);
+    expect(state.selection.topVisibleId).toBe("d");
   });
 
   it("clamps scrolling to the end of the list", () => {

@@ -67,6 +67,28 @@ describe("startTui", () => {
     expect(exit).toHaveBeenCalledWith(0);
   });
 
+  it("hands the terminal back when teardown throws", async () => {
+    const exit = stubExit();
+    const renderer = fakeRenderer();
+    let destroyed: (() => void) | undefined;
+    createCliRenderer.mockImplementation(async (options: { onDestroy: () => void }) => {
+      destroyed = options.onDestroy;
+      return renderer;
+    });
+    createRoot.mockImplementationOnce(() => ({
+      render: vi.fn(),
+      unmount: vi.fn(() => {
+        throw new Error("effect cleanup failed");
+      }),
+    }));
+    const { startTui } = await import("./main.js");
+    await startTui({});
+
+    expect(() => destroyed?.()).toThrow(`${EXIT_SENTINEL}:0`);
+    expect(renderer.destroy).toHaveBeenCalled();
+    expect(exit).toHaveBeenCalledWith(0);
+  });
+
   it("hands the terminal back when the render throws", async () => {
     const exit = stubExit();
     const renderer = fakeRenderer();

@@ -74,9 +74,15 @@ export const startTui = async ({
     }
     shuttingDown = true;
     try {
-      engine.stop();
-      root?.unmount();
-      renderer?.destroy();
+      try {
+        engine.stop();
+        root?.unmount();
+      } finally {
+        // The only call that leaves the alternate screen, restores the cursor
+        // and takes stdin out of raw mode, so an earlier failure must not skip
+        // it and hand back a terminal needing `reset`.
+        renderer?.destroy();
+      }
       logger?.info("TUI exited");
     } catch (error) {
       logger?.error(`TUI teardown failed: ${error instanceof Error ? error.stack : String(error)}`);

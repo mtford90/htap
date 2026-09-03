@@ -121,6 +121,23 @@ const enterBrowse = (state: TuiState): Partial<TuiState["selection"]> =>
     ? { following: false, topVisibleId: anchorTopToCurrentOffset(state) }
     : {};
 
+/**
+ * The single transition for every move of the cursor: the list pane draws
+ * exactly the rows from the anchored top, so the anchor follows the cursor to
+ * whichever edge it left. Moving the view alone must not come through here.
+ */
+const selectRow = (state: TuiState, index: number): Partial<TuiState["selection"]> => {
+  const items = state.requests.items;
+  const height = Math.max(1, state.viewport.listHeight);
+  const offset = listScrollOffset(state);
+  const topIndex = index < offset ? index : Math.max(offset, index - height + 1);
+  return {
+    following: false,
+    selectedId: items[index]?.id ?? null,
+    topVisibleId: items[topIndex]?.id ?? items[0]?.id ?? null,
+  };
+};
+
 const patchSelection = (store: TuiStore, patch: Partial<TuiState["selection"]>): void => {
   store.setState((state) => ({ selection: { ...state.selection, ...patch } }));
 };
@@ -142,7 +159,7 @@ export const createTuiActions = (store: TuiStore) => {
     }
     const current = Math.max(0, selectedIndex(state));
     const next = Math.min(Math.max(current + delta, 0), items.length - 1);
-    patchSelection(store, { ...enterBrowse(state), selectedId: items[next]?.id ?? null });
+    patchSelection(store, selectRow(state, next));
   };
 
   return {
@@ -151,35 +168,28 @@ export const createTuiActions = (store: TuiStore) => {
 
     selectId: (id: string): void => {
       const state = store.getState();
-      patchSelection(store, {
-        ...enterBrowse(state),
-        selectedId: id,
-        activePanel: "list" as Panel,
-      });
+      const index = state.requests.items.findIndex((item) => item.id === id);
+      if (index === -1) {
+        return;
+      }
+      patchSelection(store, { ...selectRow(state, index), activePanel: "list" as Panel });
     },
 
     selectIndex: (index: number): void => {
       const state = store.getState();
-      const target = state.requests.items[index];
-      if (target) {
-        patchSelection(store, {
-          ...enterBrowse(state),
-          selectedId: target.id,
-          activePanel: "list" as Panel,
-        });
+      if (!state.requests.items[index]) {
+        return;
       }
+      patchSelection(store, { ...selectRow(state, index), activePanel: "list" as Panel });
     },
 
     jumpToLast: (): void => {
       const state = store.getState();
       const items = state.requests.items;
-      const lastIndex = Math.max(0, items.length - 1);
-      const topIndex = Math.max(0, lastIndex - state.viewport.listHeight + 1);
-      patchSelection(store, {
-        following: false,
-        topVisibleId: items[topIndex]?.id ?? items[0]?.id ?? null,
-        selectedId: items[lastIndex]?.id ?? null,
-      });
+      if (items.length === 0) {
+        return;
+      }
+      patchSelection(store, selectRow(state, items.length - 1));
     },
 
     resetToFollow: (): void => {
