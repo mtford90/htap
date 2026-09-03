@@ -2,8 +2,8 @@
  * Generate HAR (HTTP Archive) format from captured requests.
  */
 
-import type { CapturedRequest } from "../../../shared/types.js";
-import { getHttapVersion } from "../../../shared/version.js";
+import type { CapturedRequest } from "../../shared/types.js";
+import { getHttapVersion } from "../../shared/version.js";
 import { getStatusText } from "./formatters.js";
 
 /**

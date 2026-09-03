@@ -10,7 +10,7 @@ vi.mock("../utils/clipboard.js", () => ({
 }));
 
 // Mock project root finding
-vi.mock("../../../shared/project.js", () => ({
+vi.mock("../../shared/project.js", () => ({
   findOrCreateProjectRoot: vi.fn().mockReturnValue("/mock/project"),
   ensureHttapDir: vi.fn().mockReturnValue("/mock/project/.httap"),
 }));

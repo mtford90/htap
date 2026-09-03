@@ -2,7 +2,7 @@
  * Generate JavaScript fetch() calls from captured requests.
  */
 
-import type { CapturedRequest } from "../../../shared/types.js";
+import type { CapturedRequest } from "../../shared/types.js";
 import { EXCLUDED_HEADERS } from "./export-shared.js";
 import { isJsonContent } from "./content-type.js";
 

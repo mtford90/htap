@@ -7,7 +7,7 @@ import React from "react";
 import { render } from "ink-testing-library";
 import { JsonExplorerModal } from "./JsonExplorerModal.js";
 
-vi.mock("../utils/clipboard.js", () => ({
+vi.mock("../../../tui/utils/clipboard.js", () => ({
   copyToClipboard: vi.fn(() => Promise.resolve()),
 }));
 
@@ -506,7 +506,7 @@ describe("JsonExplorerModal", () => {
 
   describe("Copy", () => {
     it("y copies value at cursor to clipboard", async () => {
-      const { copyToClipboard: mockCopy } = await import("../utils/clipboard.js");
+      const { copyToClipboard: mockCopy } = await import("../../../tui/utils/clipboard.js");
       const onStatus = vi.fn();
       const { stdin } = render(
         <JsonExplorerModal {...defaultProps} onStatus={onStatus} data={{ name: "Alice" }} />

@@ -1,10 +1,10 @@
 import { describe, expect, it } from "vitest";
-import type { CapturedRequestSummary } from "../../../shared/types.js";
+import type { CapturedRequestSummary } from "../../shared/types.js";
 import {
   countPrependedRequests,
   resolveEffectiveListScrollOffset,
   resolveSelectedIndex,
-} from "./request-list-state.js";
+} from "./list-geometry.js";
 
 function createSummary(id: string): CapturedRequestSummary {
   return {

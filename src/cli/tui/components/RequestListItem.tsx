@@ -6,7 +6,7 @@ import React, { useRef, memo } from "react";
 import { Box, Text, type DOMElement } from "ink";
 import { useOnClick } from "@ink-tools/ink-mouse";
 import type { CapturedRequestSummary, InterceptionType } from "../../../shared/types.js";
-import { formatMethod, formatDuration, truncate } from "../utils/formatters.js";
+import { formatMethod, formatDuration, truncate } from "../../../tui/utils/formatters.js";
 
 /**
  * Get the 2-character interception indicator and its colour.

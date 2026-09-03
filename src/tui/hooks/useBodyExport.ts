@@ -7,7 +7,7 @@ import * as fs from "node:fs";
 import * as path from "node:path";
 import * as os from "node:os";
 import { copyToClipboard } from "../utils/clipboard.js";
-import { findOrCreateProjectRoot, ensureHttapDir } from "../../../shared/project.js";
+import { findOrCreateProjectRoot, ensureHttapDir } from "../../shared/project.js";
 
 export type SaveLocation = "exports" | "downloads" | "custom";
 

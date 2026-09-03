@@ -16,7 +16,7 @@ import { Box, Text, type DOMElement } from "ink";
 import type { CapturedRequest } from "../../../shared/types.js";
 import { AccordionSection } from "./AccordionSection.js";
 import { HeadersContent, BodyContent, TruncatedBodyContent } from "./AccordionContent.js";
-import { formatSize, getStatusText, shortContentType, formatMethod, breakUrl } from "../utils/formatters.js";
+import { formatSize, getStatusText, shortContentType, formatMethod, breakUrl } from "../../../tui/utils/formatters.js";
 // Box drawing characters for the bottom border
 const BOX = {
   bottomLeft: "└",

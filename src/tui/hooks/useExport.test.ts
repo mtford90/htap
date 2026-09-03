@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import type { CapturedRequest } from "../../../shared/types.js";
+import type { CapturedRequest } from "../../shared/types.js";
 
 // Mock the clipboard module before importing
 const mockCopyToClipboard = vi.fn();

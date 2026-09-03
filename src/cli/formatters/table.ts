@@ -11,7 +11,7 @@ import {
   truncate,
   padRight,
   padLeft,
-} from "../tui/utils/formatters.js";
+} from "../../tui/utils/formatters.js";
 import { GREEN, YELLOW, RED, CYAN, DIM, RESET, useColour } from "./colour.js";
 
 /** Length of abbreviated IDs shown in list views. */

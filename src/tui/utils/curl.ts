@@ -2,7 +2,7 @@
  * Generate curl commands from captured requests.
  */
 
-import type { CapturedRequest } from "../../../shared/types.js";
+import type { CapturedRequest } from "../../shared/types.js";
 import { EXCLUDED_HEADERS } from "./export-shared.js";
 
 /**

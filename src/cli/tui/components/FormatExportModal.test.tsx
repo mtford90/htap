@@ -11,13 +11,13 @@ import type { CapturedRequest } from "../../../shared/types.js";
 const mockExportFormatToClipboard = vi.fn().mockResolvedValue({ success: true, message: "cURL copied to clipboard" });
 const mockExportHarToDir = vi.fn().mockReturnValue({ success: true, message: "Exported 1 request(s) to /mock/path" });
 
-vi.mock("../hooks/useExport.js", () => ({
+vi.mock("../../../tui/hooks/useExport.js", () => ({
   exportFormatToClipboard: (...args: unknown[]) => mockExportFormatToClipboard(...args),
   exportHarToDir: (...args: unknown[]) => mockExportHarToDir(...args),
 }));
 
-vi.mock("../hooks/useBodyExport.js", async () => {
-  const actual = await vi.importActual<Record<string, unknown>>("../hooks/useBodyExport.js");
+vi.mock("../../../tui/hooks/useBodyExport.js", async () => {
+  const actual = await vi.importActual<Record<string, unknown>>("../../../tui/hooks/useBodyExport.js");
   return {
     ...actual,
     resolveTargetDir: () => "/mock/exports",

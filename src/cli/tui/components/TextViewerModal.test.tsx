@@ -7,7 +7,7 @@ import React from "react";
 import { render } from "ink-testing-library";
 import { TextViewerModal } from "./TextViewerModal.js";
 
-vi.mock("../utils/clipboard.js", () => ({
+vi.mock("../../../tui/utils/clipboard.js", () => ({
   copyToClipboard: vi.fn(() => Promise.resolve()),
 }));
 
@@ -659,7 +659,7 @@ describe("TextViewerModal", () => {
   describe("Copy", () => {
     it("y copies full text to clipboard", async () => {
       const { copyToClipboard: mockCopy } = await import(
-        "../utils/clipboard.js"
+        "../../../tui/utils/clipboard.js"
       );
       const onStatus = vi.fn();
       const { stdin } = render(
@@ -688,7 +688,7 @@ describe("TextViewerModal", () => {
 
     it("y shows failure message when clipboard fails", async () => {
       const { copyToClipboard: mockCopy } = await import(
-        "../utils/clipboard.js"
+        "../../../tui/utils/clipboard.js"
       );
       vi.mocked(mockCopy).mockRejectedValueOnce(new Error("no clipboard"));
 

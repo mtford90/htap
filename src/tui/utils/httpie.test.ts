@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { generateHttpie } from "./httpie.js";
-import type { CapturedRequest } from "../../../shared/types.js";
+import type { CapturedRequest } from "../../shared/types.js";
 
 function createMockRequest(overrides: Partial<CapturedRequest> = {}): CapturedRequest {
   return {

@@ -4,7 +4,7 @@
 
 import * as fs from "node:fs";
 import * as path from "node:path";
-import type { CapturedRequest } from "../../../shared/types.js";
+import type { CapturedRequest } from "../../shared/types.js";
 import { generateCurl } from "../utils/curl.js";
 import { generateFetch } from "../utils/fetch.js";
 import { generatePythonRequests } from "../utils/python-requests.js";

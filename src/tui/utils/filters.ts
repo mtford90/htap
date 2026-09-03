@@ -1,4 +1,4 @@
-import type { RequestFilter } from "../../../shared/types.js";
+import type { RequestFilter } from "../../shared/types.js";
 
 /**
  * Check whether a filter has any active conditions.

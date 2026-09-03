@@ -5,7 +5,7 @@
  * Content-Type headers and byte scanning.
  */
 
-import { TEXT_CONTENT_TYPES, TEXT_SUFFIXES } from "../../../shared/content-type.js";
+import { TEXT_CONTENT_TYPES, TEXT_SUFFIXES } from "../../shared/content-type.js";
 
 /**
  * Content types that are definitively binary.

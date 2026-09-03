@@ -1,4 +1,4 @@
-import type { CapturedRequestSummary } from "../../../shared/types.js";
+import type { CapturedRequestSummary } from "../../shared/types.js";
 
 export interface SelectedIndexOptions {
   requests: CapturedRequestSummary[];

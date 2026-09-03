@@ -12,7 +12,7 @@ import {
   countPrependedRequests,
   resolveEffectiveListScrollOffset,
   resolveSelectedIndex,
-} from "../state/request-list-state.js";
+} from "../../../tui/store/list-geometry.js";
 
 interface UseRequestListStateOptions {
   requests: CapturedRequestSummary[];
