@@ -791,7 +791,7 @@ export class RequestRepository {
     const stmt = this.db.prepare(`
       SELECT * FROM requests
       ${whereClause}
-      ORDER BY COALESCE(order_seq, 0) DESC, timestamp DESC, id DESC
+      ORDER BY order_seq DESC, timestamp DESC, id DESC
       LIMIT ? OFFSET ?
     `);
 
@@ -856,7 +856,7 @@ export class RequestRepository {
         saved
       FROM requests
       ${whereClause}
-      ORDER BY COALESCE(order_seq, 0) DESC, timestamp DESC, id DESC
+      ORDER BY order_seq DESC, timestamp DESC, id DESC
       LIMIT ? OFFSET ?
     `);
 
@@ -881,7 +881,7 @@ export class RequestRepository {
 
     applyFilterConditions(baseConditions, baseParams, options.filter);
 
-    const deltaConditions = [...baseConditions, "COALESCE(change_seq, 0) > ?"];
+    const deltaConditions = [...baseConditions, "change_seq > ?"];
     const deltaParams: (string | number)[] = [...baseParams, options.afterChangeSeq];
     const deltaWhere = `WHERE ${deltaConditions.join(" AND ")}`;
     const limit = options.limit ?? DEFAULT_DELTA_LIMIT;
@@ -910,7 +910,7 @@ export class RequestRepository {
         COALESCE(change_seq, 0) as change_seq
       FROM requests
       ${deltaWhere}
-      ORDER BY COALESCE(change_seq, 0) ASC, COALESCE(order_seq, 0) ASC
+      ORDER BY change_seq ASC, order_seq ASC
       LIMIT ?
     `);
 
@@ -929,7 +929,7 @@ export class RequestRepository {
 
     let hasMore = false;
     if (entries.length === limit) {
-      const moreConditions = [...baseConditions, "COALESCE(change_seq, 0) > ?"];
+      const moreConditions = [...baseConditions, "change_seq > ?"];
       const moreParams: (string | number)[] = [...baseParams, cursor];
       const moreWhere = `WHERE ${moreConditions.join(" AND ")}`;
       const moreStmt = this.db.prepare(`SELECT 1 as has_more FROM requests ${moreWhere} LIMIT 1`);
@@ -1035,7 +1035,7 @@ export class RequestRepository {
         saved
       FROM requests
       ${whereClause}
-      ORDER BY COALESCE(order_seq, 0) DESC, timestamp DESC, id DESC
+      ORDER BY order_seq DESC, timestamp DESC, id DESC
       LIMIT ? OFFSET ?
     `);
 
