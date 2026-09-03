@@ -282,6 +282,26 @@ describe("panels and sections", () => {
     expect(store.getState().selection.expandedSections.has(SECTION_REQUEST_BODY)).toBe(true);
   });
 
+  it("closes a request-backed modal when the detail request disappears", () => {
+    const { store, actions } = setup(["a"]);
+    actions.setDetail("a", { id: "a" } as never);
+    actions.openModal({ kind: "bodyExport", bodyType: "response" });
+
+    actions.setDetail(null, null);
+
+    expect(store.getState().ui.modal).toBeNull();
+  });
+
+  it("keeps a request-independent modal open when the detail request disappears", () => {
+    const { store, actions } = setup(["a"]);
+    actions.setDetail("a", { id: "a" } as never);
+    actions.openModal({ kind: "help" });
+
+    actions.setDetail(null, null);
+
+    expect(store.getState().ui.modal).toEqual({ kind: "help" });
+  });
+
   it("re-expands every section when the detail request changes", () => {
     const { store, actions } = setup(["a"]);
     actions.setDetail("a", { id: "a" } as never);

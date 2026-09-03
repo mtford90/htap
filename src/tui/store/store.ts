@@ -125,6 +125,10 @@ const patchSelection = (store: TuiStore, patch: Partial<TuiState["selection"]>):
   store.setState((state) => ({ selection: { ...state.selection, ...patch } }));
 };
 
+/** True for modals that render the currently selected request. */
+const needsRequest = (modal: Modal | null): boolean =>
+  modal?.kind === "bodyExport" || modal?.kind === "formatExport";
+
 const patchUi = (store: TuiStore, patch: Partial<TuiState["ui"]>): void => {
   store.setState((state) => ({ ui: { ...state.ui, ...patch } }));
 };
@@ -350,6 +354,12 @@ export const createTuiActions = (store: TuiStore) => {
     setDetail: (requestId: string | null, request: CapturedRequest | null): void => {
       store.setState((state) => ({
         detail: { requestId, request },
+        // A request-backed modal has nothing left to render once the request is
+        // gone, and it would swallow every key while showing a blank screen.
+        ui:
+          request === null && needsRequest(state.ui.modal)
+            ? { ...state.ui, modal: null }
+            : state.ui,
         // A newly selected request opens with every section expanded.
         selection:
           requestId !== state.detail.requestId

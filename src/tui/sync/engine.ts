@@ -22,6 +22,8 @@ const DEFAULT_DELTA_LIMIT = 500;
 const MAX_DELTA_BATCHES_PER_SYNC = 8;
 const MAX_SNAPSHOT_BATCHES = 200;
 const DETAIL_CACHE_LIMIT = 50;
+/** Interceptor events kept in memory; older ones drop off the front. */
+export const MAX_INTERCEPTOR_EVENTS = 1000;
 
 const DAEMON_DOWN_MESSAGE = "Daemon not running. Start with 'eval \"$(httap on)\"'.";
 
@@ -317,7 +319,7 @@ export class SyncEngine {
       const last = result.events[result.events.length - 1];
       if (last) {
         this.lastEventSeq = last.seq;
-        this.events = [...this.events, ...result.events];
+        this.events = [...this.events, ...result.events].slice(-MAX_INTERCEPTOR_EVENTS);
       }
 
       this.actions.setInterceptorEvents(this.events, result.counts, status.interceptorCount ?? 0);

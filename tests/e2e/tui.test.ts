@@ -1,12 +1,14 @@
 /**
  * End-to-end tests for the httap TUI.
  *
- * These tests spawn real CLI processes using cli-testing-library and assert
- * on terminal output. The TUI uses --ci mode which renders once and exits,
- * as ink's CI mode only outputs on exit.
+ * These tests spawn real CLI processes using cli-testing-library and assert on
+ * terminal output. `--ci` mode renders once and exits, which is what makes the
+ * TUI observable without a PTY. The default path re-execs Node with the FFI
+ * flags into the OpenTUI renderer; `HTTAP_TUI=ink` still reaches the Ink tree,
+ * so one case pins that escape hatch.
  *
  * Note: Keyboard interaction tests are limited since cli-testing-library
- * doesn't use PTY and ink disables raw mode in non-TTY environments.
+ * doesn't use PTY and neither renderer takes raw mode on a non-TTY stdin.
  */
 
 import { describe, it, expect, beforeAll, afterAll, beforeEach, afterEach } from "vitest";
@@ -26,11 +28,10 @@ import { ensureHttapDir, getHttapPaths } from "../../src/shared/project.js";
 configure({ asyncUtilTimeout: 10000 });
 
 /**
- * Environment variables to enable CI mode for ink and ensure proper output.
+ * Environment variables that make either renderer write to a non-TTY stdout.
  */
 const testEnv = {
   ...process.env,
-  // Enable CI mode so ink outputs to non-TTY stdout
   CI: "true",
   // Disable colour output for easier text matching
   NO_COLOR: "1",
@@ -221,6 +222,19 @@ describe("httap tui e2e", () => {
 
       // Status bar should show keybinding hints (at 80col, hints are truncated)
       await findByText(/j\/k/);
+    });
+
+    it("renders the Ink tree when HTTAP_TUI=ink", { timeout: 15_000 }, async () => {
+      await makeProxiedRequest(proxyPort, `http://127.0.0.1:${testServerPort}/legacy`);
+      await new Promise((resolve) => setTimeout(resolve, 100));
+
+      const { findByText } = await render("node", [getCliBinPath(), "tui", "--ci"], {
+        cwd: tempDir,
+        spawnOpts: { env: { ...testEnv, HTTAP_TUI: "ink" } },
+      });
+
+      await findByText(/\[1\] Requests/);
+      await findByText(/\/legac/i);
     });
 
     it("exits with code 0", async () => {

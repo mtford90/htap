@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import type { CapturedRequest, CapturedRequestSummary } from "../../shared/types.js";
 import { createTuiActions, createTuiStore } from "../store/store.js";
-import { SyncEngine, type SyncClient } from "./engine.js";
+import { MAX_INTERCEPTOR_EVENTS, SyncEngine, type SyncClient } from "./engine.js";
 
 const summary = (id: string, orderSeq: number): CapturedRequestSummary => ({
   id,
@@ -273,6 +273,25 @@ describe("interceptor sync", () => {
     expect(store.getState().interceptors.counts.error).toBe(1);
     expect(store.getState().interceptors.count).toBe(3);
     expect(getInterceptorEvents.mock.calls[1]?.[0]?.afterSeq).toBe(1);
+  });
+
+  it("drops the oldest events once the cap is reached", async () => {
+    const events = Array.from(
+      { length: MAX_INTERCEPTOR_EVENTS + 50 },
+      (_, index) => ({ seq: index + 1, level: "info" }) as never
+    );
+    const { store, engine } = setup({
+      getInterceptorEvents: vi.fn(async () => ({
+        events,
+        counts: { info: events.length, warn: 0, error: 0 },
+      })),
+    });
+
+    await engine.syncInterceptors();
+
+    const kept = store.getState().interceptors.events;
+    expect(kept).toHaveLength(MAX_INTERCEPTOR_EVENTS);
+    expect(kept[0]?.seq).toBe(51);
   });
 
   it("stays quiet when the daemon does not answer", async () => {
