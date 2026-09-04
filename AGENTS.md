@@ -184,6 +184,7 @@ npm run typecheck && npm run lint && npm test
 | `src/cli/tui/` | Ink TUI, reachable with `HTTAP_TUI=ink` until it is removed |
 | `src/shared/project.ts` | Project root detection, .httap paths |
 | `src/shared/daemon.ts` | Daemon lifecycle management |
+| `examples/demo/` | Self-contained demo project (`pnpm demo`); README has the manual flow, `demo.tape` re-records `docs/demo.gif`/`docs/demo.mp4` |
 
 ## Code Quality Guidelines
 
