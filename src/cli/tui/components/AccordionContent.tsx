@@ -2,11 +2,15 @@
  * Content components for accordion sections: headers, body, binary, truncated.
  */
 
-import React, { useMemo } from "react";
+import React, { useMemo, useSyncExternalStore } from "react";
 import { Box, Text } from "ink";
 import { formatSize } from "../../../tui/utils/formatters.js";
 import { isBinaryContent, getBinaryTypeDescription } from "../../../tui/utils/binary.js";
-import { highlightCode } from "../../../tui/utils/syntax-highlight.js";
+import {
+  getHighlighterVersion,
+  highlightCode,
+  subscribeToHighlighter,
+} from "../../../tui/utils/syntax-highlight.js";
 
 /** Only process the first 10 KB of body content for display — full body remains available for export/save. */
 const BODY_PREVIEW_LIMIT = 10 * 1024;
@@ -102,10 +106,9 @@ export function BodyContent({
   contentLength?: string;
 }): React.ReactElement {
   // All hooks must be called before any conditional returns
-  const binaryCheck = useMemo(
-    () => isBinaryContent(body, contentType),
-    [body, contentType]
-  );
+  const binaryCheck = useMemo(() => isBinaryContent(body, contentType), [body, contentType]);
+
+  const highlighterVersion = useSyncExternalStore(subscribeToHighlighter, getHighlighterVersion);
 
   // Compute text lines (only used for text content, but must be called unconditionally)
   const lines = useMemo(() => {
@@ -135,7 +138,7 @@ export function BodyContent({
     }
 
     return result;
-  }, [body, contentType]);
+  }, [body, contentType, highlighterVersion]);
 
   // Handle truncated bodies
   if (isTruncated) {

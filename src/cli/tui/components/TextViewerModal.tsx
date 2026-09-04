@@ -4,9 +4,20 @@
  * Replaces the main TUI when active (terminals don't support true overlays).
  */
 
-import React, { useState, useMemo, useCallback, useRef, useEffect } from "react";
+import React, {
+  useState,
+  useMemo,
+  useCallback,
+  useRef,
+  useEffect,
+  useSyncExternalStore,
+} from "react";
 import { Box, Text, useInput } from "ink";
-import { highlightCode } from "../../../tui/utils/syntax-highlight.js";
+import {
+  getHighlighterVersion,
+  highlightCode,
+  subscribeToHighlighter,
+} from "../../../tui/utils/syntax-highlight.js";
 import { formatSize } from "../../../tui/utils/formatters.js";
 import { copyToClipboard } from "../../../tui/utils/clipboard.js";
 import { HintContent, type HintItem } from "./HintContent.js";
@@ -72,14 +83,19 @@ export function TextViewerModal({
       clearTimeout(statusTimeoutRef.current);
     }
     setStatusMessage(message);
-    statusTimeoutRef.current = setTimeout(() => setStatusMessage(undefined), STATUS_MESSAGE_TIMEOUT_MS);
+    statusTimeoutRef.current = setTimeout(
+      () => setStatusMessage(undefined),
+      STATUS_MESSAGE_TIMEOUT_MS
+    );
   }, []);
+
+  const highlighterVersion = useSyncExternalStore(subscribeToHighlighter, getHighlighterVersion);
 
   // Prepare highlighted lines
   const lines = useMemo(() => {
     const highlighted = highlightCode(text, contentType);
     return highlighted.split("\n");
-  }, [text, contentType]);
+  }, [text, contentType, highlighterVersion]);
 
   const totalLines = lines.length;
   const lineNumberWidth = String(totalLines).length;
@@ -116,7 +132,7 @@ export function TextViewerModal({
       const clamped = Math.max(0, Math.min(line, maxScrollOffset));
       setScrollOffset(clamped);
     },
-    [maxScrollOffset],
+    [maxScrollOffset]
   );
 
   // Auto-scroll to current match when using n/N
@@ -130,7 +146,7 @@ export function TextViewerModal({
       const centreOffset = Math.max(0, lineIdx - Math.floor(availableHeight / 2));
       scrollTo(centreOffset);
     },
-    [matchLineIndices, availableHeight, scrollTo],
+    [matchLineIndices, availableHeight, scrollTo]
   );
 
   useInput(
@@ -206,7 +222,8 @@ export function TextViewerModal({
       } else if (input === "N") {
         // Previous match
         if (matchLineIndices.length > 0) {
-          const prevIdx = (currentMatchIndex - 1 + matchLineIndices.length) % matchLineIndices.length;
+          const prevIdx =
+            (currentMatchIndex - 1 + matchLineIndices.length) % matchLineIndices.length;
           setCurrentMatchIndex(prevIdx);
           scrollToMatch(prevIdx);
         }
@@ -221,11 +238,11 @@ export function TextViewerModal({
             const msg = "Failed to copy to clipboard";
             showLocalStatus(msg);
             onStatus?.(msg);
-          },
+          }
         );
       }
     },
-    { isActive },
+    { isActive }
   );
 
   // Content type short display
@@ -235,7 +252,8 @@ export function TextViewerModal({
   const visibleSlice = lines.slice(scrollOffset, scrollOffset + availableHeight);
 
   // Determine the current match line for highlighting
-  const currentMatchLine = matchLineIndices.length > 0 ? matchLineIndices[currentMatchIndex] : undefined;
+  const currentMatchLine =
+    matchLineIndices.length > 0 ? matchLineIndices[currentMatchIndex] : undefined;
 
   // Set of all match lines for quick lookup
   const matchLineSet = useMemo(() => new Set(matchLineIndices), [matchLineIndices]);

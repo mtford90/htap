@@ -198,6 +198,7 @@ Rules derived from the [2026-02-05 code review](docs/reviews/2026-02-05/code-rev
 - **Keep TUI domain state in the store, not in components.** Keyboard, mouse and sync callbacks read `store.getState()` synchronously, so nothing has to be mirrored into a ref to stay current.
 - **Every key goes through the command table.** `App` owns the only `useKeyboard` listener; a component registers one only for keys a focused `<input>` must not swallow, and stops propagation for exactly those. Add a binding as a table entry with the modes it applies in, so the hints follow it.
 - **Text entry is OpenTUI's `<input>`, scrolling is `<scrollbox viewportCulling>`.** Give an input a constant `value` and read it back through `onInput`; changing `value` afterwards moves the cursor to the end. Give a scrollbox `flexGrow={1} flexBasis={0}`, or its content height pushes its siblings off the screen.
+- **Do not make the TUI load `cli-highlight` before the first frame.** It is the heaviest import in the graph, so `preloadHighlighter()` runs on a deliberate delay in `src/tui/main.tsx`; views recolour through `subscribeToHighlighter`. Both the delay and the subscription are load-bearing.
 - **Never return a fresh object or array from a store selector** without a shallow comparator; `useStore(store, useShallow(selector))` is the escape hatch. A new reference every read re-renders forever.
 
 ### TypeScript

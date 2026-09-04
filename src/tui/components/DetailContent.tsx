@@ -9,12 +9,24 @@ import React from "react";
 import { formatSize } from "../utils/formatters.js";
 import { getBinaryTypeDescription, isBinaryContent } from "../utils/binary.js";
 import { isJsonContent } from "../utils/content-type.js";
-import { highlightCode } from "../utils/syntax-highlight.js";
+import {
+  getHighlighterVersion,
+  highlightCode,
+  subscribeToHighlighter,
+} from "../utils/syntax-highlight.js";
 import { parseAnsiLines, type AnsiSegment } from "../utils/ansi-spans.js";
 import { attributes, DIM } from "./styles.js";
 
 /** Only the first 10 KB is prepared for display; exports still use the whole body. */
 const BODY_PREVIEW_LIMIT = 10 * 1024;
+
+/**
+ * Columns kept per displayed line before highlighting. Lines are drawn with
+ * `wrapMode="none"` in a pane no wider than the terminal, so anything past this
+ * is clipped by the renderer anyway, and a body that arrives as one enormous
+ * line costs no more than a short one.
+ */
+const BODY_LINE_COLUMN_LIMIT = 512;
 
 export function HeadersContent({
   headers,
@@ -96,14 +108,25 @@ export const HighlightedLine = React.memo(function HighlightedLine({
   );
 });
 
+/** Display lines, plus the line count of the body they were cut from. */
+export interface BodyDisplay {
+  lines: AnsiSegment[][];
+  totalLines: number;
+}
+
 /**
  * Turns a body into display lines: pretty-printed when it is JSON, syntax
  * highlighted when the content type is known, and marked when it was cut short.
+ *
+ * Highlighting costs grow faster than the text it is given, so only the lines
+ * the pane can show are highlighted, clipped to the columns it can draw; the
+ * rest of the body is counted, not coloured.
  */
 export const bodyDisplayLines = (
   body: Buffer,
-  contentType: string | undefined
-): AnsiSegment[][] => {
+  contentType: string | undefined,
+  maxLines: number
+): BodyDisplay => {
   const truncated = body.length > BODY_PREVIEW_LIMIT;
   let text = (truncated ? body.subarray(0, BODY_PREVIEW_LIMIT) : body).toString("utf-8");
 
@@ -115,11 +138,17 @@ export const bodyDisplayLines = (
     }
   }
 
-  const lines = parseAnsiLines(highlightCode(text, contentType));
+  const allLines = text.split("\n");
+  const shown = allLines
+    .slice(0, maxLines)
+    .map((line) => line.slice(0, BODY_LINE_COLUMN_LIMIT))
+    .join("\n");
+
+  const lines = parseAnsiLines(highlightCode(shown, contentType));
   if (truncated) {
     lines.push([{ text: `... truncated (${formatSize(body.length)} total)` }]);
   }
-  return lines;
+  return { lines, totalLines: truncated ? allLines.length + 1 : allLines.length };
 };
 
 export function BodyContent({
@@ -161,9 +190,18 @@ function HighlightedBody({
   contentType?: string;
   maxLines: number;
 }): React.ReactNode {
-  const lines = React.useMemo(() => bodyDisplayLines(body, contentType), [body, contentType]);
+  // The highlighter loads after the first frame, so the memo has to be
+  // invalidated when it lands or the body drawn at startup stays plain.
+  const highlighterVersion = React.useSyncExternalStore(
+    subscribeToHighlighter,
+    getHighlighterVersion
+  );
+  const { lines, totalLines } = React.useMemo(
+    () => bodyDisplayLines(body, contentType, maxLines),
+    [body, contentType, maxLines, highlighterVersion]
+  );
   const visibleLines = lines.slice(0, maxLines);
-  const remaining = lines.length - visibleLines.length;
+  const remaining = totalLines - visibleLines.length;
 
   return (
     <box flexDirection="column">

@@ -6,13 +6,17 @@
  * owns every key.
  */
 
-import React, { useMemo } from "react";
+import React, { useMemo, useSyncExternalStore } from "react";
 import { useStore } from "zustand";
 import { useShallow } from "zustand/react/shallow";
 import { visibleHints } from "../commands/table.js";
 import { useScroller } from "../hooks/useScroller.js";
 import type { TuiActions, TuiStore } from "../store/store.js";
-import { highlightCode } from "../utils/syntax-highlight.js";
+import {
+  getHighlighterVersion,
+  highlightCode,
+  subscribeToHighlighter,
+} from "../utils/syntax-highlight.js";
 import { parseAnsiLines, type AnsiSegment } from "../utils/ansi-spans.js";
 import { formatSize } from "../utils/formatters.js";
 import { matchingLineIndices } from "../utils/text-search.js";
@@ -21,6 +25,14 @@ import { buildBottomBorder, buildDivider, buildModalHeader } from "./panel-chrom
 import { attributes, DIM } from "./styles.js";
 
 const SEARCH_FIELD_WIDTH = 40;
+/**
+ * Highlighting cost grows faster than the body it is given — a 256 KiB
+ * stylesheet takes five seconds — and it runs before the modal can draw, so
+ * anything above this is shown as plain text instead. The measured worst case
+ * at this size is about 120 ms.
+ */
+const HIGHLIGHT_LIMIT = 64 * 1024;
+const TOO_LARGE_NOTICE = "body too large to highlight, showing plain text";
 
 const TextLine = React.memo(function TextLine({
   lineNumber,
@@ -84,9 +96,12 @@ export function TextViewerModal({
   const hints = useStore(store, useShallow(visibleHints));
   const { ref, scrollTop, syncScrollTop } = useScroller("text", actions);
 
+  const tooLargeToHighlight = text.length > HIGHLIGHT_LIMIT;
+  // See DetailContent: the highlighter can land after this modal first renders.
+  const highlighterVersion = useSyncExternalStore(subscribeToHighlighter, getHighlighterVersion);
   const lines = useMemo(
-    () => parseAnsiLines(highlightCode(text, contentType)),
-    [text, contentType]
+    () => parseAnsiLines(tooLargeToHighlight ? text : highlightCode(text, contentType)),
+    [text, contentType, tooLargeToHighlight, highlighterVersion]
   );
   const totalLines = lines.length;
   const lineNumberWidth = String(totalLines).length;
@@ -123,10 +138,13 @@ export function TextViewerModal({
             />
           </>
         ) : (
-          <text wrapMode="none" attributes={DIM}>
-            {matchLines.length > 0
-              ? `Line ${scrollTop + 1}/${totalLines} | ${matchLines.length} match${matchLines.length === 1 ? "" : "es"} (${matchIndex + 1}/${matchLines.length})`
-              : `Line ${scrollTop + 1}/${totalLines}`}
+          <text wrapMode="none">
+            <span attributes={DIM}>
+              {matchLines.length > 0
+                ? `Line ${scrollTop + 1}/${totalLines} | ${matchLines.length} match${matchLines.length === 1 ? "" : "es"} (${matchIndex + 1}/${matchLines.length})`
+                : `Line ${scrollTop + 1}/${totalLines}`}
+            </span>
+            {tooLargeToHighlight && <span fg="yellow">{` | ${TOO_LARGE_NOTICE}`}</span>}
           </text>
         )}
       </box>

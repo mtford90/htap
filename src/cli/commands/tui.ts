@@ -39,6 +39,11 @@ const runInkTui = async (options: TuiLaunchOptions): Promise<void> => {
 };
 
 const runOpenTui = async (options: TuiLaunchOptions): Promise<void> => {
+  // React's development reconciler leaks memory, so default OpenTUI to
+  // production too. It has to be set before the import below pulls in
+  // @opentui/react, which is when react-reconciler picks its build.
+  process.env["NODE_ENV"] = process.env["NODE_ENV"] ?? "production";
+
   if (ffiAlreadyEnabled()) {
     const { runTui } = await import("../../tui/main.js");
     await runTui(options);
