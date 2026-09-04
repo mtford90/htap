@@ -8,6 +8,7 @@
  */
 
 import React, { useCallback, useEffect, useRef } from "react";
+import type { ScrollBoxRenderable } from "@opentui/core";
 import type { CapturedRequestSummary } from "../../shared/types.js";
 import type { TuiActions } from "../store/store.js";
 import { countPrependedRequests } from "../store/list-geometry.js";
@@ -67,6 +68,9 @@ export function ListPane({
 }: ListPaneProps): React.ReactNode {
   const { ref, scrollTop, syncScrollTop } = useScroller("list", actions);
   const previousIds = useRef<string[]>([]);
+  const pendingPrepend = useRef(0);
+  const compensation = useRef<{ box: ScrollBoxRenderable; apply: () => void } | null>(null);
+  const lastHeight = useRef(height);
   const visibleHeight = Math.max(1, height - 2);
 
   // Follow mode pins the newest row; while browsing, rows arriving above the
@@ -79,35 +83,60 @@ export function ListPane({
       return;
     }
     if (following) {
+      pendingPrepend.current = 0;
       box.scrollTo(0);
       syncScrollTop();
       return;
     }
-    const prepended = countPrependedRequests(previous, requests);
-    if (prepended === 0) {
+    pendingPrepend.current += countPrependedRequests(previous, requests);
+    if (pendingPrepend.current === 0 || compensation.current?.box === box) {
       return;
     }
     // The scrollbox clamps against the content height it last measured, so
-    // the compensation has to wait until layout has seen the new rows.
-    const compensate = (): void => {
-      box.scrollBy(prepended);
+    // the compensation has to wait until layout has seen the new rows. Batches
+    // that land before that layout pass accumulate into one scroll.
+    const apply = (): void => {
+      compensation.current = null;
+      box.scrollBy(pendingPrepend.current);
+      pendingPrepend.current = 0;
       syncScrollTop();
     };
-    box.content.once("resize", compensate);
-    return () => {
-      box.content.off("resize", compensate);
-    };
+    compensation.current?.box.content.off("resize", compensation.current.apply);
+    compensation.current = { box, apply };
+    box.content.once("resize", apply);
   }, [requests, following, ref, syncScrollTop]);
 
+  useEffect(
+    () => () => {
+      compensation.current?.box.content.off("resize", compensation.current.apply);
+      compensation.current = null;
+    },
+    []
+  );
+
   // Only a cursor the user moved drags the viewport; wheel scrolling leaves it
-  // unpinned so the list does not snap back to the selection.
+  // unpinned so the list does not snap back to the selection. A height change
+  // is only measurable once layout has resized the viewport.
   useEffect(() => {
-    if (cursorId === null) {
+    const heightChanged = lastHeight.current !== height;
+    lastHeight.current = height;
+    const box = ref.current;
+    if (cursorId === null || !box) {
       return;
     }
-    ref.current?.scrollChildIntoView(requestRowId(cursorId));
-    syncScrollTop();
-  }, [cursorId, visibleHeight, ref, syncScrollTop]);
+    const reveal = (): void => {
+      box.scrollChildIntoView(requestRowId(cursorId));
+      syncScrollTop();
+    };
+    if (!heightChanged) {
+      reveal();
+      return;
+    }
+    box.viewport.once("resize", reveal);
+    return () => {
+      box.viewport.off("resize", reveal);
+    };
+  }, [cursorId, height, ref, syncScrollTop]);
 
   // The scrollbox has already moved by the time the wheel event bubbles here.
   const handleWheel = useCallback(() => {
