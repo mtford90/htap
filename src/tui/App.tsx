@@ -6,12 +6,11 @@
  * it renders comes from the store.
  */
 
-import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import React, { useCallback, useEffect, useLayoutEffect, useMemo } from "react";
 import { useKeyboard, useTerminalDimensions } from "@opentui/react";
 import { useStore } from "zustand";
 import { useShallow } from "zustand/react/shallow";
 import {
-  listScrollOffset,
   selectedIndex as selectSelectedIndex,
   selectedSummary,
   type TuiActions,
@@ -23,7 +22,6 @@ import { dispatchKey, visibleHints, type CommandDeps } from "./commands/table.js
 import { toKeyLike } from "./commands/keys.js";
 import { copyToClipboard } from "./utils/clipboard.js";
 import { isFilterActive } from "./utils/filters.js";
-import { exportBody } from "./export-body.js";
 import { useSpinner } from "./hooks/useSpinner.js";
 import { ListPane } from "./components/ListPane.js";
 import { DetailPane } from "./components/DetailPane.js";
@@ -31,12 +29,10 @@ import { FilterBar } from "./components/FilterBar.js";
 import { InfoBar } from "./components/InfoBar.js";
 import { StatusBar } from "./components/StatusBar.js";
 import { ModalHost } from "./components/ModalHost.js";
-import type { ExportAction } from "./components/ExportModal.js";
 import { DIM } from "./components/styles.js";
 
 export const MIN_TERMINAL_COLUMNS = 60;
 export const MIN_TERMINAL_ROWS = 10;
-const STATUS_MESSAGE_TIMEOUT_MS = 3000;
 const FILTER_BAR_ROWS = 2;
 const INFO_BAR_ROWS = 1;
 const STATUS_BAR_ROWS = 2;
@@ -65,42 +61,20 @@ export function App({ store, actions, engine, onExit }: AppProps): React.ReactNo
   const interceptors = useTui(store, (state) => state.interceptors);
   const connection = useTui(store, (state) => state.connection);
   const selectedIndex = useTui(store, selectSelectedIndex);
-  const scrollOffset = useTui(store, listScrollOffset);
   // The hint list is rebuilt on every read, so compare it shallowly.
   const hints = useStore(store, useShallow(visibleHints));
 
-  const [hoveredPanel, setHoveredPanel] = useState<"list" | "detail" | null>(null);
   const spinnerFrame = useSpinner(loading && requests.length === 0);
-  const statusTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
-  const showStatus = useCallback(
-    (message: string) => {
-      if (statusTimeoutRef.current) {
-        clearTimeout(statusTimeoutRef.current);
-      }
-      actions.setStatusMessage(message);
-      statusTimeoutRef.current = setTimeout(
-        () => actions.setStatusMessage(undefined),
-        STATUS_MESSAGE_TIMEOUT_MS
-      );
-    },
-    [actions]
-  );
-
-  useEffect(
-    () => () => {
-      if (statusTimeoutRef.current) {
-        clearTimeout(statusTimeoutRef.current);
-      }
-    },
-    []
-  );
+  useEffect(() => actions.stopStatusTimer, [actions]);
 
   const filterBarRows = ui.filterOpen ? FILTER_BAR_ROWS : 0;
   const contentHeight = rows - STATUS_BAR_ROWS - INFO_BAR_ROWS - filterBarRows;
   const listHeight = Math.max(1, contentHeight - 2);
 
-  useEffect(() => {
+  // Layout effects land before the renderer draws, so the first frame already
+  // has the real geometry rather than the store's placeholder.
+  useLayoutEffect(() => {
     actions.setViewport({ columns, rows, contentHeight, listHeight });
   }, [actions, columns, rows, contentHeight, listHeight]);
 
@@ -111,35 +85,17 @@ export function App({ store, actions, engine, onExit }: AppProps): React.ReactNo
   }, [engine, selectedId]);
 
   const commandDeps: CommandDeps = useMemo(
-    () => ({ store, actions, engine, showStatus, exit: onExit, copyToClipboard }),
-    [store, actions, engine, showStatus, onExit]
+    () => ({ store, actions, engine, exit: onExit, copyToClipboard }),
+    [store, actions, engine, onExit]
   );
 
+  // Global listeners run in registration order and this one mounts first, so
+  // every key reaches the command table before any focused input sees it.
   useKeyboard((key) => {
-    // Modals and the filter bar mount below this handler, so they see the key
-    // first and stop it; without this check their close key would immediately
-    // be read again as a main-view command.
-    if (key.propagationStopped) {
-      return;
-    }
     if (dispatchKey(commandDeps, toKeyLike(key))) {
       key.stopPropagation();
     }
   });
-
-  const handleExportBody = useCallback(
-    (action: ExportAction, customPath?: string) => {
-      const state = store.getState();
-      const request = state.detail.request;
-      const modal = state.ui.modal;
-      if (!request || modal?.kind !== "bodyExport") {
-        return;
-      }
-      actions.closeModal();
-      exportBody({ request, bodyType: modal.bodyType, action, customPath, showStatus });
-    },
-    [store, actions, showStatus]
-  );
 
   const handleFilterChange = useCallback(
     (nextFilter: typeof filter, nextBodySearch: typeof bodySearch) => {
@@ -148,21 +104,6 @@ export function App({ store, actions, engine, onExit }: AppProps): React.ReactNo
     },
     [engine, actions]
   );
-
-  const preOpenFilterRef = useRef({ filter, bodySearch });
-  useEffect(() => {
-    if (ui.filterOpen) {
-      return;
-    }
-    preOpenFilterRef.current = { filter, bodySearch };
-  }, [ui.filterOpen, filter, bodySearch]);
-
-  const handleFilterCancel = useCallback(() => {
-    const previous = preOpenFilterRef.current;
-    engine.setFilter(previous.filter, previous.bodySearch);
-    actions.resetToFollow();
-    actions.setFilterOpen(false);
-  }, [engine, actions]);
 
   if (columns < MIN_TERMINAL_COLUMNS || rows < MIN_TERMINAL_ROWS) {
     return (
@@ -188,6 +129,8 @@ export function App({ store, actions, engine, onExit }: AppProps): React.ReactNo
   if (ui.modal) {
     return (
       <ModalHost
+        store={store}
+        actions={actions}
         modal={ui.modal}
         request={detailRequest}
         events={interceptors.events}
@@ -195,9 +138,6 @@ export function App({ store, actions, engine, onExit }: AppProps): React.ReactNo
         caCertPath={connection.caCertPath}
         width={columns}
         height={rows}
-        onClose={actions.closeModal}
-        onStatus={showStatus}
-        onExportBody={handleExportBody}
       />
     );
   }
@@ -236,9 +176,10 @@ export function App({ store, actions, engine, onExit }: AppProps): React.ReactNo
         <ListPane
           requests={requests}
           selectedIndex={selectedIndex}
-          scrollOffset={scrollOffset}
+          cursorId={selection.selectedId}
+          actions={actions}
           isActive={selection.activePanel === "list"}
-          isHovered={hoveredPanel === "list"}
+          isHovered={ui.hoveredPanel === "list"}
           width={listWidth}
           height={contentHeight}
           showFullUrl={ui.showFullUrl}
@@ -246,9 +187,8 @@ export function App({ store, actions, engine, onExit }: AppProps): React.ReactNo
           following={selection.following}
           pendingNewCount={selection.pendingNew}
           onSelectIndex={actions.selectIndex}
-          onScroll={actions.scrollListBy}
           onActivate={() => actions.setActivePanel("list")}
-          onHoverChange={(hovered) => setHoveredPanel(hovered ? "list" : null)}
+          onHoverChange={(hovered) => actions.setHoveredPanel(hovered ? "list" : null)}
         />
         {hasDetail && (
           <DetailPane
@@ -259,7 +199,7 @@ export function App({ store, actions, engine, onExit }: AppProps): React.ReactNo
             focusedSection={selection.focusedSection}
             expandedSections={selection.expandedSections}
             onActivate={() => actions.setActivePanel("detail")}
-            onHoverChange={(hovered) => setHoveredPanel(hovered ? "detail" : null)}
+            onHoverChange={(hovered) => actions.setHoveredPanel(hovered ? "detail" : null)}
           />
         )}
       </box>
@@ -269,8 +209,6 @@ export function App({ store, actions, engine, onExit }: AppProps): React.ReactNo
           filter={filter}
           bodySearch={bodySearch}
           onFilterChange={handleFilterChange}
-          onClose={() => actions.setFilterOpen(false)}
-          onCancel={handleFilterCancel}
           width={columns}
         />
       )}

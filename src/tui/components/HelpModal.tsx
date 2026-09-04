@@ -5,7 +5,6 @@
  */
 
 import React from "react";
-import { useKeyboard } from "@opentui/react";
 import { buildProxyInfo } from "../../shared/proxy-info.js";
 import { BOLD, DIM } from "./styles.js";
 
@@ -62,7 +61,6 @@ const HELP_SECTIONS: HelpSection[] = [
 export interface HelpModalProps {
   width: number;
   height: number;
-  onClose: () => void;
   proxyPort?: number;
   caCertPath?: string;
 }
@@ -107,17 +105,9 @@ function ConnectionInfo({
 export function HelpModal({
   width,
   height,
-  onClose,
   proxyPort,
   caCertPath,
 }: HelpModalProps): React.ReactNode {
-  useKeyboard((key) => {
-    key.stopPropagation();
-    if (key.sequence === "?" || key.name === "escape") {
-      onClose();
-    }
-  });
-
   const innerWidth = Math.min(MAX_INNER_WIDTH, width - 4);
 
   return (

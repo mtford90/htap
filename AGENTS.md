@@ -178,9 +178,9 @@ npm run typecheck && npm run lint && npm test
 | `src/cli/commands/` | Command implementations |
 | `src/daemon/` | Proxy daemon (mockttp, control API) |
 | `src/tui/` | OpenTUI TUI: store, sync engine, command table, components |
-| `src/tui/store/` | zustand store and the pure list geometry helpers |
+| `src/tui/store/` | zustand store: every view state, including each modal's cursor, scroll and search |
 | `src/tui/sync/engine.ts` | Delta sync, detail cache and polling, all outside React |
-| `src/tui/commands/table.ts` | Keybindings and the status-bar hints |
+| `src/tui/commands/` | Keybindings and status-bar hints, one module per mode, assembled in `table.ts` |
 | `src/cli/tui/` | Ink TUI, reachable with `HTTAP_TUI=ink` until it is removed |
 | `src/shared/project.ts` | Project root detection, .httap paths |
 | `src/shared/daemon.ts` | Daemon lifecycle management |
@@ -196,6 +196,8 @@ Rules derived from the [2026-02-05 code review](docs/reviews/2026-02-05/code-rev
 - **Wrap list item components in `React.memo()`.** Any component rendered inside a `.map()` or list should be memoised to avoid unnecessary re-renders.
 - **Calculate new state before using it.** When toggling state and also calling a side-effect with the new value, compute the new value first, then pass it to both `setState` and the side-effect — don't read state after setting it (stale closure).
 - **Keep TUI domain state in the store, not in components.** Keyboard, mouse and sync callbacks read `store.getState()` synchronously, so nothing has to be mirrored into a ref to stay current.
+- **Every key goes through the command table.** `App` owns the only `useKeyboard` listener; a component registers one only for keys a focused `<input>` must not swallow, and stops propagation for exactly those. Add a binding as a table entry with the modes it applies in, so the hints follow it.
+- **Text entry is OpenTUI's `<input>`, scrolling is `<scrollbox viewportCulling>`.** Give an input a constant `value` and read it back through `onInput`; changing `value` afterwards moves the cursor to the end. Give a scrollbox `flexGrow={1} flexBasis={0}`, or its content height pushes its siblings off the screen.
 - **Never return a fresh object or array from a store selector** without a shallow comparator; `useStore(store, useShallow(selector))` is the escape hatch. A new reference every read re-renders forever.
 
 ### TypeScript

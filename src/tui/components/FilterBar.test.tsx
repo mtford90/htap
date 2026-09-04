@@ -2,20 +2,14 @@
 
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { BodySearchOptions, RequestFilter } from "../../shared/types.js";
-import {
-  buildFilterState,
-  FilterBar,
-  getBodySearchDisplayParts,
-  type FilterBarProps,
-} from "./FilterBar.js";
+import { FilterBar, type FilterBarProps } from "./FilterBar.js";
+import { buildFilterState } from "./filter-fields.js";
 import {
   destroyRenderers,
   renderTui,
   settle,
   waitForNoText,
   waitForText,
-  waitUntil,
-  pressEscape,
 } from "../test-support/render.js";
 
 afterEach(destroyRenderers);
@@ -23,8 +17,6 @@ afterEach(destroyRenderers);
 const props = (overrides: Partial<FilterBarProps> = {}): FilterBarProps => ({
   filter: {},
   onFilterChange: vi.fn(),
-  onClose: vi.fn(),
-  onCancel: vi.fn(),
   width: 140,
   ...overrides,
 });
@@ -84,27 +76,6 @@ describe("buildFilterState", () => {
   });
 });
 
-describe("getBodySearchDisplayParts", () => {
-  it("returns nothing for plain text", () => {
-    expect(getBodySearchDisplayParts("api")).toBeUndefined();
-  });
-
-  it("splits the scope, the target and the query", () => {
-    expect(getBodySearchDisplayParts("body:res:oops")).toEqual({
-      bodyPrefix: "body:",
-      targetPrefix: "res:",
-      query: "oops",
-    });
-  });
-
-  it("treats an unknown target as part of the query", () => {
-    expect(getBodySearchDisplayParts("body:foo:bar")).toEqual({
-      bodyPrefix: "body:",
-      query: "foo:bar",
-    });
-  });
-});
-
 describe("FilterBar", () => {
   it("renders every field with its default value", async () => {
     const setup = await renderTui(<FilterBar {...props()} />, { width: 140, height: 4 });
@@ -150,7 +121,7 @@ describe("FilterBar", () => {
     expect(await lastFilterCall(onFilterChange)).toEqual([{ search: "api" }, undefined]);
   });
 
-  it("deletes the last character on backspace", async () => {
+  it("deletes the character before the cursor on backspace", async () => {
     const onFilterChange = vi.fn();
     const setup = await renderTui(<FilterBar {...props({ onFilterChange })} />, {
       width: 140,
@@ -165,6 +136,39 @@ describe("FilterBar", () => {
     await vi.waitFor(() => {
       expect(onFilterChange.mock.calls.at(-1)?.[0]).toEqual({ search: "ap" });
     });
+  });
+
+  it("inserts at the cursor after moving it left", async () => {
+    const onFilterChange = vi.fn();
+    const setup = await renderTui(<FilterBar {...props({ onFilterChange })} />, {
+      width: 140,
+      height: 4,
+    });
+    await setup.mockInput.typeText("ac");
+    await waitForText(setup, "ac");
+
+    setup.mockInput.pressArrow("left");
+    await settle(setup);
+    await setup.mockInput.typeText("b");
+
+    await waitForText(setup, "abc");
+    await vi.waitFor(() => {
+      expect(onFilterChange.mock.calls.at(-1)?.[0]).toEqual({ search: "abc" });
+    });
+  });
+
+  it("deletes the word before the cursor", async () => {
+    const onFilterChange = vi.fn();
+    const setup = await renderTui(<FilterBar {...props({ onFilterChange })} />, {
+      width: 140,
+      height: 4,
+    });
+    await setup.mockInput.typeText("alpha beta");
+    await waitForText(setup, "alpha beta");
+
+    setup.mockInput.pressKey("w", { ctrl: true });
+
+    await waitForNoText(setup, "beta");
   });
 
   it("cycles the method field with the arrow keys after Tab", async () => {
@@ -241,31 +245,4 @@ describe("FilterBar", () => {
     expect(call[1]).toEqual({ query: "oops", target: "request" });
   });
 
-  it("closes on Enter without reverting", async () => {
-    const onClose = vi.fn();
-    const onCancel = vi.fn();
-    const setup = await renderTui(<FilterBar {...props({ onClose, onCancel })} />, {
-      width: 140,
-      height: 4,
-    });
-
-    setup.mockInput.pressEnter();
-
-    await waitUntil(setup, () => expect(onClose).toHaveBeenCalled());
-    expect(onCancel).not.toHaveBeenCalled();
-  });
-
-  it("reverts on Escape", async () => {
-    const onClose = vi.fn();
-    const onCancel = vi.fn();
-    const setup = await renderTui(<FilterBar {...props({ onClose, onCancel })} />, {
-      width: 140,
-      height: 4,
-    });
-
-    pressEscape(setup);
-
-    await waitUntil(setup, () => expect(onCancel).toHaveBeenCalled());
-    expect(onClose).not.toHaveBeenCalled();
-  });
 });

@@ -7,6 +7,9 @@
 
 import { runTui, type StartTuiOptions } from "./main.js";
 
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  typeof value === "object" && value !== null && !Array.isArray(value);
+
 const parseOptions = (raw: string | undefined): StartTuiOptions => {
   if (!raw) {
     return {};
@@ -19,17 +22,16 @@ const parseOptions = (raw: string | undefined): StartTuiOptions => {
     return {};
   }
 
-  if (typeof parsed !== "object" || parsed === null) {
+  if (!isRecord(parsed)) {
     return {};
   }
 
-  const record = parsed as Record<string, unknown>;
   return {
-    projectRoot: typeof record["projectRoot"] === "string" ? record["projectRoot"] : undefined,
+    projectRoot: typeof parsed["projectRoot"] === "string" ? parsed["projectRoot"] : undefined,
     configOverride:
-      typeof record["configOverride"] === "string" ? record["configOverride"] : undefined,
-    ci: record["ci"] === true,
-    verbose: typeof record["verbose"] === "number" ? record["verbose"] : undefined,
+      typeof parsed["configOverride"] === "string" ? parsed["configOverride"] : undefined,
+    ci: parsed["ci"] === true,
+    verbose: typeof parsed["verbose"] === "number" ? parsed["verbose"] : undefined,
   };
 };
 

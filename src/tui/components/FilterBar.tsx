@@ -4,23 +4,28 @@
  * Filter bar for the request list: free text (plain, `/regex/` or `body:` scope),
  * method, status range, bookmark state and source.
  *
- * Tab and Shift+Tab move between the fields; the text fields take characters
- * and the cycling fields take the arrow keys. The filter applies as you type,
- * so Enter only closes the bar and Escape reverts it.
+ * Tab and Shift+Tab move between the fields; the text fields are OpenTUI
+ * inputs and the cycling fields take the arrow keys. The filter applies as you
+ * type, so Enter only closes the bar and Escape reverts it, both through the
+ * command table.
  */
 
 import React, { useEffect, useRef, useState } from "react";
 import { useKeyboard } from "@opentui/react";
 import type { BodySearchOptions, RequestFilter } from "../../shared/types.js";
-import { parseUrlSearchInput } from "../../shared/regex-filter.js";
-import { parseBodyScopeInput, parseBodySearchTarget } from "../../shared/body-search.js";
+import { parseBodyScopeInput } from "../../shared/body-search.js";
+import {
+  buildFilterState,
+  getInitialSearchValue,
+  METHOD_CYCLE,
+  STATUS_CYCLE,
+} from "./filter-fields.js";
 import { attributes, BOLD, DIM } from "./styles.js";
 
-const METHOD_CYCLE = ["GET", "POST", "PUT", "PATCH", "DELETE"] as const;
-const STATUS_CYCLE = ["2xx", "3xx", "4xx", "5xx"] as const;
 const MAX_SEARCH_LENGTH = 200;
 const FILTER_DEBOUNCE_MS = 150;
-const BODY_SCOPE_PREFIX = "body:";
+const SEARCH_FIELD_WIDTH = 28;
+const SOURCE_FIELD_WIDTH = 12;
 const FILTER_HELP_TEXT = "Tab=switch Enter=close Esc=cancel body:(req|res):error /re/";
 
 type FilterField = "search" | "method" | "status" | "saved" | "source";
@@ -30,142 +35,8 @@ export interface FilterBarProps {
   filter: RequestFilter;
   bodySearch?: BodySearchOptions;
   onFilterChange: (filter: RequestFilter, bodySearch: BodySearchOptions | undefined) => void;
-  onClose: () => void;
-  /** Escape reverts to the state the bar opened with. */
-  onCancel: () => void;
   width: number;
 }
-
-const getInitialSearchValue = (
-  filter: RequestFilter,
-  bodySearch: BodySearchOptions | undefined
-): string => {
-  if (bodySearch) {
-    if (bodySearch.target === "request") {
-      return `body:req:${bodySearch.query}`;
-    }
-    if (bodySearch.target === "response") {
-      return `body:res:${bodySearch.query}`;
-    }
-    return `body:${bodySearch.query}`;
-  }
-  if (filter.regex) {
-    return `/${filter.regex}/${filter.regexFlags ?? ""}`;
-  }
-  return filter.search ?? "";
-};
-
-export interface BodySearchDisplayParts {
-  bodyPrefix: string;
-  targetPrefix?: string;
-  query: string;
-}
-
-/** Splits `body:req:error` so each part can be coloured differently. */
-export const getBodySearchDisplayParts = (input: string): BodySearchDisplayParts | undefined => {
-  if (!input.toLowerCase().startsWith(BODY_SCOPE_PREFIX)) {
-    return undefined;
-  }
-
-  const bodyPrefix = input.slice(0, BODY_SCOPE_PREFIX.length);
-  const rest = input.slice(BODY_SCOPE_PREFIX.length);
-  if (!rest) {
-    return { bodyPrefix, query: "" };
-  }
-
-  const firstColon = rest.indexOf(":");
-  if (firstColon === -1) {
-    return { bodyPrefix, query: rest };
-  }
-
-  if (!parseBodySearchTarget(rest.slice(0, firstColon))) {
-    return { bodyPrefix, query: rest };
-  }
-
-  return {
-    bodyPrefix,
-    targetPrefix: rest.slice(0, firstColon + 1),
-    query: rest.slice(firstColon + 1),
-  };
-};
-
-const getBodyTargetColour = (targetPrefix: string): string => {
-  const target = parseBodySearchTarget(targetPrefix.slice(0, -1));
-  if (target === "request") {
-    return "yellow";
-  }
-  return target === "response" ? "magenta" : "blue";
-};
-
-interface FilterState {
-  filter: RequestFilter;
-  bodySearch?: BodySearchOptions;
-}
-
-interface FieldValues {
-  search: string;
-  methodIndex: number;
-  statusIndex: number;
-  savedIndex: number;
-  source: string;
-}
-
-/** Turns the bar's fields into the filter the daemon understands. */
-export const buildFilterState = ({
-  search,
-  methodIndex,
-  statusIndex,
-  savedIndex,
-  source,
-}: FieldValues): FilterState => {
-  const result: RequestFilter = {};
-  let bodySearch: BodySearchOptions | undefined;
-
-  const trimmedSearch = search.trim();
-  if (trimmedSearch) {
-    const parsedBodyScope = parseBodyScopeInput(trimmedSearch);
-    if (parsedBodyScope) {
-      bodySearch = { query: parsedBodyScope.query, target: parsedBodyScope.target };
-    } else {
-      try {
-        const parsed = parseUrlSearchInput(trimmedSearch);
-        if (parsed.regex) {
-          result.regex = parsed.regex.pattern;
-          if (parsed.regex.flags) {
-            result.regexFlags = parsed.regex.flags;
-          }
-        } else if (parsed.search) {
-          result.search = parsed.search;
-        }
-      } catch {
-        // A half-typed regex literal should still filter, so fall back to a
-        // substring match rather than showing an error.
-        result.search = trimmedSearch;
-      }
-    }
-  }
-
-  if (methodIndex > 0) {
-    const method = METHOD_CYCLE[methodIndex - 1];
-    if (method) {
-      result.methods = [method];
-    }
-  }
-  if (statusIndex > 0) {
-    const status = STATUS_CYCLE[statusIndex - 1];
-    if (status) {
-      result.statusRange = status;
-    }
-  }
-  if (savedIndex > 0) {
-    result.saved = true;
-  }
-  if (source.trim()) {
-    result.source = source.trim();
-  }
-
-  return { filter: result, bodySearch };
-};
 
 const cycle = (current: number, length: number, direction: 1 | -1): number => {
   const total = length + 1; // index 0 is the "ALL" option
@@ -184,7 +55,7 @@ function CycleField({
   isFocused: boolean;
 }): React.ReactNode {
   return (
-    <text wrapMode="none">
+    <text wrapMode="none" flexShrink={0}>
       <span attributes={DIM}>{`  ${label}:`}</span>
       <span
         fg={isSet ? "yellow" : "white"}
@@ -200,11 +71,13 @@ export function FilterBar({
   filter,
   bodySearch,
   onFilterChange,
-  onClose,
-  onCancel,
   width,
 }: FilterBarProps): React.ReactNode {
-  const [search, setSearch] = useState(() => getInitialSearchValue(filter, bodySearch));
+  // The inputs own their text, so their initial value must never change.
+  const [initialSearch] = useState(() => getInitialSearchValue(filter, bodySearch));
+  const [initialSource] = useState(() => filter.source ?? "");
+  const [search, setSearch] = useState(initialSearch);
+  const [source, setSource] = useState(initialSource);
   const [methodIndex, setMethodIndex] = useState(() => {
     if (filter.methods?.length === 1) {
       const index = METHOD_CYCLE.findIndex((method) => method === filter.methods?.[0]);
@@ -217,7 +90,6 @@ export function FilterBar({
     return index >= 0 ? index + 1 : 0;
   });
   const [savedIndex, setSavedIndex] = useState(filter.saved === true ? 1 : 0);
-  const [source, setSource] = useState(filter.source ?? "");
   const [focusedField, setFocusedField] = useState<FilterField>("search");
 
   const debounceRef = useRef<NodeJS.Timeout | null>(null);
@@ -241,17 +113,8 @@ export function FilterBar({
   }, [search, methodIndex, statusIndex, savedIndex, source]);
 
   useKeyboard((key) => {
-    key.stopPropagation();
-
-    if (key.name === "escape") {
-      onCancel();
-      return;
-    }
-    if (key.name === "return") {
-      onClose();
-      return;
-    }
     if (key.name === "tab") {
+      key.stopPropagation();
       setFocusedField((previous) => {
         const currentIndex = FIELD_ORDER.indexOf(previous);
         const direction = key.shift ? -1 : 1;
@@ -261,18 +124,8 @@ export function FilterBar({
       return;
     }
 
-    const isText = focusedField === "search" || focusedField === "source";
-    if (isText) {
-      const setValue = focusedField === "search" ? setSearch : setSource;
-      if (key.name === "backspace" || key.name === "delete") {
-        setValue((previous) => previous.slice(0, -1));
-        return;
-      }
-      if (key.sequence.length === 1 && !key.ctrl && !key.meta) {
-        setValue((previous) =>
-          previous.length >= MAX_SEARCH_LENGTH ? previous : previous + key.sequence
-        );
-      }
+    // A focused input owns every other key, including the arrows.
+    if (focusedField === "search" || focusedField === "source") {
       return;
     }
 
@@ -281,6 +134,7 @@ export function FilterBar({
     if (!forwards && !backwards) {
       return;
     }
+    key.stopPropagation();
     const direction = forwards ? 1 : -1;
 
     if (focusedField === "method") {
@@ -292,7 +146,9 @@ export function FilterBar({
     }
   });
 
-  const displayParts = getBodySearchDisplayParts(search);
+  // A scoped body search reads very differently from a URL filter, so the
+  // whole field changes colour once the scope parses.
+  const searchColour = parseBodyScopeInput(search.trim()) ? "cyan" : "white";
 
   return (
     <box
@@ -304,32 +160,22 @@ export function FilterBar({
       paddingRight={1}
       flexDirection="row"
     >
-      <text wrapMode="none">
+      <text wrapMode="none" flexShrink={0}>
         <span fg="cyan" attributes={BOLD}>
           /
         </span>
         <span> </span>
-        {displayParts ? (
-          [
-            <span key="prefix" fg="cyan" attributes={BOLD}>
-              {displayParts.bodyPrefix}
-            </span>,
-            displayParts.targetPrefix ? (
-              <span
-                key="target"
-                fg={getBodyTargetColour(displayParts.targetPrefix)}
-                attributes={BOLD}
-              >
-                {displayParts.targetPrefix}
-              </span>
-            ) : null,
-            <span key="query">{displayParts.query}</span>,
-          ]
-        ) : (
-          <span>{search}</span>
-        )}
-        {focusedField === "search" ? <span fg="cyan">█</span> : null}
       </text>
+      <input
+        focused={focusedField === "search"}
+        value={initialSearch}
+        onInput={setSearch}
+        maxLength={MAX_SEARCH_LENGTH}
+        width={SEARCH_FIELD_WIDTH}
+        flexShrink={0}
+        textColor={searchColour}
+        focusedTextColor={searchColour}
+      />
       <CycleField
         label="method"
         value={methodIndex > 0 ? (METHOD_CYCLE[methodIndex - 1] ?? "ALL") : "ALL"}
@@ -348,21 +194,22 @@ export function FilterBar({
         isSet={savedIndex > 0}
         isFocused={focusedField === "saved"}
       />
-      <text wrapMode="none">
+      <text wrapMode="none" flexShrink={0}>
         <span attributes={DIM}>{"  source:"}</span>
-        <span
-          fg={source ? "yellow" : "white"}
-          attributes={attributes({
-            bold: focusedField === "source",
-            underline: focusedField === "source",
-          })}
-        >
-          {source || "ALL"}
-        </span>
-        {focusedField === "source" ? <span fg="cyan">█</span> : null}
       </text>
+      <input
+        focused={focusedField === "source"}
+        value={initialSource}
+        onInput={setSource}
+        placeholder="ALL"
+        maxLength={MAX_SEARCH_LENGTH}
+        width={SOURCE_FIELD_WIDTH}
+        flexShrink={0}
+        textColor={source ? "yellow" : "white"}
+        focusedTextColor={source ? "yellow" : "white"}
+      />
       <text wrapMode="none" attributes={DIM}>
-        {`  ${FILTER_HELP_TEXT}`}
+        {` ${FILTER_HELP_TEXT}`}
       </text>
     </box>
   );

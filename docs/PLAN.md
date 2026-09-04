@@ -26,6 +26,11 @@ The TUI moved from Ink to OpenTUI (`@opentui/core` + `@opentui/react`).
 - `httap tui` re-executes Node with `--experimental-ffi` and runs the TUI there; `HTTAP_TUI=ink` selects the old Ink tree for one minor release
 - Component tests use `@opentui/react/test-utils` in a `tui` vitest project
 
+Post-migration review follow-ups: text entry uses OpenTUI's `<input>`, the request
+list and the three scrolling modals use `<scrollbox viewportCulling>`, and every
+view state (hovered panel, status-message expiry, filter snapshot, per-modal cursor,
+scroll and search) lives in the store with the command table keyed by mode.
+
 </details>
 
 <details>
@@ -122,7 +127,7 @@ Each feature should be considered across all four surfaces where applicable:
     - [x] Extract request-list state logic into dedicated TUI modules (`hooks/useRequestListState.ts` + `state/request-list-state.ts`) as a precursor to the reducer/store cutover
     - [x] Add full-request detail cache + stale-response guard so rapid selection changes cannot paint old request details
     - [x] Browse mode viewport freeze + "new items" indicator; follow mode remains explicit and auto-scrolls to newest
-    - [ ] Fetch/render only viewport + overscan window, with paged loading for older rows
+    - [ ] Fetch only the viewport + overscan window, with paged loading for older rows (rendering is already culled by `<scrollbox viewportCulling>`)
     - [x] Split list state/rendering out of `App.tsx` and minimise per-row prop churn
     - [ ] Add burst-load tests (component + integration) for selection stability, ordering stability, and input responsiveness
   - **Validation target:** no visible row jitter/reorder artifacts and responsive key navigation during sustained high request throughput

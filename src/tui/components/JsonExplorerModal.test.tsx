@@ -1,17 +1,17 @@
 /** @jsxImportSource @opentui/react */
 
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-
-const copyToClipboard = vi.fn(async () => undefined);
-vi.mock("../utils/clipboard.js", () => ({ copyToClipboard }));
-
-const { JsonExplorerModal } = await import("./JsonExplorerModal.js");
-const { destroyRenderers, pressEscape, renderTui, settle, waitForText, waitUntil } = await import(
-  "../test-support/render.js"
-);
+import { afterEach, describe, expect, it } from "vitest";
+import { JsonExplorerModal } from "./JsonExplorerModal.js";
+import {
+  destroyRenderers,
+  pressEscape,
+  renderWithCommands,
+  settle,
+  waitForText,
+  waitUntil,
+} from "../test-support/render.js";
 
 afterEach(destroyRenderers);
-beforeEach(() => copyToClipboard.mockClear());
 
 const data = {
   name: "httap",
@@ -19,24 +19,38 @@ const data = {
   tags: ["proxy", "tui"],
 };
 
-const render = (overrides: { data?: unknown; onClose?: () => void; onStatus?: () => void } = {}) =>
-  renderTui(
-    <JsonExplorerModal
-      data={overrides.data ?? data}
-      title="Response Body"
-      contentType="application/json; charset=utf-8"
-      bodySize={128}
-      width={100}
-      height={24}
-      onClose={overrides.onClose ?? vi.fn()}
-      onStatus={overrides.onStatus}
-    />,
+const render = (overrides: { data?: unknown } = {}) => {
+  const payload = overrides.data ?? data;
+  const modal = {
+    kind: "json" as const,
+    data: payload,
+    title: "Response Body",
+    contentType: "application/json; charset=utf-8",
+    bodySize: 128,
+  };
+  return renderWithCommands(
+    ({ store, actions }) => {
+      actions.openModal(modal);
+      return (
+        <JsonExplorerModal
+          store={store}
+          actions={actions}
+          data={payload}
+          title={modal.title}
+          contentType={modal.contentType}
+          bodySize={modal.bodySize}
+          width={100}
+          height={24}
+        />
+      );
+    },
     { width: 100, height: 24 }
   );
+};
 
 describe("JsonExplorerModal", () => {
   it("shows the header with the content type and size", async () => {
-    const setup = await render();
+    const { setup } = await render();
 
     const frame = setup.captureCharFrame();
     expect(frame).toContain("Response Body");
@@ -45,7 +59,7 @@ describe("JsonExplorerModal", () => {
   });
 
   it("renders the tree with the root expanded", async () => {
-    const setup = await render();
+    const { setup } = await render();
 
     const frame = setup.captureCharFrame();
     expect(frame).toContain("(root)");
@@ -55,29 +69,31 @@ describe("JsonExplorerModal", () => {
   });
 
   it("moves the cursor and updates the breadcrumb", async () => {
-    const setup = await render();
+    const { setup } = await render();
 
     setup.mockInput.pressKey("j");
 
     await waitForText(setup, "(root) > name");
   });
 
-  it("expands and collapses a node with Enter", async () => {
-    const setup = await render();
+  it("collapses and expands a node with Enter", async () => {
+    const { setup } = await render();
     setup.mockInput.pressKey("j");
     await settle(setup);
     setup.mockInput.pressKey("j");
     await waitForText(setup, "(root) > counts");
-
-    setup.mockInput.pressEnter();
-    await waitForText(setup, "requests: 3");
+    // Depth-1 containers open with the tree, so the first Enter closes one.
+    expect(setup.captureCharFrame()).toContain("requests: 3");
 
     setup.mockInput.pressEnter();
     await waitForText(setup, "counts: {2 keys}");
+
+    setup.mockInput.pressEnter();
+    await waitForText(setup, "requests: 3");
   });
 
   it("expands everything with e and collapses with c", async () => {
-    const setup = await render();
+    const { setup } = await render();
 
     setup.mockInput.pressKey("e");
     await waitForText(setup, "requests: 3");
@@ -87,7 +103,7 @@ describe("JsonExplorerModal", () => {
   });
 
   it("jumps to the last row with G and back with g", async () => {
-    const setup = await render();
+    const { setup } = await render();
 
     setup.mockInput.pressKey("G");
     await waitForText(setup, "(root) > tags");
@@ -97,7 +113,7 @@ describe("JsonExplorerModal", () => {
   });
 
   it("filters by path and moves the cursor to the match", async () => {
-    const setup = await render();
+    const { setup } = await render();
 
     setup.mockInput.pressKey("/");
     await waitForText(setup, "filter:");
@@ -107,7 +123,7 @@ describe("JsonExplorerModal", () => {
   });
 
   it("restores the previous expansion when the filter is abandoned", async () => {
-    const setup = await render();
+    const { setup } = await render();
 
     setup.mockInput.pressKey("/");
     await waitForText(setup, "filter:");
@@ -120,8 +136,7 @@ describe("JsonExplorerModal", () => {
   });
 
   it("copies the value under the cursor", async () => {
-    const onStatus = vi.fn();
-    const setup = await render({ onStatus });
+    const { copyToClipboard, setup } = await render();
 
     setup.mockInput.pressKey("j");
     await waitForText(setup, "(root) > name");
@@ -129,31 +144,35 @@ describe("JsonExplorerModal", () => {
 
     await waitUntil(setup, () => expect(copyToClipboard).toHaveBeenCalledWith("httap"));
     await waitForText(setup, "Value copied to clipboard");
-    expect(onStatus).toHaveBeenCalledWith("Value copied to clipboard");
   });
 
   it("reports a failed copy", async () => {
+    const { copyToClipboard, setup } = await render();
     copyToClipboard.mockRejectedValueOnce(new Error("no clipboard"));
-    const setup = await render();
 
     setup.mockInput.pressKey("y");
 
     await waitForText(setup, "Failed to copy to clipboard");
   });
 
-  it("closes on q and on Escape", async () => {
-    const onClose = vi.fn();
-    const setup = await render({ onClose });
+  it("closes on q", async () => {
+    const { store, setup } = await render();
 
     setup.mockInput.pressKey("q");
-    await waitUntil(setup, () => expect(onClose).toHaveBeenCalledTimes(1));
+
+    await waitUntil(setup, () => expect(store.getState().ui.modal).toBeNull());
+  });
+
+  it("closes on Escape", async () => {
+    const { store, setup } = await render();
 
     pressEscape(setup);
-    await waitUntil(setup, () => expect(onClose).toHaveBeenCalledTimes(2));
+
+    await waitUntil(setup, () => expect(store.getState().ui.modal).toBeNull());
   });
 
   it("renders a primitive root", async () => {
-    const setup = await render({ data: "just a string" });
+    const { setup } = await render({ data: "just a string" });
 
     expect(setup.captureCharFrame()).toContain("just a string");
   });

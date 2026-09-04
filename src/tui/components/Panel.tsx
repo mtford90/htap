@@ -20,7 +20,8 @@ export interface PanelProps {
   width: number;
   height: number;
   onMouseDown?: () => void;
-  onScroll?: (delta: number) => void;
+  /** The wheel is handled by whatever scrolls inside; this only reports it. */
+  onWheel?: () => void;
   onMouseOver?: () => void;
   onMouseOut?: () => void;
   children?: React.ReactNode;
@@ -36,7 +37,7 @@ export function Panel({
   width,
   height,
   onMouseDown,
-  onScroll,
+  onWheel,
   onMouseOver,
   onMouseOut,
   children,
@@ -52,7 +53,11 @@ export function Panel({
       onMouseDown={onMouseDown}
       onMouseOver={onMouseOver}
       onMouseOut={onMouseOut}
-      onMouseScroll={(event) => onScroll?.(event.scroll?.direction === "up" ? -1 : 1)}
+      onMouseScroll={(event) => {
+        // Nothing above a panel scrolls, so the event stops here.
+        event.stopPropagation();
+        onWheel?.();
+      }}
     >
       {segments.center ? (
         <text height={1}>

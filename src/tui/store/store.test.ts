@@ -3,7 +3,6 @@ import type { CapturedRequestSummary } from "../../shared/types.js";
 import {
   createTuiActions,
   createTuiStore,
-  listScrollOffset,
   selectedIndex,
   selectedSummary,
   DEFAULT_LIST_RATIO,
@@ -51,10 +50,9 @@ describe("selection", () => {
     expect(state.selection.following).toBe(true);
     expect(selectedIndex(state)).toBe(0);
     expect(selectedSummary(state)?.id).toBe("c");
-    expect(listScrollOffset(state)).toBe(0);
   });
 
-  it("moving the cursor leaves follow mode and pins the viewport", () => {
+  it("moving the cursor leaves follow mode", () => {
     const { store, actions } = setup(["c", "b", "a"]);
 
     actions.moveSelectionBy(1);
@@ -62,7 +60,6 @@ describe("selection", () => {
     const state = store.getState();
     expect(state.selection.following).toBe(false);
     expect(state.selection.selectedId).toBe("b");
-    expect(state.selection.topVisibleId).toBe("c");
   });
 
   it("clamps cursor movement at both ends", () => {
@@ -84,38 +81,12 @@ describe("selection", () => {
     expect(store.getState().selection.following).toBe(true);
   });
 
-  it("scrolls the viewport when the cursor moves past the bottom edge", () => {
-    const { store, actions } = setup(["a", "b", "c", "d", "e", "f", "g"], 3);
-
-    actions.moveSelectionBy(4);
-
-    const state = store.getState();
-    expect(state.selection.selectedId).toBe("e");
-    expect(listScrollOffset(state)).toBe(2);
-    expect(state.selection.topVisibleId).toBe("c");
-  });
-
-  it("scrolls the viewport when the cursor moves above the top edge", () => {
-    const { store, actions } = setup(["a", "b", "c", "d", "e", "f", "g"], 3);
-    actions.scrollListBy(4);
-
-    actions.moveSelectionBy(1);
-
-    const state = store.getState();
-    expect(state.selection.selectedId).toBe("b");
-    expect(listScrollOffset(state)).toBe(1);
-    expect(state.selection.topVisibleId).toBe("b");
-  });
-
-  it("jumps to the last row and scrolls it into view", () => {
+  it("jumps to the last row", () => {
     const { store, actions } = setup(["a", "b", "c", "d", "e", "f", "g"], 3);
 
     actions.jumpToLast();
 
-    const state = store.getState();
-    expect(state.selection.selectedId).toBe("g");
-    expect(state.selection.topVisibleId).toBe("e");
-    expect(listScrollOffset(state)).toBe(4);
+    expect(store.getState().selection.selectedId).toBe("g");
   });
 
   it("g returns to follow mode and clears the pending count", () => {
@@ -164,46 +135,24 @@ describe("selection", () => {
   });
 });
 
-describe("scrolling", () => {
-  it("wheel scrolling moves the viewport without moving the cursor", () => {
+describe("leaving follow mode", () => {
+  it("leaves the cursor unpinned when the wheel scrolls the list", () => {
     const { store, actions } = setup(["a", "b", "c", "d", "e", "f"], 3);
 
-    actions.scrollListBy(2);
+    actions.stopFollowing();
 
     const state = store.getState();
     expect(state.selection.following).toBe(false);
-    expect(state.selection.topVisibleId).toBe("c");
-    expect(listScrollOffset(state)).toBe(2);
     expect(state.selection.selectedId).toBeNull();
   });
 
-  it("scrolls the viewport away from the selection without snapping back", () => {
-    const { store, actions } = setup(["a", "b", "c", "d", "e", "f"], 3);
+  it("leaves an existing selection alone", () => {
+    const { store, actions } = setup(["a", "b", "c"], 3);
     actions.moveSelectionBy(1);
 
-    actions.scrollListBy(3);
+    actions.stopFollowing();
 
-    const state = store.getState();
-    expect(state.selection.selectedId).toBe("b");
-    expect(listScrollOffset(state)).toBe(3);
-    expect(state.selection.topVisibleId).toBe("d");
-  });
-
-  it("clamps scrolling to the end of the list", () => {
-    const { store, actions } = setup(["a", "b", "c", "d", "e", "f"], 3);
-
-    actions.scrollListBy(99);
-
-    expect(listScrollOffset(store.getState())).toBe(3);
-  });
-
-  it("clamps scrolling at the top", () => {
-    const { store, actions } = setup(["a", "b", "c", "d"], 2);
-    actions.scrollListBy(2);
-
-    actions.scrollListBy(-99);
-
-    expect(listScrollOffset(store.getState())).toBe(0);
+    expect(store.getState().selection.selectedId).toBe("b");
   });
 });
 

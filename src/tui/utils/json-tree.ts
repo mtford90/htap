@@ -72,7 +72,10 @@ function childPath(parentPath: string, key: string, isArrayIndex: boolean): stri
  * Build a flat array of visible tree nodes by recursively walking the JSON data.
  * Children of collapsed nodes are skipped.
  */
-export function buildVisibleNodes(data: unknown, expandedPaths: Set<string>): JsonTreeNode[] {
+export function buildVisibleNodes(
+  data: unknown,
+  expandedPaths: ReadonlySet<string>
+): JsonTreeNode[] {
   const nodes: JsonTreeNode[] = [];
 
   function walk(value: unknown, path: string, key: string, depth: number): void {
@@ -105,7 +108,7 @@ export function buildVisibleNodes(data: unknown, expandedPaths: Set<string>): Js
 /**
  * Toggle a node's expansion state. Returns a new Set.
  */
-export function toggleNode(expandedPaths: Set<string>, path: string): Set<string> {
+export function toggleNode(expandedPaths: ReadonlySet<string>, path: string): Set<string> {
   const next = new Set(expandedPaths);
   if (next.has(path)) {
     next.delete(path);

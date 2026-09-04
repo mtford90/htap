@@ -1,32 +1,84 @@
 /** @jsxImportSource @opentui/react */
 
+import React from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { useStore } from "zustand";
 import { ListPane, type ListPaneProps } from "./ListPane.js";
-import { destroyRenderers, renderTui, summary } from "../test-support/render.js";
+import { createTuiActions, createTuiStore, selectedIndex } from "../store/store.js";
+import type { CapturedRequestSummary } from "../../shared/types.js";
+import {
+  destroyRenderers,
+  renderTui,
+  settle,
+  summary,
+  waitForText,
+  waitUntil,
+} from "../test-support/render.js";
 
 afterEach(destroyRenderers);
 
-const props = (overrides: Partial<ListPaneProps> = {}): ListPaneProps => ({
-  requests: [summary("a"), summary("b"), summary("c")],
-  selectedIndex: 0,
-  scrollOffset: 0,
-  isActive: true,
-  isHovered: false,
-  width: 100,
-  height: 12,
-  showFullUrl: false,
-  following: true,
-  pendingNewCount: 0,
-  onSelectIndex: vi.fn(),
-  onScroll: vi.fn(),
-  onActivate: vi.fn(),
-  onHoverChange: vi.fn(),
-  ...overrides,
-});
+const store = () => {
+  const tuiStore = createTuiStore({ startTime: 0 });
+  return { store: tuiStore, actions: createTuiActions(tuiStore) };
+};
+
+type Overrides = Partial<Omit<ListPaneProps, "requests" | "selectedIndex" | "actions">>;
+
+/** Drives ListPane from a real store, so the cursor and the list can move. */
+function Harness({
+  requests,
+  overrides = {},
+  tui,
+}: {
+  requests: CapturedRequestSummary[];
+  overrides?: Overrides;
+  tui: ReturnType<typeof store>;
+}): React.ReactNode {
+  const index = useStore(tui.store, selectedIndex);
+  const cursorId = useStore(tui.store, (state) => state.selection.selectedId);
+  const following = useStore(tui.store, (state) => state.selection.following);
+  const pendingNew = useStore(tui.store, (state) => state.selection.pendingNew);
+  return (
+    <ListPane
+      requests={requests}
+      selectedIndex={index}
+      cursorId={cursorId}
+      actions={tui.actions}
+      isActive
+      isHovered={false}
+      width={100}
+      height={12}
+      showFullUrl={false}
+      following={following}
+      pendingNewCount={pendingNew}
+      onSelectIndex={vi.fn()}
+      onActivate={vi.fn()}
+      onHoverChange={vi.fn()}
+      {...overrides}
+    />
+  );
+}
+
+const render = async (
+  requests: CapturedRequestSummary[],
+  overrides: Overrides = {},
+  size = { width: 100, height: 14 }
+) => {
+  const tui = store();
+  tui.actions.setRequests(requests);
+  const setup = await renderTui(
+    <Harness requests={requests} overrides={overrides} tui={tui} />,
+    size
+  );
+  return { ...tui, setup };
+};
+
+const manyRequests = (count: number): CapturedRequestSummary[] =>
+  Array.from({ length: count }, (_, index) => summary(`r${index}`));
 
 describe("ListPane", () => {
   it("renders one row per request with method, status and duration", async () => {
-    const setup = await renderTui(<ListPane {...props()} />, { width: 100, height: 14 });
+    const { setup } = await render([summary("a"), summary("b"), summary("c")]);
 
     const frame = setup.captureCharFrame();
     expect(frame).toContain("[1] Requests");
@@ -38,55 +90,82 @@ describe("ListPane", () => {
   });
 
   it("marks the selected row with a cursor", async () => {
-    const setup = await renderTui(<ListPane {...props({ selectedIndex: 1 })} />, {
-      width: 100,
-      height: 14,
-    });
+    const { actions, setup } = await render([summary("a"), summary("b"), summary("c")]);
 
-    const lines = setup.captureCharFrame().split("\n");
-    expect(lines[1]).not.toContain("❯");
-    expect(lines[2]).toContain("❯");
+    actions.moveSelectionBy(1);
+    await waitUntil(setup, () => {
+      const lines = setup.captureCharFrame().split("\n");
+      expect(lines[1]).not.toContain("❯");
+      expect(lines[2]).toContain("❯");
+    });
   });
 
   it("shows the follow badge while following", async () => {
-    const setup = await renderTui(<ListPane {...props()} />, { width: 100, height: 14 });
+    const { setup } = await render([summary("a")]);
 
     expect(setup.captureCharFrame()).toContain("Following");
   });
 
   it("counts only the new rows still above the viewport", async () => {
-    const setup = await renderTui(
-      <ListPane {...props({ following: false, pendingNewCount: 5, scrollOffset: 2 })} />,
-      { width: 100, height: 14 }
-    );
+    const { store: tuiStore, actions, setup } = await render(manyRequests(40), { height: 8 }, {
+      width: 100,
+      height: 10,
+    });
+    actions.moveSelectionBy(1);
+    await settle(setup);
+    actions.setRequests([summary("new-1"), summary("new-2"), ...manyRequests(40)]);
+    await settle(setup);
 
-    expect(setup.captureCharFrame()).toContain("2 new");
+    tuiStore.getState().scrollers.list?.scrollTo(2);
+
+    await waitForText(setup, "2 new");
   });
 
-  it("hides the badge once the new rows have been scrolled past", async () => {
-    const setup = await renderTui(
-      <ListPane {...props({ following: false, pendingNewCount: 3, scrollOffset: 0 })} />,
-      { width: 100, height: 14 }
-    );
+  it("hides the badge while the new rows are still on screen", async () => {
+    const { actions, setup } = await render(manyRequests(40), { height: 8 }, {
+      width: 100,
+      height: 10,
+    });
+    actions.moveSelectionBy(1);
+    await settle(setup);
+    actions.setRequests([summary("new-1"), ...manyRequests(40)]);
 
-    expect(setup.captureCharFrame()).not.toContain("new");
+    await waitUntil(setup, () => expect(setup.captureCharFrame()).not.toContain(" new"));
   });
 
   it("shows the row range instead of the count once the list overflows", async () => {
-    const requests = Array.from({ length: 40 }, (_, index) => summary(`r${index}`));
-    const setup = await renderTui(
-      <ListPane {...props({ requests, scrollOffset: 3, height: 8 })} />,
-      { width: 100, height: 10 }
-    );
+    const { store: tuiStore, setup } = await render(manyRequests(40), { height: 8 }, {
+      width: 100,
+      height: 10,
+    });
 
-    expect(setup.captureCharFrame()).toContain("4-9/40");
+    tuiStore.getState().scrollers.list?.scrollTo(3);
+
+    await waitForText(setup, "4-9/40");
+  });
+
+  it("keeps the cursor inside the viewport when it moves past the bottom", async () => {
+    const requests = manyRequests(40);
+    const { actions, setup } = await render(requests, { height: 8 }, { width: 100, height: 10 });
+
+    actions.moveSelectionBy(20);
+
+    await waitForText(setup, "/r20");
+  });
+
+  it("keeps the cursor inside the viewport when it moves back to the top", async () => {
+    const requests = manyRequests(40);
+    const { actions, setup } = await render(requests, { height: 8 }, { width: 100, height: 10 });
+    actions.moveSelectionBy(30);
+    await waitForText(setup, "/r30");
+
+    actions.moveSelectionBy(-30);
+
+    await waitForText(setup, "/r0");
   });
 
   it("renders the empty state with the start-up hint", async () => {
-    const setup = await renderTui(<ListPane {...props({ requests: [] })} />, {
-      width: 100,
-      height: 14,
-    });
+    const { setup } = await render([]);
 
     const frame = setup.captureCharFrame();
     expect(frame).toContain("No requests captured yet.");
@@ -94,24 +173,17 @@ describe("ListPane", () => {
   });
 
   it("shows the full URL when asked", async () => {
-    const setup = await renderTui(<ListPane {...props({ showFullUrl: true })} />, {
-      width: 100,
-      height: 14,
-    });
+    const { setup } = await render([summary("a")], { showFullUrl: true });
 
     expect(setup.captureCharFrame()).toContain("http://example.test/a");
   });
 
   it("marks bookmarked and intercepted rows", async () => {
-    const requests = [
+    const { setup } = await render([
       summary("saved", { saved: true }),
       summary("mock", { interceptionType: "mocked" }),
       summary("replayed", { replayedFromId: "origin" }),
-    ];
-    const setup = await renderTui(<ListPane {...props({ requests, selectedIndex: -1 })} />, {
-      width: 100,
-      height: 14,
-    });
+    ]);
 
     const lines = setup.captureCharFrame().split("\n");
     expect(lines[1]).toContain("*");
@@ -119,38 +191,33 @@ describe("ListPane", () => {
     expect(lines[3]).toContain("R");
   });
 
-  it("reports the absolute index of a clicked row", async () => {
+  it("reports the index of a clicked row", async () => {
     const onSelectIndex = vi.fn();
-    const requests = Array.from({ length: 20 }, (_, index) => summary(`r${index}`));
-    const setup = await renderTui(
-      <ListPane {...props({ requests, scrollOffset: 5, onSelectIndex, height: 10 })} />,
-      { width: 100, height: 12 }
-    );
+    const { setup } = await render(manyRequests(20), { onSelectIndex, height: 10 }, {
+      width: 100,
+      height: 12,
+    });
 
     await setup.mockMouse.click(10, 3);
 
-    expect(onSelectIndex).toHaveBeenCalledWith(7);
+    expect(onSelectIndex).toHaveBeenCalledWith(2);
   });
 
-  it("reports wheel scrolling in both directions", async () => {
-    const onScroll = vi.fn();
-    const setup = await renderTui(<ListPane {...props({ onScroll })} />, {
+  it("leaves follow mode when the wheel scrolls the list", async () => {
+    const { store: tuiStore, setup } = await render(manyRequests(40), { height: 10 }, {
       width: 100,
       height: 12,
     });
 
     await setup.mockMouse.scroll(10, 3, "down");
-    await setup.mockMouse.scroll(10, 3, "up");
 
-    expect(onScroll).toHaveBeenNthCalledWith(1, 1);
-    expect(onScroll).toHaveBeenNthCalledWith(2, -1);
+    await waitUntil(setup, () =>
+      expect(tuiStore.getState().selection.following).toBe(false)
+    );
   });
 
   it("highlights the search term in the path", async () => {
-    const setup = await renderTui(
-      <ListPane {...props({ requests: [summary("alpha-beta")], searchTerm: "beta" })} />,
-      { width: 100, height: 12 }
-    );
+    const { setup } = await render([summary("alpha-beta")], { searchTerm: "beta" });
 
     // The row still reads as one path; the highlight is a separate span.
     expect(setup.captureCharFrame()).toContain("/alpha-beta");

@@ -75,11 +75,11 @@ const setup = (options: { ids?: string[]; client?: Partial<SyncClient> } = {}) =
     store,
     actions,
     engine,
-    showStatus: vi.fn(),
     exit: vi.fn(),
     copyToClipboard: vi.fn(async () => undefined),
   };
-  return { store, actions, engine, client, deps };
+  const status = vi.spyOn(actions, "flashStatus");
+  return { store, actions, engine, client, deps, status };
 };
 
 describe("dispatch", () => {
@@ -144,12 +144,12 @@ describe("dispatch", () => {
   });
 
   it("u toggles the URL column and reports which mode is on", () => {
-    const { store, deps } = setup({ ids: ["a"] });
+    const { store, deps, status } = setup({ ids: ["a"] });
 
     dispatchKey(deps, key("u"));
 
     expect(store.getState().ui.showFullUrl).toBe(true);
-    expect(deps.showStatus).toHaveBeenCalledWith("Showing full URL");
+    expect(status).toHaveBeenCalledWith("Showing full URL");
   });
 
   it("q exits", () => {
@@ -179,7 +179,7 @@ describe("dispatch", () => {
 
   it("ctrl+c exits even with the filter bar open", () => {
     const { actions, deps } = setup({ ids: ["a"] });
-    actions.setFilterOpen(true);
+    actions.openFilter();
 
     dispatchKey(deps, named("c", { ctrl: true }));
 
@@ -219,9 +219,9 @@ describe("dispatch", () => {
     expect(store.getState().selection.selectedId).toBeNull();
   });
 
-  it("hands every key to the filter bar while it is open", () => {
+  it("hands unbound keys to the filter bar while it is open", () => {
     const { store, actions, deps } = setup({ ids: ["c", "b"] });
-    actions.setFilterOpen(true);
+    actions.openFilter();
 
     expect(dispatchKey(deps, key("j"))).toBe(false);
     expect(store.getState().selection.selectedId).toBeNull();
@@ -252,12 +252,12 @@ describe("confirmations", () => {
   });
 
   it("refuses to clear an empty list", () => {
-    const { store, deps } = setup({ ids: [] });
+    const { store, deps, status } = setup({ ids: [] });
 
     dispatchKey(deps, key("x"));
 
     expect(store.getState().ui.confirm).toBeNull();
-    expect(deps.showStatus).toHaveBeenCalledWith("No requests to clear");
+    expect(status).toHaveBeenCalledWith("No requests to clear");
   });
 
   it("R asks before replaying and y replays the selected request", async () => {
@@ -272,7 +272,7 @@ describe("confirmations", () => {
   });
 
   it("reports a failed replay", async () => {
-    const { deps } = setup({
+    const { deps, status } = setup({
       ids: ["c"],
       client: { replayRequest: vi.fn(() => Promise.reject(new Error("upstream refused"))) },
     });
@@ -281,38 +281,38 @@ describe("confirmations", () => {
     dispatchKey(deps, key("y"));
 
     await vi.waitFor(() =>
-      expect(deps.showStatus).toHaveBeenCalledWith("Failed to replay: upstream refused")
+      expect(status).toHaveBeenCalledWith("Failed to replay: upstream refused")
     );
   });
 
   it("R with nothing selected says so", () => {
-    const { store, deps } = setup({ ids: [] });
+    const { store, deps, status } = setup({ ids: [] });
 
     dispatchKey(deps, key("R"));
 
     expect(store.getState().ui.confirm).toBeNull();
-    expect(deps.showStatus).toHaveBeenCalledWith("No request selected");
+    expect(status).toHaveBeenCalledWith("No request selected");
   });
 });
 
 describe("bookmarks", () => {
   it("b bookmarks the selected request", async () => {
-    const { deps, client } = setup({ ids: ["c"] });
+    const { deps, client, status } = setup({ ids: ["c"] });
 
     dispatchKey(deps, key("b"));
 
     await vi.waitFor(() => expect(client.saveRequest).toHaveBeenCalledWith("c"));
-    await vi.waitFor(() => expect(deps.showStatus).toHaveBeenCalledWith("Bookmarked"));
+    await vi.waitFor(() => expect(status).toHaveBeenCalledWith("Bookmarked"));
   });
 
   it("b removes an existing bookmark", async () => {
-    const { actions, deps, client } = setup();
+    const { actions, deps, client, status } = setup();
     actions.setRequests([summary("c", { saved: true })]);
 
     dispatchKey(deps, key("b"));
 
     await vi.waitFor(() => expect(client.unsaveRequest).toHaveBeenCalledWith("c"));
-    await vi.waitFor(() => expect(deps.showStatus).toHaveBeenCalledWith("Bookmark removed"));
+    await vi.waitFor(() => expect(status).toHaveBeenCalledWith("Bookmark removed"));
   });
 });
 
@@ -373,9 +373,7 @@ describe("body commands", () => {
     dispatchKey(result.deps, key("y"));
 
     expect(result.deps.copyToClipboard).toHaveBeenCalledWith('{"ok":true}');
-    await vi.waitFor(() =>
-      expect(result.deps.showStatus).toHaveBeenCalledWith("Body copied to clipboard")
-    );
+    await vi.waitFor(() => expect(result.status).toHaveBeenCalledWith("Body copied to clipboard"));
   });
 
   it("y refuses to copy binary content", () => {
@@ -392,9 +390,7 @@ describe("body commands", () => {
     dispatchKey(result.deps, key("y"));
 
     expect(result.deps.copyToClipboard).not.toHaveBeenCalled();
-    expect(result.deps.showStatus).toHaveBeenCalledWith(
-      "Cannot copy binary content — use 's' to export"
-    );
+    expect(result.status).toHaveBeenCalledWith("Cannot copy binary content — use 's' to export");
   });
 
   it("s opens the export modal for the focused body", () => {
@@ -421,14 +417,14 @@ describe("body commands", () => {
     dispatchKey(result.deps, key("s"));
 
     expect(result.store.getState().ui.modal).toBeNull();
-    expect(result.deps.showStatus).toHaveBeenCalledWith("No body to export");
+    expect(result.status).toHaveBeenCalledWith("No body to export");
   });
 
   it("e opens the format export modal only with a request loaded", () => {
     const result = setup({ ids: ["a"] });
 
     dispatchKey(result.deps, key("e"));
-    expect(result.deps.showStatus).toHaveBeenCalledWith("No request selected");
+    expect(result.status).toHaveBeenCalledWith("No request selected");
 
     result.actions.setDetail("a", detail());
     dispatchKey(result.deps, key("e"));
