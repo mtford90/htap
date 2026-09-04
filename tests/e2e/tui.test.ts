@@ -213,6 +213,11 @@ describe("httap tui e2e", { timeout: SPAWN_TEST_TIMEOUT_MS }, () => {
     });
 
     it("shows panel titles with numbers", async () => {
+      // The detail pane only renders numbered sections once a request is
+      // selected, so seed one before spawning the TUI.
+      await makeProxiedRequest(proxyPort, `http://127.0.0.1:${testServerPort}/api/data`);
+      await new Promise((resolve) => setTimeout(resolve, 100));
+
       const { findByText } = await render(getCliBinPath(), ["tui", "--ci"], {
         cwd: tempDir,
         spawnOpts: { env: testEnv },
