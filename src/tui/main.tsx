@@ -1,13 +1,14 @@
 /** @jsxImportSource @opentui/react */
 
 /**
- * Entry point for the OpenTUI TUI process.
+ * Entry point for the OpenTUI TUI.
  *
- * `httap tui` re-executes Node with the FFI flag and then runs this module, so
- * by the time it loads the renderer's native library is available.
+ * The installed `httap` binary (bin/httap) execs Node with the FFI flag the
+ * renderer needs, so by the time this module loads the renderer's native
+ * library is already available.
  */
 
-import { createCliRenderer, type CliRenderer } from "@opentui/core";
+import { CliRenderEvents, createCliRenderer, type CliRenderer } from "@opentui/core";
 import { createRoot } from "@opentui/react";
 import React from "react";
 import { ControlClient } from "../shared/control-client.js";
@@ -15,7 +16,8 @@ import { createLogger, parseVerbosity } from "../shared/logger.js";
 import { getHttapPaths, readProxyPort, setConfigOverride } from "../shared/project.js";
 import { loadConfig } from "../shared/config.js";
 import { App } from "./App.js";
-import { createTuiActions, createTuiStore } from "./store/store.js";
+import { createTuiActions, createTuiStore, selectedSummary } from "./store/store.js";
+import type { TuiState } from "./store/types.js";
 import { SyncEngine } from "./sync/engine.js";
 
 export interface StartTuiOptions {
@@ -27,7 +29,46 @@ export interface StartTuiOptions {
   verbose?: number;
 }
 
-const CI_EXIT_DELAY_MS = 500;
+/**
+ * Ceiling on how long `--ci` waits for a ready frame before giving up and
+ * exiting anyway, so a stuck sync (e.g. a control socket that never resolves)
+ * cannot hang a CI run forever. The happy path exits well under this via the
+ * readiness signal below, never by hitting the ceiling.
+ */
+const CI_FALLBACK_TIMEOUT_MS = 6_000;
+
+/**
+ * Whether a painted frame shows the whole view: the request list has data (or
+ * an error), and the detail pane has caught up with the cursor. The detail
+ * request is fetched separately from the list, so an earlier frame paints the
+ * list beside an empty right pane.
+ */
+const isCiReadyFrame = (state: TuiState): boolean => {
+  if (state.requests.loading) {
+    return false;
+  }
+  const selected = selectedSummary(state);
+  return selected === undefined || state.detail.requestId === selected.id;
+};
+
+/**
+ * Resolves on the first frame with real content rather than an arbitrary tick
+ * of the render loop.
+ */
+export const waitForCiReadyFrame = (
+  renderer: CliRenderer,
+  store: ReturnType<typeof createTuiStore>
+): Promise<void> =>
+  new Promise<void>((resolve) => {
+    const onFrame = (): void => {
+      if (!isCiReadyFrame(store.getState())) {
+        return;
+      }
+      renderer.off(CliRenderEvents.FRAME, onFrame);
+      resolve();
+    };
+    renderer.on(CliRenderEvents.FRAME, onFrame);
+  });
 
 export const startTui = async ({
   projectRoot,
@@ -122,10 +163,10 @@ export const startTui = async ({
   renderer = await createCliRenderer({
     // Ctrl+C is a command in the table instead: OpenTUI's own handler only
     // destroys the renderer, which would leave the sync engine polling and the
-    // parent blocked in spawnSync.
+    // process itself running with a blank screen.
     exitOnCtrlC: false,
-    // The TUI runs in a child process, so it must fall over with its terminal
-    // rather than outliving the shell that started it.
+    // The TUI must fall over with its terminal rather than outliving the
+    // shell that started it.
     exitSignals: ["SIGINT", "SIGTERM", "SIGHUP"],
     // A failed setup destroys the renderer before this call returns, and
     // exiting here would report that failure as a clean quit.
@@ -156,8 +197,12 @@ export const startTui = async ({
     engine.start();
   }
 
-  if (ci) {
-    setTimeout(shutdown, CI_EXIT_DELAY_MS);
+  if (ci && renderer) {
+    const ready = waitForCiReadyFrame(renderer, store);
+    const fallback = new Promise<void>((resolve) => {
+      setTimeout(resolve, CI_FALLBACK_TIMEOUT_MS);
+    });
+    void Promise.race([ready, fallback]).then(() => shutdown());
   }
 };
 

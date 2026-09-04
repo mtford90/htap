@@ -80,9 +80,9 @@ The browser process is tied to the CLI — close the browser window or press `Ct
 
 Open the interactive TUI. See [TUI documentation](tui.md) for keybindings and features.
 
-| Flag   | Description                                 |
-| ------ | ------------------------------------------- |
-| `--ci` | CI mode: render once and exit (for testing) |
+| Flag   | Description                                                              |
+| ------ | ------------------------------------------------------------------------ |
+| `--ci` | CI mode: render once and exit after the first synced frame (for testing) |
 
 ## `httap status`
 

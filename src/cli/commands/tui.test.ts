@@ -51,3 +51,33 @@ describe("httap tui", () => {
     expect(startTui).not.toHaveBeenCalled();
   });
 });
+
+describe("httap tui without FFI already enabled", () => {
+  const stubExit = () =>
+    vi.spyOn(process, "exit").mockImplementation(((code?: number) => {
+      throw new Error(`exit:${code ?? 0}`);
+    }) as never);
+
+  // The current Node running the test suite always supports the flag (it's
+  // httap's own minimum), so this exercises the "supported but missing"
+  // branch; `supportsFfiFlag` itself is covered above for the version
+  // arithmetic, since `process.versions.node` can't be reassigned here.
+  it("reports how to get the flag on a supported Node that lacks it", async () => {
+    vi.stubEnv("HTTAP_TUI", "");
+    vi.stubEnv("NODE_OPTIONS", "");
+    const originalExecArgv = process.execArgv;
+    process.execArgv = [];
+    const exit = stubExit();
+    const error = vi.spyOn(console, "error").mockImplementation(() => undefined);
+
+    try {
+      await expect(tuiCommand.parseAsync([], { from: "user" })).rejects.toThrow("exit:1");
+      expect(error).toHaveBeenCalledWith(expect.stringContaining("--experimental-ffi"));
+      expect(runTui).not.toHaveBeenCalled();
+    } finally {
+      process.execArgv = originalExecArgv;
+      exit.mockRestore();
+      error.mockRestore();
+    }
+  });
+});

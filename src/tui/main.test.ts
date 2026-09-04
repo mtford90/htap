@@ -1,15 +1,36 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
+import type { CliRenderer } from "@opentui/core";
+import type { CapturedRequestSummary } from "../shared/types.js";
 
 const EXIT_SENTINEL = "process.exit";
 
 const createCliRenderer = vi.fn();
 const createRoot = vi.fn(() => ({ render: vi.fn(), unmount: vi.fn() }));
 
-vi.mock("@opentui/core", () => ({ createCliRenderer }));
+vi.mock("@opentui/core", () => ({
+  createCliRenderer,
+  CliRenderEvents: { FRAME: "frame" },
+}));
 vi.mock("@opentui/react", () => ({ createRoot }));
 vi.mock("./App.js", () => ({ App: () => null }));
 
-const fakeRenderer = () => ({ destroy: vi.fn() });
+const fakeRenderer = () => {
+  const frameListeners = new Set<() => void>();
+  return {
+    destroy: vi.fn(),
+    on: vi.fn((_event: string, callback: () => void) => {
+      frameListeners.add(callback);
+    }),
+    off: vi.fn((_event: string, callback: () => void) => {
+      frameListeners.delete(callback);
+    }),
+    emitFrame: (): void => {
+      for (const callback of [...frameListeners]) {
+        callback();
+      }
+    },
+  };
+};
 
 const listenedEvents = [
   "SIGHUP",
@@ -121,6 +142,106 @@ describe("startTui", () => {
     installed[0]?.(new Error("export failed"), Promise.resolve());
 
     expect(exit).not.toHaveBeenCalled();
+  });
+});
+
+describe("startTui ci mode", () => {
+  it("exits once a ready frame arrives, without waiting on a fixed timer", async () => {
+    const exit = stubExit();
+    const renderer = fakeRenderer();
+    createCliRenderer.mockImplementation(async () => renderer);
+    const { startTui } = await import("./main.js");
+
+    // No projectRoot resolves to the "not in a project" error before the
+    // renderer exists, so `requests.loading` is already false: the very
+    // first frame satisfies readiness.
+    await startTui({ ci: true });
+    expect(exit).not.toHaveBeenCalled();
+
+    renderer.emitFrame();
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    expect(exit).toHaveBeenCalledWith(0);
+  });
+
+  it("falls back to a bounded timeout if no ready frame ever arrives", async () => {
+    vi.useFakeTimers();
+    try {
+      const exit = stubExit();
+      const renderer = fakeRenderer();
+      createCliRenderer.mockImplementation(async () => renderer);
+      const { startTui } = await import("./main.js");
+
+      await startTui({ ci: true });
+      expect(exit).not.toHaveBeenCalled();
+
+      await vi.advanceTimersByTimeAsync(6_000);
+
+      expect(exit).toHaveBeenCalledWith(0);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+});
+
+describe("waitForCiReadyFrame", () => {
+  const summary = (id: string): CapturedRequestSummary => ({
+    id,
+    sessionId: "session",
+    timestamp: 1_700_000_000_000,
+    method: "GET",
+    url: `http://example.test/${id}`,
+    host: "example.test",
+    path: `/${id}`,
+    responseStatus: 200,
+    durationMs: 12,
+    requestBodySize: 0,
+    responseBodySize: 0,
+  });
+
+  it("resolves only on a frame painted after the list has data", async () => {
+    const { waitForCiReadyFrame } = await import("./main.js");
+    const { createTuiActions, createTuiStore } = await import("./store/store.js");
+    const renderer = fakeRenderer();
+    const store = createTuiStore({ startTime: 0 });
+    const actions = createTuiActions(store);
+
+    let resolved = false;
+    void waitForCiReadyFrame(renderer as unknown as CliRenderer, store).then(() => {
+      resolved = true;
+    });
+
+    renderer.emitFrame();
+    await Promise.resolve();
+    expect(resolved).toBe(false);
+
+    actions.setRequests([]);
+    renderer.emitFrame();
+    await Promise.resolve();
+    expect(resolved).toBe(true);
+  });
+
+  it("waits for the detail pane to catch up with the selected request", async () => {
+    const { waitForCiReadyFrame } = await import("./main.js");
+    const { createTuiActions, createTuiStore } = await import("./store/store.js");
+    const renderer = fakeRenderer();
+    const store = createTuiStore({ startTime: 0 });
+    const actions = createTuiActions(store);
+
+    let resolved = false;
+    void waitForCiReadyFrame(renderer as unknown as CliRenderer, store).then(() => {
+      resolved = true;
+    });
+
+    actions.setRequests([summary("req-1")]);
+    renderer.emitFrame();
+    await Promise.resolve();
+    expect(resolved).toBe(false);
+
+    actions.setDetail("req-1", null);
+    renderer.emitFrame();
+    await Promise.resolve();
+    expect(resolved).toBe(true);
   });
 });
 

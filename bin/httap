@@ -1,0 +1,31 @@
+#!/bin/sh
+# Bin entry for httap. OpenTUI loads its native library through node:ffi, which
+# Node gates behind --experimental-ffi, so the CLI is exec'd with that flag and
+# renders the TUI in-process. The version check runs first so that Node older
+# than the floor gets a readable message instead of "bad option".
+MIN_MAJOR=26
+MIN_MINOR=4
+
+self="$0"
+while [ -L "$self" ]; do
+  target=$(readlink "$self")
+  case "$target" in
+    /*) self="$target" ;;
+    *) self="$(dirname "$self")/$target" ;;
+  esac
+done
+root=$(cd "$(dirname "$self")/.." && pwd)
+
+if ! version=$(node --version 2>/dev/null); then
+  echo "httap needs Node ${MIN_MAJOR}.${MIN_MINOR}+ but no \`node\` was found on PATH." >&2
+  exit 1
+fi
+
+major=${version#v}; major=${major%%.*}
+minor=${version#v*.}; minor=${minor%%.*}
+if [ "$major" -lt "$MIN_MAJOR" ] || { [ "$major" -eq "$MIN_MAJOR" ] && [ "$minor" -lt "$MIN_MINOR" ]; }; then
+  echo "httap needs Node ${MIN_MAJOR}.${MIN_MINOR}+ (you have ${version})." >&2
+  exit 1
+fi
+
+exec node --experimental-ffi --disable-warning=ExperimentalWarning "$root/dist/cli/index.js" "$@"

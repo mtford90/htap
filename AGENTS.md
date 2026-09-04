@@ -142,7 +142,7 @@ Full CLI process spawning with cli-testing-library. Tests the complete user flow
 
 **Limitations**: cli-testing-library doesn't support PTY/raw mode, so keyboard input tests belong in component tests instead.
 
-**Example**: `tui.test.ts` - spawns `node dist/cli/index.js tui --ci`
+**Example**: `tui.test.ts` - spawns `bin/httap tui --ci`
 
 ### When to Write Which Test
 
