@@ -73,8 +73,7 @@ async function waitForProxy() {
     ? `Nothing is listening on the port in ${PROXY_PORT_FILE} (stale after a crash?)`
     : `No proxy port found at ${PROXY_PORT_FILE}`;
   throw new Error(
-    `${reason} — start httap first:\n` +
-      `  eval "$(node dist/cli/index.js --dir examples/demo on)"`
+    `${reason} — start httap first:\n` + `  eval "$(node dist/cli/index.js --dir examples/demo on)"`
   );
 }
 

@@ -38,7 +38,7 @@ node examples/demo/app/traffic.mjs
 Starts the local mock API and immediately fires a burst of GET/POST/PUT/DELETE
 requests through the proxy — JSON, HTML, a binary image, a large report body,
 a redirect chain, a slow request, and a couple of 4xx/5xx errors. It then
-keeps polling every 1–2.5s so the TUI shows live arrivals, like a real app.
+keeps polling every 0.7–2.5s so the TUI shows live arrivals, like a real app.
 Leave this running; press `Ctrl+C` to stop.
 
 **3. Open the TUI**
@@ -53,15 +53,15 @@ node dist/cli/index.js --dir examples/demo tui
 
 Once the TUI is open:
 
-| Try                                   | Key                                    |
-| -------------------------------------- | --------------------------------------- |
-| Navigate the request list              | `j` / `k` (or arrow keys)               |
-| Filter — try `users` or `body:error`   | `/`                                     |
-| Open a request's detail panel          | `Tab`                                   |
-| Open a JSON body in the JSON explorer  | `Enter` on a JSON body                  |
-| See which requests were mocked/tagged  | `L` (interceptor event log)             |
-| Export a request as cURL/HAR/etc.      | `e`                                     |
-| Scroll                                 | mouse wheel                             |
+| Try                                   | Key                         |
+| ------------------------------------- | --------------------------- |
+| Navigate the request list             | `j` / `k` (or arrow keys)   |
+| Filter — try `users` or `body:error`  | `/`                         |
+| Open a request's detail panel         | `Tab`                       |
+| Open a JSON body in the JSON explorer | `Enter` on a JSON body      |
+| See which requests were mocked/tagged | `L` (interceptor event log) |
+| Export a request as cURL/HAR/etc.     | `e`                         |
+| Scroll                                | mouse wheel                 |
 
 The recorded `demo.tape` scrolls with `Ctrl+d` / `Ctrl+u` instead of the mouse wheel because vhs 0.11.0 has no scripted way to deliver wheel events to the child TUI process; the TUI's own mouse wheel support is unaffected.
 
