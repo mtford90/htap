@@ -32,6 +32,15 @@ httap tui
 claude mcp add httap -- httap mcp
 ```
 
+## Demo
+
+Want to try httap without pointing it at a real project? `examples/demo/`
+has a self-contained mock API, a traffic generator, and two example
+interceptors — see [examples/demo/README.md](examples/demo/README.md) for
+the three-command flow (`pnpm demo` does it in one).
+
+![httap TUI walkthrough](docs/demo.gif)
+
 ## Browser Interception
 
 Launch any browser pre-configured to route through httap — no manual proxy setup, no certificate warnings:

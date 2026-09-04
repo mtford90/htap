@@ -7,6 +7,12 @@ dist/
 # httap data (per-project)
 .httap/
 
+# ...except the demo's committed interceptor examples
+!examples/demo/.httap/
+examples/demo/.httap/*
+!examples/demo/.httap/interceptors/
+!examples/demo/.httap/interceptors/*.ts
+
 # IDE
 .idea/
 .vscode/
