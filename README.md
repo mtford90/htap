@@ -6,7 +6,7 @@
 
 httap is a powerful HTTP proxy for your terminal. Intercept, inspect & rewrite HTTP traffic — from your shell or your AI agent.
 
-![httap demo](demo.gif)
+![httap TUI walkthrough](docs/demo.gif)
 
 ## Feature Highlights
 
@@ -37,9 +37,8 @@ claude mcp add httap -- httap mcp
 Want to try httap without pointing it at a real project? `examples/demo/`
 has a self-contained mock API, a traffic generator, and two example
 interceptors — see [examples/demo/README.md](examples/demo/README.md) for
-the three-command flow (`pnpm demo` does it in one).
-
-![httap TUI walkthrough](docs/demo.gif)
+the three-command flow (`pnpm demo` does it in one). The walkthrough above
+was recorded from it.
 
 ## Browser Interception
 
