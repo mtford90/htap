@@ -63,6 +63,8 @@ Once the TUI is open:
 | Export a request as cURL/HAR/etc.      | `e`                                     |
 | Scroll                                 | mouse wheel                             |
 
+The recorded `demo.tape` scrolls with `Ctrl+d` / `Ctrl+u` instead of the mouse wheel because vhs 0.11.0 has no scripted way to deliver wheel events to the child TUI process; the TUI's own mouse wheel support is unaffected.
+
 Look for `GET /api/quote` in the list — it's fully mocked (never reaches the
 mock API) and `/api/users`, `/api/report`, etc. are tagged with an
 `x-httap-demo` response header. Both show up with the interceptor badge; open

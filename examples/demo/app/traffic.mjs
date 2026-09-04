@@ -7,6 +7,7 @@
 // burst and exit (used by scripts/demo.sh to seed traffic non-interactively).
 
 import * as http from "node:http";
+import * as net from "node:net";
 import * as fs from "node:fs";
 import * as path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -19,6 +20,7 @@ const PROXY_PORT_FILE = path.join(PROJECT_ROOT, ".httap", "proxy.port");
 const DEMO_APP_PORT = Number(process.env.DEMO_APP_PORT ?? 4499);
 const PROXY_WAIT_TIMEOUT_MS = 15_000;
 const PROXY_POLL_INTERVAL_MS = 200;
+const PROXY_PROBE_TIMEOUT_MS = 1_000;
 const REQUEST_TIMEOUT_MS = 10_000;
 const MAX_REDIRECTS = 5;
 const BURST_STAGGER_MS = 120;
@@ -39,17 +41,39 @@ function readProxyPort() {
   return Number.isNaN(port) ? undefined : port;
 }
 
+/** True if something is actually listening on the port; a stale port file after a crash is not. */
+function probeProxy(port) {
+  return new Promise((resolve) => {
+    const socket = net.connect({ host: "127.0.0.1", port });
+    socket.setTimeout(PROXY_PROBE_TIMEOUT_MS);
+    const finish = (alive) => {
+      socket.destroy();
+      resolve(alive);
+    };
+    socket.on("connect", () => finish(true));
+    socket.on("timeout", () => finish(false));
+    socket.on("error", () => finish(false));
+  });
+}
+
 async function waitForProxy() {
   const deadline = Date.now() + PROXY_WAIT_TIMEOUT_MS;
+  let sawPortFile = false;
   while (Date.now() < deadline) {
     const port = readProxyPort();
     if (port !== undefined) {
-      return port;
+      sawPortFile = true;
+      if (await probeProxy(port)) {
+        return port;
+      }
     }
     await sleep(PROXY_POLL_INTERVAL_MS);
   }
+  const reason = sawPortFile
+    ? `Nothing is listening on the port in ${PROXY_PORT_FILE} (stale after a crash?)`
+    : `No proxy port found at ${PROXY_PORT_FILE}`;
   throw new Error(
-    `No proxy port found at ${PROXY_PORT_FILE} — start httap first:\n` +
+    `${reason} — start httap first:\n` +
       `  eval "$(node dist/cli/index.js --dir examples/demo on)"`
   );
 }
