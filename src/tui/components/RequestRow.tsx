@@ -58,7 +58,9 @@ export const RequestRow = React.memo(function RequestRow({
       DURATION_WIDTH -
       SEPARATORS_WIDTH
   );
-  const paddedPath = truncate(showFullUrl ? request.url : request.path, pathWidth).padEnd(pathWidth);
+  const paddedPath = truncate(showFullUrl ? request.url : request.path, pathWidth).padEnd(
+    pathWidth
+  );
 
   const statusText = request.responseStatus?.toString() ?? "...";
   const savedChar = request.saved ? "*" : " ";

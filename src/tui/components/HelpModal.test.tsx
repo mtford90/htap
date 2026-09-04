@@ -8,10 +8,10 @@ afterEach(destroyRenderers);
 
 describe("HelpModal", () => {
   it("lists the navigation and action shortcuts", async () => {
-    const setup = await renderTui(
-      <HelpModal width={100} height={44} />,
-      { width: 100, height: 44 }
-    );
+    const setup = await renderTui(<HelpModal width={100} height={44} />, {
+      width: 100,
+      height: 44,
+    });
 
     const frame = setup.captureCharFrame();
     expect(frame).toContain("Keyboard Shortcuts");
@@ -26,7 +26,7 @@ describe("HelpModal", () => {
       <HelpModal
         width={100}
         height={44}
-       
+
         proxyPort={8080}
         caCertPath="/tmp/ca.pem"
       />,

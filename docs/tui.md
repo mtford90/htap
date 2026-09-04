@@ -60,6 +60,7 @@ hatch exists for one minor release and is removed with the Ink tree.
 By default the TUI starts in **follow mode** — the cursor automatically tracks the newest request as traffic arrives, similar to `tail -f`. The `[FOLLOWING]` badge appears in the status bar.
 
 - Any `j`/`k` navigation exits follow mode, anchoring the cursor to the current request by ID. New requests arriving will not move the cursor.
+- Scrolling the list with the mouse wheel also exits follow mode and leaves the viewport where you scrolled it.
 - Press `F` to toggle follow mode back on (jumps to the newest request).
 - Press `g` (go to top) to re-enter follow mode.
 
@@ -79,7 +80,7 @@ Search field supports:
 - Request-body only: `body:req:error` (or `body:request:error`)
 - Response-body only: `body:res:error` (or `body:response:error`)
 
-Tip: when you type a `body:` filter, the `body:` prefix (and `req:`/`res:` target when present) is highlighted in the filter bar.
+Tip: when the search text is a `body:` filter, the whole search field turns cyan.
 
 ## JSON Explorer (Enter on a JSON body)
 

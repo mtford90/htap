@@ -89,7 +89,9 @@ describe("FilterBar", () => {
 
   it("shows the existing filter when it opens", async () => {
     const setup = await renderTui(
-      <FilterBar {...props({ filter: { search: "api", methods: ["POST"], statusRange: "4xx" } })} />,
+      <FilterBar
+        {...props({ filter: { search: "api", methods: ["POST"], statusRange: "4xx" } })}
+      />,
       { width: 140, height: 4 }
     );
 
@@ -244,5 +246,4 @@ describe("FilterBar", () => {
     const call = await lastFilterCall(onFilterChange);
     expect(call[1]).toEqual({ query: "oops", target: "request" });
   });
-
 });
