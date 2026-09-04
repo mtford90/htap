@@ -56,7 +56,7 @@ Once the TUI is open:
 | Try                                   | Key                                    |
 | -------------------------------------- | --------------------------------------- |
 | Navigate the request list              | `j` / `k` (or arrow keys)               |
-| Filter — try `post` or `body:error`    | `/`                                     |
+| Filter — try `users` or `body:error`   | `/`                                     |
 | Open a request's detail panel          | `Tab`                                   |
 | Open a JSON body in the JSON explorer  | `Enter` on a JSON body                  |
 | See which requests were mocked/tagged  | `L` (interceptor event log)             |
