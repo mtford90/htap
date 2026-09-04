@@ -1,11 +1,12 @@
 /**
  * End-to-end tests for the httap TUI.
  *
- * These tests spawn real CLI processes using cli-testing-library and assert on
- * terminal output. `--ci` mode renders once and exits, which is what makes the
- * TUI observable without a PTY. The default path re-execs Node with the FFI
- * flags into the OpenTUI renderer; `HTTAP_TUI=ink` still reaches the Ink tree,
- * so one case pins that escape hatch.
+ * These tests spawn the built `dist/cli/index.js` directly (not via `node`)
+ * so its shebang applies, exactly as the installed `httap` binary would run
+ * it: the FFI flags OpenTUI's renderer needs come from that shebang, not
+ * from a re-exec. `--ci` mode renders once and exits, which is what makes
+ * the TUI observable without a PTY. `HTTAP_TUI=ink` still reaches the Ink
+ * tree, so one case pins that escape hatch.
  *
  * Note: Keyboard interaction tests are limited since cli-testing-library
  * doesn't use PTY and neither renderer takes raw mode on a non-TTY stdin.
@@ -159,6 +160,7 @@ describe("httap tui e2e", () => {
         socketPath: paths.controlSocketFile,
         storage,
         proxyPort,
+        version: "1.0.0-test",
       });
       cleanupFns.push(controlServer.close);
     });
@@ -172,7 +174,7 @@ describe("httap tui e2e", () => {
       await new Promise((resolve) => setTimeout(resolve, 100));
 
       // Start the TUI with --ci flag to render and exit
-      const { findByText } = await render("node", [getCliBinPath(), "tui", "--ci"], {
+      const { findByText } = await render(getCliBinPath(), ["tui", "--ci"], {
         cwd: tempDir,
         spawnOpts: { env: testEnv },
       });
@@ -191,7 +193,7 @@ describe("httap tui e2e", () => {
       await makeProxiedRequest(proxyPort, `http://127.0.0.1:${testServerPort}/api/data`);
       await new Promise((resolve) => setTimeout(resolve, 100));
 
-      const { findByText } = await render("node", [getCliBinPath(), "tui", "--ci"], {
+      const { findByText } = await render(getCliBinPath(), ["tui", "--ci"], {
         cwd: tempDir,
         spawnOpts: { env: testEnv },
       });
@@ -203,7 +205,7 @@ describe("httap tui e2e", () => {
     });
 
     it("shows panel titles with numbers", async () => {
-      const { findByText } = await render("node", [getCliBinPath(), "tui", "--ci"], {
+      const { findByText } = await render(getCliBinPath(), ["tui", "--ci"], {
         cwd: tempDir,
         spawnOpts: { env: testEnv },
       });
@@ -216,7 +218,7 @@ describe("httap tui e2e", () => {
     });
 
     it("shows keybinding hints in status bar", async () => {
-      const { findByText } = await render("node", [getCliBinPath(), "tui", "--ci"], {
+      const { findByText } = await render(getCliBinPath(), ["tui", "--ci"], {
         cwd: tempDir,
         spawnOpts: { env: testEnv },
       });
@@ -229,7 +231,7 @@ describe("httap tui e2e", () => {
       await makeProxiedRequest(proxyPort, `http://127.0.0.1:${testServerPort}/legacy`);
       await new Promise((resolve) => setTimeout(resolve, 100));
 
-      const { findByText } = await render("node", [getCliBinPath(), "tui", "--ci"], {
+      const { findByText } = await render(getCliBinPath(), ["tui", "--ci"], {
         cwd: tempDir,
         spawnOpts: { env: { ...testEnv, HTTAP_TUI: "ink" } },
       });
@@ -239,20 +241,12 @@ describe("httap tui e2e", () => {
     });
 
     it("exits promptly on SIGINT", { timeout: 20_000 }, async () => {
-      // Ctrl+C in a terminal signals the whole foreground group, which reaches
-      // the TUI process itself; the parent CLI is blocked in spawnSync and
-      // cannot forward a signal, so this drives the TUI process directly.
-      const tuiEntry = path.resolve(process.cwd(), "dist/tui/index.js");
-      const child = spawn(
-        process.execPath,
-        [
-          "--experimental-ffi",
-          "--disable-warning=ExperimentalWarning",
-          tuiEntry,
-          JSON.stringify({ projectRoot: tempDir, ci: false, verbose: 0 }),
-        ],
-        { stdio: ["ignore", "pipe", "pipe"], env: testEnv }
-      );
+      // `httap tui` is the TUI process itself now, so Ctrl+C reaches it
+      // directly with no parent to relay the signal through.
+      const child = spawn(getCliBinPath(), ["tui", "--dir", tempDir], {
+        stdio: ["ignore", "pipe", "pipe"],
+        env: testEnv,
+      });
 
       const exited = new Promise<number | null>((resolve) => {
         child.on("exit", (code) => resolve(code));
@@ -267,7 +261,7 @@ describe("httap tui e2e", () => {
     });
 
     it("exits with code 0", async () => {
-      const result = await render("node", [getCliBinPath(), "tui", "--ci"], {
+      const result = await render(getCliBinPath(), ["tui", "--ci"], {
         cwd: tempDir,
         spawnOpts: { env: testEnv },
       });
@@ -286,7 +280,7 @@ describe("httap tui e2e", () => {
       // Don't start proxy/control server - just launch TUI directly
       // The TUI will try to connect to the control socket and fail
 
-      const { findByText } = await render("node", [getCliBinPath(), "tui", "--ci"], {
+      const { findByText } = await render(getCliBinPath(), ["tui", "--ci"], {
         cwd: tempDir,
         spawnOpts: { env: testEnv },
       });
@@ -300,7 +294,7 @@ describe("httap tui e2e", () => {
       const nonProjectDir = fs.mkdtempSync(path.join(os.tmpdir(), "httap-noproject-"));
 
       try {
-        const { findByText } = await render("node", [getCliBinPath(), "tui", "--ci"], {
+        const { findByText } = await render(getCliBinPath(), ["tui", "--ci"], {
           cwd: nonProjectDir,
           spawnOpts: { env: testEnv },
         });
@@ -313,7 +307,7 @@ describe("httap tui e2e", () => {
     });
 
     it("shows retry hint on error", async () => {
-      const { findByText } = await render("node", [getCliBinPath(), "tui", "--ci"], {
+      const { findByText } = await render(getCliBinPath(), ["tui", "--ci"], {
         cwd: tempDir,
         spawnOpts: { env: testEnv },
       });

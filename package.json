@@ -27,7 +27,7 @@
     ]
   },
   "scripts": {
-    "build": "tsc",
+    "build": "tsc && chmod +x dist/cli/index.js",
     "dev": "tsc --watch",
     "start": "node dist/cli/index.js",
     "test": "vitest run",

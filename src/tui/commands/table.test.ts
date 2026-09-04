@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import type { CapturedRequest, CapturedRequestSummary } from "../../shared/types.js";
 import { createTuiActions, createTuiStore, selectedSummary } from "../store/store.js";
-import { SECTION_REQUEST_BODY, SECTION_RESPONSE_BODY } from "../store/types.js";
+import { SECTION_REQUEST, SECTION_REQUEST_BODY, SECTION_RESPONSE_BODY } from "../store/types.js";
 import { SyncEngine, type SyncClient } from "../sync/engine.js";
 import { COMMANDS, dispatchKey, visibleHints, type CommandDeps } from "./table.js";
 import type { KeyLike } from "./keys.js";
@@ -429,6 +429,66 @@ describe("body commands", () => {
     result.actions.setDetail("a", detail());
     dispatchKey(result.deps, key("e"));
     expect(result.store.getState().ui.modal).toEqual({ kind: "formatExport" });
+  });
+});
+
+describe("panels, layout and refresh", () => {
+  it("Shift+Tab cycles focus backwards between the list and the detail sections", () => {
+    const { store, actions, deps } = setup({ ids: ["a"] });
+    actions.setDetail("a", detail());
+    actions.focusSection(SECTION_REQUEST);
+
+    dispatchKey(deps, named("tab", { shift: true }));
+    expect(store.getState().selection.activePanel).toBe("list");
+
+    dispatchKey(deps, named("tab", { shift: true }));
+    expect(store.getState().selection).toMatchObject({
+      activePanel: "detail",
+      focusedSection: SECTION_RESPONSE_BODY,
+    });
+  });
+
+  it("Shift+Tab does nothing before a request has loaded", () => {
+    const { store, deps } = setup({ ids: ["a"] });
+
+    dispatchKey(deps, named("tab", { shift: true }));
+
+    expect(store.getState().selection.activePanel).toBe("list");
+  });
+
+  it("[ and ] resize the list column and = resets it", () => {
+    const { store, deps } = setup({ ids: ["a"] });
+    const initial = store.getState().ui.listWidthRatio;
+
+    dispatchKey(deps, key("["));
+    expect(store.getState().ui.listWidthRatio).toBeCloseTo(initial - 0.05);
+
+    dispatchKey(deps, key("]"));
+    dispatchKey(deps, key("]"));
+    expect(store.getState().ui.listWidthRatio).toBeCloseTo(initial + 0.05);
+
+    dispatchKey(deps, key("="));
+    expect(store.getState().ui.listWidthRatio).toBe(initial);
+  });
+
+  it("F toggles follow mode", () => {
+    const { store, deps } = setup({ ids: ["c", "b", "a"] });
+    expect(store.getState().selection.following).toBe(true);
+
+    dispatchKey(deps, key("F"));
+    expect(store.getState().selection).toMatchObject({ following: false, selectedId: "c" });
+
+    dispatchKey(deps, key("F"));
+    expect(store.getState().selection).toMatchObject({ following: true, selectedId: null });
+  });
+
+  it("r refreshes the list and shows a status message", async () => {
+    const { deps, client } = setup({ ids: ["a"] });
+
+    dispatchKey(deps, key("r"));
+
+    expect(deps.showStatus).toHaveBeenCalledWith("Refreshing...");
+    await vi.waitFor(() => expect(client.listRequestsSummaryDelta).toHaveBeenCalled());
   });
 });
 

@@ -1,4 +1,4 @@
-#!/usr/bin/env node
+#!/usr/bin/env -S node --experimental-ffi --disable-warning=ExperimentalWarning
 
 import { program } from "commander";
 import { clearCommand } from "./commands/clear.js";

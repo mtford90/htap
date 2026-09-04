@@ -1,15 +1,14 @@
-import { spawnSync } from "node:child_process";
-import { fileURLToPath } from "node:url";
 import { Command } from "commander";
 import { findProjectRoot, setConfigOverride, resolveOverridePath } from "../../shared/project.js";
 import { getGlobalOptions } from "./helpers.js";
 
 /**
  * OpenTUI's renderer loads its native library through node:ffi, which Node gates
- * behind this flag. Node has since made the flag a no-op; drop this whole branch
- * once the floor is a release that enables node:ffi by default.
+ * behind this flag. The installed `httap` binary sets it in its shebang, so this
+ * only fires for the CLI reached without going through that binary (e.g. `node
+ * dist/cli/index.js` directly). Drop this whole check once the floor is a
+ * release that enables node:ffi by default.
  */
-const FFI_FLAGS = ["--experimental-ffi", "--disable-warning=ExperimentalWarning"];
 const MIN_FFI_NODE = { major: 26, minor: 4 };
 
 export const supportsFfiFlag = (version: string): boolean => {
@@ -26,7 +25,7 @@ const ffiAlreadyEnabled = (): boolean =>
 
 export interface TuiLaunchOptions {
   projectRoot?: string;
-  /** Passed on so the child process resolves the same .httap directory. */
+  /** Passed on so the launched TUI resolves the same .httap directory. */
   configOverride?: string;
   ci: boolean;
   verbose: number;
@@ -53,20 +52,11 @@ const runOpenTui = async (options: TuiLaunchOptions): Promise<void> => {
     process.exit(1);
   }
 
-  const entry = fileURLToPath(new URL("../../tui/index.js", import.meta.url));
-  const result = spawnSync(process.execPath, [...FFI_FLAGS, entry, JSON.stringify(options)], {
-    stdio: "inherit",
-  });
-
-  if (result.error) {
-    console.error(`httap tui could not start: ${result.error.message}`);
-    process.exit(1);
-  }
-  if (result.signal) {
-    console.error(`httap tui stopped on ${result.signal}.`);
-    process.exit(1);
-  }
-  process.exit(result.status ?? 1);
+  console.error(
+    "httap tui needs Node's --experimental-ffi flag. Run it via the installed `httap` " +
+      "command rather than `node dist/cli/index.js`, or set NODE_OPTIONS=--experimental-ffi yourself."
+  );
+  process.exit(1);
 };
 
 export const tuiCommand = new Command("tui")

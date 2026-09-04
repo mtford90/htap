@@ -23,7 +23,7 @@ The TUI moved from Ink to OpenTUI (`@opentui/core` + `@opentui/react`).
 
 - `src/tui/` holds a zustand store, a sync engine outside React, and a command table that drives both key dispatch and the status-bar hints
 - The view layer is rebuilt on OpenTUI; `cli-highlight` output is converted from ANSI escapes to spans
-- `httap tui` re-executes Node with `--experimental-ffi` and runs the TUI there; `HTTAP_TUI=ink` selects the old Ink tree for one minor release
+- The installed `httap` binary sets `--experimental-ffi` in its own shebang and renders the TUI in-process; `HTTAP_TUI=ink` selects the old Ink tree for one minor release
 - Component tests use `@opentui/react/test-utils` in a `tui` vitest project
 
 Post-migration review follow-ups: text entry uses OpenTUI's `<input>`, the request

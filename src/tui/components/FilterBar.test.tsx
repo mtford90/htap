@@ -123,6 +123,22 @@ describe("FilterBar", () => {
     expect(await lastFilterCall(onFilterChange)).toEqual([{ search: "api" }, undefined]);
   });
 
+  it("coalesces rapid typing into a single filter update", async () => {
+    const onFilterChange = vi.fn();
+    const setup = await renderTui(<FilterBar {...props({ onFilterChange })} />, {
+      width: 140,
+      height: 4,
+    });
+
+    await setup.mockInput.typeText("api");
+    await waitForText(setup, "api");
+    await lastFilterCall(onFilterChange);
+
+    // Each keystroke re-arms the debounce timer, so three fast keystrokes
+    // should reach onFilterChange once, not three times.
+    expect(onFilterChange).toHaveBeenCalledTimes(1);
+  });
+
   it("deletes the character before the cursor on backspace", async () => {
     const onFilterChange = vi.fn();
     const setup = await renderTui(<FilterBar {...props({ onFilterChange })} />, {

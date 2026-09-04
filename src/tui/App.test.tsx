@@ -107,6 +107,17 @@ describe("App layout", () => {
     expect(frame).toContain("Required: 60x10");
   });
 
+  it("reacts to a terminal resize", async () => {
+    const { setup } = await renderApp({ requests: [summary("alpha")] });
+    expect(setup.captureCharFrame()).toContain("[1] Requests");
+
+    setup.resize(40, 8);
+    await waitForText(setup, "Terminal too small");
+
+    setup.resize(WIDTH, HEIGHT);
+    await waitForText(setup, "[1] Requests");
+  });
+
   it("shows a spinner before the first sync completes", async () => {
     const harness = createHarness();
     const setup = await renderTui(
