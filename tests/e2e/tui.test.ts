@@ -30,6 +30,14 @@ import { ensureHttapDir, getHttapPaths } from "../../src/shared/project.js";
 configure({ asyncUtilTimeout: 10000 });
 
 /**
+ * Every case spawns the real binary, which pays for a shell, a Node start
+ * with FFI and the first sync before anything is printed. That is well under
+ * a second on an idle machine but outruns vitest's 5s default on a loaded CI
+ * runner, and `--ci` mode's own fallback ceiling is longer than that default.
+ */
+const SPAWN_TEST_TIMEOUT_MS = 15_000;
+
+/**
  * Environment variables that make either renderer write to a non-TTY stdout.
  */
 const testEnv = {
@@ -80,7 +88,7 @@ function getCliBinPath(): string {
   return path.resolve(process.cwd(), "bin/httap");
 }
 
-describe("httap tui e2e", () => {
+describe("httap tui e2e", { timeout: SPAWN_TEST_TIMEOUT_MS }, () => {
   let tempDir: string;
   let paths: ReturnType<typeof getHttapPaths>;
   let storage: RequestRepository;
@@ -165,7 +173,7 @@ describe("httap tui e2e", () => {
       cleanupFns.push(controlServer.close);
     });
 
-    it("displays captured requests", { timeout: 15_000 }, async () => {
+    it("displays captured requests", async () => {
       // Make some HTTP requests through the proxy
       await makeProxiedRequest(proxyPort, `http://127.0.0.1:${testServerPort}/users`);
       await makeProxiedRequest(proxyPort, `http://127.0.0.1:${testServerPort}/posts`);
@@ -227,7 +235,7 @@ describe("httap tui e2e", () => {
       await findByText(/j\/k/);
     });
 
-    it("renders the Ink tree when HTTAP_TUI=ink", { timeout: 15_000 }, async () => {
+    it("renders the Ink tree when HTTAP_TUI=ink", async () => {
       await makeProxiedRequest(proxyPort, `http://127.0.0.1:${testServerPort}/legacy`);
       await new Promise((resolve) => setTimeout(resolve, 100));
 
