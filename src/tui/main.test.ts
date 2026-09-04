@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { CliRenderer } from "@opentui/core";
-import type { TuiStore } from "./store/store.js";
+import type { CapturedRequestSummary } from "../shared/types.js";
 
 const EXIT_SENTINEL = "process.exit";
 
@@ -185,11 +185,26 @@ describe("startTui ci mode", () => {
 });
 
 describe("waitForCiReadyFrame", () => {
+  const summary = (id: string): CapturedRequestSummary => ({
+    id,
+    sessionId: "session",
+    timestamp: 1_700_000_000_000,
+    method: "GET",
+    url: `http://example.test/${id}`,
+    host: "example.test",
+    path: `/${id}`,
+    responseStatus: 200,
+    durationMs: 12,
+    requestBodySize: 0,
+    responseBodySize: 0,
+  });
+
   it("resolves only on a frame painted after the list has data", async () => {
     const { waitForCiReadyFrame } = await import("./main.js");
+    const { createTuiActions, createTuiStore } = await import("./store/store.js");
     const renderer = fakeRenderer();
-    let loading = true;
-    const store = { getState: () => ({ requests: { loading } }) } as unknown as TuiStore;
+    const store = createTuiStore({ startTime: 0 });
+    const actions = createTuiActions(store);
 
     let resolved = false;
     void waitForCiReadyFrame(renderer as unknown as CliRenderer, store).then(() => {
@@ -200,7 +215,30 @@ describe("waitForCiReadyFrame", () => {
     await Promise.resolve();
     expect(resolved).toBe(false);
 
-    loading = false;
+    actions.setRequests([]);
+    renderer.emitFrame();
+    await Promise.resolve();
+    expect(resolved).toBe(true);
+  });
+
+  it("waits for the detail pane to catch up with the selected request", async () => {
+    const { waitForCiReadyFrame } = await import("./main.js");
+    const { createTuiActions, createTuiStore } = await import("./store/store.js");
+    const renderer = fakeRenderer();
+    const store = createTuiStore({ startTime: 0 });
+    const actions = createTuiActions(store);
+
+    let resolved = false;
+    void waitForCiReadyFrame(renderer as unknown as CliRenderer, store).then(() => {
+      resolved = true;
+    });
+
+    actions.setRequests([summary("req-1")]);
+    renderer.emitFrame();
+    await Promise.resolve();
+    expect(resolved).toBe(false);
+
+    actions.setDetail("req-1", null);
     renderer.emitFrame();
     await Promise.resolve();
     expect(resolved).toBe(true);

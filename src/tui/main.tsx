@@ -16,7 +16,8 @@ import { createLogger, parseVerbosity } from "../shared/logger.js";
 import { getHttapPaths, readProxyPort, setConfigOverride } from "../shared/project.js";
 import { loadConfig } from "../shared/config.js";
 import { App } from "./App.js";
-import { createTuiActions, createTuiStore } from "./store/store.js";
+import { createTuiActions, createTuiStore, selectedSummary } from "./store/store.js";
+import type { TuiState } from "./store/types.js";
 import { SyncEngine } from "./sync/engine.js";
 
 export interface StartTuiOptions {
@@ -37,9 +38,22 @@ export interface StartTuiOptions {
 const CI_FALLBACK_TIMEOUT_MS = 6_000;
 
 /**
- * Resolves once the renderer has painted a frame with the request list no
- * longer loading (data arrived, or an error was set), i.e. the first frame
- * with real content rather than an arbitrary tick of the render loop.
+ * Whether a painted frame shows the whole view: the request list has data (or
+ * an error), and the detail pane has caught up with the cursor. The detail
+ * request is fetched separately from the list, so an earlier frame paints the
+ * list beside an empty right pane.
+ */
+const isCiReadyFrame = (state: TuiState): boolean => {
+  if (state.requests.loading) {
+    return false;
+  }
+  const selected = selectedSummary(state);
+  return selected === undefined || state.detail.requestId === selected.id;
+};
+
+/**
+ * Resolves on the first frame with real content rather than an arbitrary tick
+ * of the render loop.
  */
 export const waitForCiReadyFrame = (
   renderer: CliRenderer,
@@ -47,7 +61,7 @@ export const waitForCiReadyFrame = (
 ): Promise<void> =>
   new Promise<void>((resolve) => {
     const onFrame = (): void => {
-      if (store.getState().requests.loading) {
+      if (!isCiReadyFrame(store.getState())) {
         return;
       }
       renderer.off(CliRenderEvents.FRAME, onFrame);
