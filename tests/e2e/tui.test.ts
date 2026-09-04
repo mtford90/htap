@@ -1,12 +1,12 @@
 /**
  * End-to-end tests for the httap TUI.
  *
- * These tests spawn the built `dist/cli/index.js` directly (not via `node`)
- * so its shebang applies, exactly as the installed `httap` binary would run
- * it: the FFI flags OpenTUI's renderer needs come from that shebang, not
- * from a re-exec. `--ci` mode renders once and exits, which is what makes
- * the TUI observable without a PTY. `HTTAP_TUI=ink` still reaches the Ink
- * tree, so one case pins that escape hatch.
+ * These tests spawn `bin/httap`, the installed binary: a shell wrapper that
+ * checks the Node version and execs Node with the FFI flags OpenTUI's
+ * renderer needs, so the CLI process renders the TUI itself. `--ci` mode
+ * renders once and exits, which is what makes the TUI observable without a
+ * PTY. `HTTAP_TUI=ink` still reaches the Ink tree, so one case pins that
+ * escape hatch.
  *
  * Note: Keyboard interaction tests are limited since cli-testing-library
  * doesn't use PTY and neither renderer takes raw mode on a non-TTY stdin.
@@ -74,10 +74,10 @@ function makeProxiedRequest(
 }
 
 /**
- * Get the path to the built CLI entry point.
+ * Get the path to the installed `httap` binary.
  */
 function getCliBinPath(): string {
-  return path.resolve(process.cwd(), "dist/cli/index.js");
+  return path.resolve(process.cwd(), "bin/httap");
 }
 
 describe("httap tui e2e", () => {

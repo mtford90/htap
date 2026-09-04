@@ -5,7 +5,7 @@
   "type": "module",
   "main": "dist/cli/index.js",
   "bin": {
-    "httap": "dist/cli/index.js"
+    "httap": "bin/httap"
   },
   "exports": {
     ".": "./dist/cli/index.js",
@@ -15,6 +15,7 @@
     }
   },
   "files": [
+    "bin",
     "dist",
     "skills"
   ],
@@ -29,7 +30,7 @@
   "scripts": {
     "build": "tsc && chmod +x dist/cli/index.js",
     "dev": "tsc --watch",
-    "start": "node dist/cli/index.js",
+    "start": "bin/httap",
     "test": "vitest run",
     "test:watch": "vitest",
     "test:unit": "vitest run --dir src",

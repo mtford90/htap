@@ -4,10 +4,10 @@ import { getGlobalOptions } from "./helpers.js";
 
 /**
  * OpenTUI's renderer loads its native library through node:ffi, which Node gates
- * behind this flag. The installed `httap` binary sets it in its shebang, so this
- * only fires for the CLI reached without going through that binary (e.g. `node
- * dist/cli/index.js` directly). Drop this whole check once the floor is a
- * release that enables node:ffi by default.
+ * behind this flag. The installed `httap` binary (bin/httap) checks the version
+ * and execs Node with the flag, so this only fires for the CLI reached without
+ * going through that binary (e.g. `node dist/cli/index.js` directly). Drop this
+ * whole check once the floor is a release that enables node:ffi by default.
  */
 const MIN_FFI_NODE = { major: 26, minor: 4 };
 

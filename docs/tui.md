@@ -12,10 +12,10 @@ Mouse support: click to select, scroll to navigate, click panels to focus.
 
 The TUI is rendered by [OpenTUI](https://opentui.com), whose native library is
 loaded through `node:ffi`. Node gates that module behind `--experimental-ffi`
-until it is enabled by default; the installed `httap` binary sets that flag in
-its own shebang, so the CLI process renders the TUI itself. That flag needs
-Node 26.4 or newer, which is httap's minimum version anyway; on anything older
-`httap tui` says so and exits.
+until it is enabled by default; the installed `httap` binary is a small shell
+wrapper that execs Node with that flag, so the CLI process renders the TUI
+itself. That flag needs Node 26.4 or newer, which is httap's minimum version
+anyway; on anything older every `httap` command says so and exits.
 
 Set `HTTAP_TUI=ink` to run the previous Ink interface instead. That escape
 hatch exists for one minor release and is removed with the Ink tree.
