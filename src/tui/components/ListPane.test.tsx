@@ -224,6 +224,25 @@ describe("ListPane", () => {
     expect(setup.captureCharFrame()).toContain("/r32");
   });
 
+  it("forgets a pending prepend once the list is cleared", async () => {
+    const { actions, setup } = await render(
+      manyRequests(3),
+      { height: 10 },
+      { width: 100, height: 12 }
+    );
+    actions.moveSelectionBy(1);
+    await waitForText(setup, "/r1");
+    actions.setRequests(manyRequests(5).map((r) => summary(`new-${r.id}`)));
+    await waitForText(setup, "/new-r4");
+
+    actions.setRequests([]);
+    await waitForText(setup, "No requests captured yet.");
+    actions.setRequests(manyRequests(10));
+
+    await waitForText(setup, "1-8/10");
+    expect(setup.captureCharFrame()).toContain("/r0");
+  });
+
   it("keeps the cursor inside the viewport when it moves back to the top", async () => {
     const requests = manyRequests(40);
     const { actions, setup } = await render(requests, { height: 8 }, { width: 100, height: 10 });

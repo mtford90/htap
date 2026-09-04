@@ -126,110 +126,108 @@ export function App({ store, actions, engine, onExit }: AppProps): React.ReactNo
     );
   }
 
-  if (ui.modal) {
-    return (
-      <ModalHost
-        store={store}
-        actions={actions}
-        modal={ui.modal}
-        request={detailRequest}
-        events={interceptors.events}
-        proxyPort={connection.proxyPort}
-        caCertPath={connection.caCertPath}
-        width={columns}
-        height={rows}
-      />
-    );
-  }
-
-  if (loading && requests.length === 0) {
-    return (
-      <box flexDirection="column" width={columns} height={rows}>
-        <box flexGrow={1} alignItems="center" justifyContent="center">
-          <text>
-            <span fg="cyan">{spinnerFrame}</span>
-            <span> Loading...</span>
-          </text>
-        </box>
-        <StatusBar hints={hints} width={columns} />
-      </box>
-    );
-  }
-
-  if (error) {
-    return (
-      <box flexDirection="column" width={columns} height={rows}>
-        <box flexGrow={1} alignItems="center" justifyContent="center">
-          <text fg="red">{`Error: ${error}`}</text>
-        </box>
-        <StatusBar message="Press 'q' to quit, 'r' to retry" hints={hints} width={columns} />
-      </box>
-    );
-  }
-
   const hasDetail = detailRequest !== null;
   const listWidth = hasDetail ? Math.floor(columns * ui.listWidthRatio) : columns;
 
+  // A modal covers the main view rather than replacing it: hidden renderables
+  // are skipped by layout and hit-testing, so the list keeps its scroll
+  // position and takes no mouse events until the modal closes.
   return (
-    <box flexDirection="column" width={columns} height={rows}>
-      <box flexDirection="row" width={columns} height={contentHeight}>
-        <ListPane
-          requests={requests}
-          selectedIndex={selectedIndex}
-          cursorId={selection.selectedId}
+    <box width={columns} height={rows}>
+      {ui.modal && (
+        <ModalHost
+          store={store}
           actions={actions}
-          isActive={selection.activePanel === "list"}
-          isHovered={ui.hoveredPanel === "list"}
-          width={listWidth}
-          height={contentHeight}
-          showFullUrl={ui.showFullUrl}
-          searchTerm={bodySearch ? undefined : filter.search}
-          following={selection.following}
-          pendingNewCount={selection.pendingNew}
-          onSelectIndex={actions.selectIndex}
-          onActivate={() => actions.setActivePanel("list")}
-          onHoverChange={(hovered) => actions.setHoveredPanel(hovered ? "list" : null)}
-        />
-        {hasDetail && (
-          <DetailPane
-            request={detailRequest}
-            width={columns - listWidth}
-            height={contentHeight}
-            isActive={selection.activePanel === "detail"}
-            focusedSection={selection.focusedSection}
-            expandedSections={selection.expandedSections}
-            onActivate={() => actions.setActivePanel("detail")}
-            onHoverChange={(hovered) => actions.setHoveredPanel(hovered ? "detail" : null)}
-          />
-        )}
-      </box>
-
-      {ui.filterOpen && (
-        <FilterBar
-          filter={filter}
-          bodySearch={bodySearch}
-          onFilterChange={handleFilterChange}
+          modal={ui.modal}
+          request={detailRequest}
+          events={interceptors.events}
+          proxyPort={connection.proxyPort}
+          caCertPath={connection.caCertPath}
           width={columns}
+          height={rows}
         />
       )}
+      <box visible={ui.modal === null} width={columns} height={rows}>
+        {loading && requests.length === 0 ? (
+          <box flexDirection="column" width={columns} height={rows}>
+            <box flexGrow={1} alignItems="center" justifyContent="center">
+              <text>
+                <span fg="cyan">{spinnerFrame}</span>
+                <span> Loading...</span>
+              </text>
+            </box>
+            <StatusBar hints={hints} width={columns} />
+          </box>
+        ) : error ? (
+          <box flexDirection="column" width={columns} height={rows}>
+            <box flexGrow={1} alignItems="center" justifyContent="center">
+              <text fg="red">{`Error: ${error}`}</text>
+            </box>
+            <StatusBar message="Press 'q' to quit, 'r' to retry" hints={hints} width={columns} />
+          </box>
+        ) : (
+          <box flexDirection="column" width={columns} height={rows}>
+            <box flexDirection="row" width={columns} height={contentHeight}>
+              <ListPane
+                requests={requests}
+                selectedIndex={selectedIndex}
+                cursorId={selection.selectedId}
+                actions={actions}
+                isActive={selection.activePanel === "list"}
+                isHovered={ui.hoveredPanel === "list"}
+                width={listWidth}
+                height={contentHeight}
+                showFullUrl={ui.showFullUrl}
+                searchTerm={bodySearch ? undefined : filter.search}
+                following={selection.following}
+                pendingNewCount={selection.pendingNew}
+                onSelectIndex={actions.selectIndex}
+                onActivate={() => actions.setActivePanel("list")}
+                onHoverChange={(hovered) => actions.setHoveredPanel(hovered ? "list" : null)}
+              />
+              {hasDetail && (
+                <DetailPane
+                  request={detailRequest}
+                  width={columns - listWidth}
+                  height={contentHeight}
+                  isActive={selection.activePanel === "detail"}
+                  focusedSection={selection.focusedSection}
+                  expandedSections={selection.expandedSections}
+                  onActivate={() => actions.setActivePanel("detail")}
+                  onHoverChange={(hovered) => actions.setHoveredPanel(hovered ? "detail" : null)}
+                />
+              )}
+            </box>
 
-      <InfoBar
-        interceptorErrorCount={interceptors.counts.error}
-        requestCount={requests.length}
-        interceptorCount={interceptors.count}
-        startTime={connection.startTime}
-        width={columns}
-      />
+            {ui.filterOpen && (
+              <FilterBar
+                filter={filter}
+                bodySearch={bodySearch}
+                onFilterChange={handleFilterChange}
+                width={columns}
+              />
+            )}
 
-      <StatusBar
-        message={ui.statusMessage}
-        filterActive={isFilterActive(filter) || bodySearch !== undefined}
-        filterOpen={ui.filterOpen}
-        hints={hints}
-        interceptorCount={interceptors.count}
-        interceptorErrorCount={interceptors.counts.error}
-        width={columns}
-      />
+            <InfoBar
+              interceptorErrorCount={interceptors.counts.error}
+              requestCount={requests.length}
+              interceptorCount={interceptors.count}
+              startTime={connection.startTime}
+              width={columns}
+            />
+
+            <StatusBar
+              message={ui.statusMessage}
+              filterActive={isFilterActive(filter) || bodySearch !== undefined}
+              filterOpen={ui.filterOpen}
+              hints={hints}
+              interceptorCount={interceptors.count}
+              interceptorErrorCount={interceptors.counts.error}
+              width={columns}
+            />
+          </box>
+        )}
+      </box>
     </box>
   );
 }

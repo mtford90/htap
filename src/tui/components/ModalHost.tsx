@@ -1,8 +1,8 @@
 /** @jsxImportSource @opentui/react */
 
 /**
- * Renders whichever modal the store says is open. Modals replace the main view
- * rather than overlaying it, matching how the TUI has always behaved.
+ * Renders whichever modal the store says is open. A modal fills the screen and
+ * hides the main view beneath it, matching how the TUI has always looked.
  */
 
 import React from "react";

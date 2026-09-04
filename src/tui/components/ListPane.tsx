@@ -70,8 +70,14 @@ export function ListPane({
   const previousIds = useRef<string[]>([]);
   const pendingPrepend = useRef(0);
   const compensation = useRef<{ box: ScrollBoxRenderable; apply: () => void } | null>(null);
-  const lastHeight = useRef(height);
+  const lastHeight = useRef<number | null>(null);
   const visibleHeight = Math.max(1, height - 2);
+
+  const dropCompensation = useCallback(() => {
+    compensation.current?.box.content.off("resize", compensation.current.apply);
+    compensation.current = null;
+    pendingPrepend.current = 0;
+  }, []);
 
   // Follow mode pins the newest row; while browsing, rows arriving above the
   // viewport must not push the rows under the cursor down the screen.
@@ -79,11 +85,12 @@ export function ListPane({
     const box = ref.current;
     const previous = previousIds.current;
     previousIds.current = requests.map((request) => request.id);
-    if (!box) {
+    if (!box || requests.length === 0) {
+      dropCompensation();
       return;
     }
     if (following) {
-      pendingPrepend.current = 0;
+      dropCompensation();
       box.scrollTo(0);
       syncScrollTop();
       return;
@@ -110,19 +117,13 @@ export function ListPane({
     compensation.current?.box.content.off("resize", compensation.current.apply);
     compensation.current = { box, apply };
     box.content.once("resize", apply);
-  }, [requests, following, ref, syncScrollTop]);
+  }, [requests, following, ref, syncScrollTop, dropCompensation]);
 
-  useEffect(
-    () => () => {
-      compensation.current?.box.content.off("resize", compensation.current.apply);
-      compensation.current = null;
-    },
-    []
-  );
+  useEffect(() => dropCompensation, [dropCompensation]);
 
   // Only a cursor the user moved drags the viewport; wheel scrolling leaves it
-  // unpinned so the list does not snap back to the selection. A height change
-  // is only measurable once layout has resized the viewport.
+  // unpinned so the list does not snap back to the selection. A height change,
+  // like the first mount, is only measurable once layout has sized the viewport.
   useEffect(() => {
     const heightChanged = lastHeight.current !== height;
     lastHeight.current = height;
