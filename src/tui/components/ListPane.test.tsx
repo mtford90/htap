@@ -172,6 +172,36 @@ describe("ListPane", () => {
     await waitForText(setup, "/r20");
   });
 
+  it("keeps the viewport pinned when a capped list swaps rows in and out", async () => {
+    const {
+      store: tuiStore,
+      actions,
+      setup,
+    } = await render(
+      manyRequests(40),
+      { height: 10 },
+      {
+        width: 100,
+        height: 12,
+      }
+    );
+    actions.moveSelectionBy(1);
+    await settle(setup);
+    tuiStore.getState().scrollers.list?.scrollTo(20);
+    await waitForText(setup, "21-28/40");
+
+    actions.setRequests([
+      ...manyRequests(5).map((r) => summary(`new-${r.id}`)),
+      ...manyRequests(35),
+    ]);
+
+    await waitForText(setup, "26-33/40");
+    const frame = setup.captureCharFrame();
+    expect(frame).toContain("/r20");
+    expect(frame).toContain("/r27");
+    expect(frame).not.toContain("/r19");
+  });
+
   it("keeps the last row in view when rows arrive while scrolled to the end", async () => {
     const { actions, setup } = await render(
       manyRequests(40),

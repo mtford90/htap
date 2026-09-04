@@ -92,6 +92,12 @@ export function ListPane({
     if (pendingPrepend.current === 0 || compensation.current?.box === box) {
       return;
     }
+    if (requests.length === previous.length) {
+      box.scrollBy(pendingPrepend.current);
+      pendingPrepend.current = 0;
+      syncScrollTop();
+      return;
+    }
     // The scrollbox clamps against the content height it last measured, so
     // the compensation has to wait until layout has seen the new rows. Batches
     // that land before that layout pass accumulate into one scroll.
