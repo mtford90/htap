@@ -84,10 +84,19 @@ export function ListPane({
       return;
     }
     const prepended = countPrependedRequests(previous, requests);
-    if (prepended > 0) {
+    if (prepended === 0) {
+      return;
+    }
+    // The scrollbox clamps against the content height it last measured, so
+    // the compensation has to wait until layout has seen the new rows.
+    const compensate = (): void => {
       box.scrollBy(prepended);
       syncScrollTop();
-    }
+    };
+    box.content.once("resize", compensate);
+    return () => {
+      box.content.off("resize", compensate);
+    };
   }, [requests, following, ref, syncScrollTop]);
 
   // Only a cursor the user moved drags the viewport; wheel scrolling leaves it
@@ -98,7 +107,7 @@ export function ListPane({
     }
     ref.current?.scrollChildIntoView(requestRowId(cursorId));
     syncScrollTop();
-  }, [cursorId, ref, syncScrollTop]);
+  }, [cursorId, visibleHeight, ref, syncScrollTop]);
 
   // The scrollbox has already moved by the time the wheel event bubbles here.
   const handleWheel = useCallback(() => {

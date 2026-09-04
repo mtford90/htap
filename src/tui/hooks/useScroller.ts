@@ -3,6 +3,8 @@
  *
  * The scrollbox owns its position, so nothing mirrors it into the store; only
  * the readouts that show it need a React value, which `scrollTop` provides.
+ * Every method reads the ref when called, so a scrollbox that mounts later or
+ * remounts behind an empty state is picked up without re-registering.
  */
 
 import { useCallback, useEffect, useRef, useState, type RefObject } from "react";
@@ -24,32 +26,28 @@ export const useScroller = (name: ScrollerName, actions: TuiActions): ScrollerHa
   const syncScrollTop = useCallback(() => setScrollTop(ref.current?.scrollTop ?? 0), []);
 
   useEffect(() => {
-    const box = ref.current;
-    if (!box) {
-      return;
-    }
-
     const scroller: Scroller = {
       scrollBy: (delta) => {
-        box.scrollBy(delta);
+        ref.current?.scrollBy(delta);
         syncScrollTop();
       },
       scrollTo: (offset) => {
-        box.scrollTo(offset);
+        ref.current?.scrollTo(offset);
         syncScrollTop();
       },
       scrollIntoView: (childId) => {
-        box.scrollChildIntoView(childId);
+        ref.current?.scrollChildIntoView(childId);
         syncScrollTop();
       },
       get scrollTop() {
-        return box.scrollTop;
+        return ref.current?.scrollTop ?? 0;
       },
       get viewportRows() {
-        return box.viewport.height;
+        return ref.current?.viewport.height ?? 0;
       },
       get maxScrollTop() {
-        return Math.max(0, box.scrollHeight - box.viewport.height);
+        const box = ref.current;
+        return box ? Math.max(0, box.scrollHeight - box.viewport.height) : 0;
       },
     };
 

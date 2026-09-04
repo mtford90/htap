@@ -26,14 +26,13 @@ type Overrides = Partial<Omit<ListPaneProps, "requests" | "selectedIndex" | "act
 
 /** Drives ListPane from a real store, so the cursor and the list can move. */
 function Harness({
-  requests,
   overrides = {},
   tui,
 }: {
-  requests: CapturedRequestSummary[];
   overrides?: Overrides;
   tui: ReturnType<typeof store>;
 }): React.ReactNode {
+  const requests = useStore(tui.store, (state) => state.requests.items);
   const index = useStore(tui.store, selectedIndex);
   const cursorId = useStore(tui.store, (state) => state.selection.selectedId);
   const following = useStore(tui.store, (state) => state.selection.following);
@@ -66,10 +65,7 @@ const render = async (
 ) => {
   const tui = store();
   tui.actions.setRequests(requests);
-  const setup = await renderTui(
-    <Harness requests={requests} overrides={overrides} tui={tui} />,
-    size
-  );
+  const setup = await renderTui(<Harness overrides={overrides} tui={tui} />, size);
   return { ...tui, setup };
 };
 
@@ -107,10 +103,18 @@ describe("ListPane", () => {
   });
 
   it("counts only the new rows still above the viewport", async () => {
-    const { store: tuiStore, actions, setup } = await render(manyRequests(40), { height: 8 }, {
-      width: 100,
-      height: 10,
-    });
+    const {
+      store: tuiStore,
+      actions,
+      setup,
+    } = await render(
+      manyRequests(40),
+      { height: 8 },
+      {
+        width: 100,
+        height: 10,
+      }
+    );
     actions.moveSelectionBy(1);
     await settle(setup);
     actions.setRequests([summary("new-1"), summary("new-2"), ...manyRequests(40)]);
@@ -121,23 +125,38 @@ describe("ListPane", () => {
     await waitForText(setup, "2 new");
   });
 
-  it("hides the badge while the new rows are still on screen", async () => {
-    const { actions, setup } = await render(manyRequests(40), { height: 8 }, {
-      width: 100,
-      height: 10,
-    });
+  it("hides the badge once the new rows are scrolled on screen", async () => {
+    const {
+      store: tuiStore,
+      actions,
+      setup,
+    } = await render(
+      manyRequests(40),
+      { height: 8 },
+      {
+        width: 100,
+        height: 10,
+      }
+    );
     actions.moveSelectionBy(1);
     await settle(setup);
     actions.setRequests([summary("new-1"), ...manyRequests(40)]);
+    await waitForText(setup, "1 new");
+
+    tuiStore.getState().scrollers.list?.scrollTo(0);
 
     await waitUntil(setup, () => expect(setup.captureCharFrame()).not.toContain(" new"));
   });
 
   it("shows the row range instead of the count once the list overflows", async () => {
-    const { store: tuiStore, setup } = await render(manyRequests(40), { height: 8 }, {
-      width: 100,
-      height: 10,
-    });
+    const { store: tuiStore, setup } = await render(
+      manyRequests(40),
+      { height: 8 },
+      {
+        width: 100,
+        height: 10,
+      }
+    );
 
     tuiStore.getState().scrollers.list?.scrollTo(3);
 
@@ -151,6 +170,28 @@ describe("ListPane", () => {
     actions.moveSelectionBy(20);
 
     await waitForText(setup, "/r20");
+  });
+
+  it("keeps the last row in view when rows arrive while scrolled to the end", async () => {
+    const { actions, setup } = await render(
+      manyRequests(40),
+      { height: 10 },
+      {
+        width: 100,
+        height: 12,
+      }
+    );
+    actions.jumpToLast();
+    await waitForText(setup, "33-40/40");
+
+    actions.setRequests([
+      ...manyRequests(5).map((r) => summary(`new-${r.id}`)),
+      ...manyRequests(40),
+    ]);
+
+    await waitForText(setup, "38-45/45");
+    expect(setup.captureCharFrame()).toContain("/r39");
+    expect(setup.captureCharFrame()).toContain("/r32");
   });
 
   it("keeps the cursor inside the viewport when it moves back to the top", async () => {
@@ -193,10 +234,14 @@ describe("ListPane", () => {
 
   it("reports the index of a clicked row", async () => {
     const onSelectIndex = vi.fn();
-    const { setup } = await render(manyRequests(20), { onSelectIndex, height: 10 }, {
-      width: 100,
-      height: 12,
-    });
+    const { setup } = await render(
+      manyRequests(20),
+      { onSelectIndex, height: 10 },
+      {
+        width: 100,
+        height: 12,
+      }
+    );
 
     await setup.mockMouse.click(10, 3);
 
@@ -204,16 +249,18 @@ describe("ListPane", () => {
   });
 
   it("leaves follow mode when the wheel scrolls the list", async () => {
-    const { store: tuiStore, setup } = await render(manyRequests(40), { height: 10 }, {
-      width: 100,
-      height: 12,
-    });
+    const { store: tuiStore, setup } = await render(
+      manyRequests(40),
+      { height: 10 },
+      {
+        width: 100,
+        height: 12,
+      }
+    );
 
     await setup.mockMouse.scroll(10, 3, "down");
 
-    await waitUntil(setup, () =>
-      expect(tuiStore.getState().selection.following).toBe(false)
-    );
+    await waitUntil(setup, () => expect(tuiStore.getState().selection.following).toBe(false));
   });
 
   it("highlights the search term in the path", async () => {

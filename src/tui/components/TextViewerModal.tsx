@@ -82,7 +82,7 @@ export function TextViewerModal({
   );
   const statusMessage = useStore(store, (state) => state.ui.statusMessage);
   const hints = useStore(store, useShallow(visibleHints));
-  const { ref, scrollTop } = useScroller("text", actions);
+  const { ref, scrollTop, syncScrollTop } = useScroller("text", actions);
 
   const lines = useMemo(
     () => parseAnsiLines(highlightCode(text, contentType)),
@@ -105,7 +105,7 @@ export function TextViewerModal({
   const divider = buildDivider(width);
 
   return (
-    <box flexDirection="column" width={width} height={height}>
+    <box flexDirection="column" width={width} height={height} onMouseScroll={syncScrollTop}>
       <text fg="cyan">{headerBorder}</text>
 
       <box height={1} flexShrink={0} paddingLeft={1} paddingRight={1} flexDirection="row">
