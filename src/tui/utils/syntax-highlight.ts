@@ -27,13 +27,20 @@ const listeners = new Set<() => void>();
 /** Loads the highlighter; the caller is expected to be off the first-frame path. */
 export const preloadHighlighter = (): Promise<void> => {
   if (!loading) {
-    loading = import("cli-highlight").then((module) => {
-      highlighter = module;
-      version += 1;
-      for (const listener of listeners) {
-        listener();
-      }
-    });
+    loading = import("cli-highlight")
+      .then((module) => {
+        highlighter = module;
+        version += 1;
+        for (const listener of listeners) {
+          listener();
+        }
+      })
+      .catch(() => {
+        // A broken install degrades to plain text, the same state as before the
+        // module lands, and nothing here may write to the terminal the TUI owns.
+        // The promise stays cached so the import is not retried on every
+        // keystroke, and the version stays put so nothing re-renders.
+      });
   }
   return loading;
 };

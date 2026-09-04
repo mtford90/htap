@@ -252,3 +252,24 @@ describe("deferred loading", () => {
     expect(fresh.getHighlighterVersion()).toBe(1);
   });
 });
+
+describe("failed loading", () => {
+  it("stays plain, resolves rather than rejects, and does not retry the import", async () => {
+    vi.resetModules();
+    vi.doMock("cli-highlight", () => {
+      throw new Error("Cannot find module 'cli-highlight'");
+    });
+    const fresh = await import("./syntax-highlight.js");
+    const listener = vi.fn();
+    fresh.subscribeToHighlighter(listener);
+
+    const first = fresh.preloadHighlighter();
+    await expect(first).resolves.toBeUndefined();
+    expect(fresh.highlightCode('{"key": "value"}', "application/json")).toBe('{"key": "value"}');
+    expect(fresh.preloadHighlighter()).toBe(first);
+    expect(listener).not.toHaveBeenCalled();
+    expect(fresh.getHighlighterVersion()).toBe(0);
+
+    vi.doUnmock("cli-highlight");
+  });
+});

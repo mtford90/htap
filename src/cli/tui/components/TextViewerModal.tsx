@@ -4,9 +4,13 @@
  * Replaces the main TUI when active (terminals don't support true overlays).
  */
 
-import React, { useState, useMemo, useCallback, useRef, useEffect } from "react";
+import React, { useState, useMemo, useCallback, useRef, useEffect, useSyncExternalStore } from "react";
 import { Box, Text, useInput } from "ink";
-import { highlightCode } from "../../../tui/utils/syntax-highlight.js";
+import {
+  getHighlighterVersion,
+  highlightCode,
+  subscribeToHighlighter,
+} from "../../../tui/utils/syntax-highlight.js";
 import { formatSize } from "../../../tui/utils/formatters.js";
 import { copyToClipboard } from "../../../tui/utils/clipboard.js";
 import { HintContent, type HintItem } from "./HintContent.js";
@@ -75,11 +79,13 @@ export function TextViewerModal({
     statusTimeoutRef.current = setTimeout(() => setStatusMessage(undefined), STATUS_MESSAGE_TIMEOUT_MS);
   }, []);
 
+  const highlighterVersion = useSyncExternalStore(subscribeToHighlighter, getHighlighterVersion);
+
   // Prepare highlighted lines
   const lines = useMemo(() => {
     const highlighted = highlightCode(text, contentType);
     return highlighted.split("\n");
-  }, [text, contentType]);
+  }, [text, contentType, highlighterVersion]);
 
   const totalLines = lines.length;
   const lineNumberWidth = String(totalLines).length;
