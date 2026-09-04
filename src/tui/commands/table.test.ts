@@ -483,11 +483,11 @@ describe("panels, layout and refresh", () => {
   });
 
   it("r refreshes the list and shows a status message", async () => {
-    const { deps, client } = setup({ ids: ["a"] });
+    const { deps, client, status } = setup({ ids: ["a"] });
 
     dispatchKey(deps, key("r"));
 
-    expect(deps.showStatus).toHaveBeenCalledWith("Refreshing...");
+    expect(status).toHaveBeenCalledWith("Refreshing...");
     await vi.waitFor(() => expect(client.listRequestsSummaryDelta).toHaveBeenCalled());
   });
 });

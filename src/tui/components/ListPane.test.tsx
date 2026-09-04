@@ -314,10 +314,11 @@ describe("ListPane", () => {
 
   it("reports hover enter and leave", async () => {
     const onHoverChange = vi.fn();
-    const setup = await renderTui(<ListPane {...props({ onHoverChange, height: 10 })} />, {
-      width: 100,
-      height: 20,
-    });
+    const { setup } = await render(
+      manyRequests(5),
+      { onHoverChange, height: 10 },
+      { width: 100, height: 20 }
+    );
 
     await setup.mockMouse.moveTo(10, 3);
     await waitUntil(setup, () => expect(onHoverChange).toHaveBeenCalledWith(true));
