@@ -26,6 +26,9 @@ const DURATION_WIDTH = 8;
 const SEPARATORS_WIDTH = 3;
 const MIN_PATH_WIDTH = 10;
 
+/** Stable id so the scrollbox can bring the selected row into view. */
+export const requestRowId = (requestId: string): string => `request-row-${requestId}`;
+
 export interface RequestRowProps {
   request: CapturedRequestSummary;
   isSelected: boolean;
@@ -55,7 +58,9 @@ export const RequestRow = React.memo(function RequestRow({
       DURATION_WIDTH -
       SEPARATORS_WIDTH
   );
-  const paddedPath = truncate(showFullUrl ? request.url : request.path, pathWidth).padEnd(pathWidth);
+  const paddedPath = truncate(showFullUrl ? request.url : request.path, pathWidth).padEnd(
+    pathWidth
+  );
 
   const statusText = request.responseStatus?.toString() ?? "...";
   const savedChar = request.saved ? "*" : " ";
@@ -66,7 +71,13 @@ export const RequestRow = React.memo(function RequestRow({
   const pathAttributes = isSelected ? 0 : DIM;
 
   return (
-    <box width={width} height={1} onMouseDown={() => onSelect(index)}>
+    <box
+      id={requestRowId(request.id)}
+      width={width}
+      height={1}
+      flexShrink={0}
+      onMouseDown={() => onSelect(index)}
+    >
       <text wrapMode="none">
         <span fg={indicatorColour}>{indicator}</span>
         <span fg={interception.colour}>{interception.text}</span>

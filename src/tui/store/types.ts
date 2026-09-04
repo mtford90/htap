@@ -33,6 +33,15 @@ export type Modal =
   | { kind: "json"; data: unknown; title: string; contentType: string; bodySize: number }
   | { kind: "text"; text: string; title: string; contentType: string; bodySize: number };
 
+/**
+ * Which set of keybindings applies. The command table is keyed by this, so the
+ * status-bar hints and the dispatcher cannot disagree about the current mode.
+ * A modal that is taking text has its own mode, in which only Escape is bound
+ * and every other key reaches the focused input.
+ */
+export type Mode =
+  "browse" | "filter" | Modal["kind"] | "logFilter" | "exportPath" | "jsonFilter" | "textSearch";
+
 /** A destructive action awaiting a 'y' keypress. */
 export type Confirm = { kind: "clear" } | { kind: "replay"; requestId: string };
 
@@ -40,6 +49,15 @@ export interface InterceptorEventCounts {
   info: number;
   warn: number;
   error: number;
+}
+
+/** Filter applied to the interceptor event log. */
+export interface EventFilter {
+  /** Undefined means every level. */
+  level?: "error" | "warn";
+  /** Undefined means every interceptor. */
+  interceptor?: string;
+  search?: string;
 }
 
 export interface ConnectionSlice {
@@ -60,7 +78,6 @@ export interface RequestsSlice {
 
 export interface SelectionSlice {
   selectedId: string | null;
-  topVisibleId: string | null;
   following: boolean;
   pendingNew: number;
   activePanel: Panel;
@@ -81,6 +98,12 @@ export interface InterceptorsSlice {
   count: number;
 }
 
+/** The filter the bar opened with, so Escape can put it back. */
+export interface FilterDraftOrigin {
+  filter: RequestFilter;
+  bodySearch?: BodySearchOptions;
+}
+
 export interface UiSlice {
   modal: Modal | null;
   confirm: Confirm | null;
@@ -88,6 +111,50 @@ export interface UiSlice {
   showFullUrl: boolean;
   listWidthRatio: number;
   filterOpen: boolean;
+  filterDraftOrigin: FilterDraftOrigin | null;
+  hoveredPanel: Panel | null;
+}
+
+/** Cursor and search state of the text pager, reset every time it opens. */
+export interface TextViewSlice {
+  searchOpen: boolean;
+  searchText: string;
+  matchIndex: number;
+}
+
+/** Cursor, expansion and filter state of the JSON explorer. */
+export interface JsonViewSlice {
+  cursorIndex: number;
+  expandedPaths: ReadonlySet<string>;
+  matchingPaths: ReadonlySet<string>;
+  filterOpen: boolean;
+  filterText: string;
+  /** Expansion to restore when the filter is cancelled. */
+  preFilterExpansion: ReadonlySet<string> | null;
+}
+
+/** Filter state of the interceptor log. */
+export interface LogViewSlice {
+  filter: EventFilter;
+  filterOpen: boolean;
+  filterDraftOrigin: EventFilter;
+}
+
+/** Cursor and custom-path state shared by the two export pickers. */
+export interface ExportViewSlice {
+  optionIndex: number;
+  /** The format picker moves on to a destination picker for HAR. */
+  phase: "format" | "destination";
+  customPathOpen: boolean;
+  customPath: string;
+}
+
+/** Per-modal view state, so the command table can drive every modal key. */
+export interface ModalsSlice {
+  text: TextViewSlice;
+  json: JsonViewSlice;
+  log: LogViewSlice;
+  export: ExportViewSlice;
 }
 
 /** Terminal-derived sizes the command handlers need for page-sized moves. */
@@ -100,6 +167,22 @@ export interface ViewportSlice {
   listHeight: number;
 }
 
+/**
+ * The imperative handle a scrolling view registers, so a command can move it
+ * without the view mirroring the position into React state.
+ */
+export interface Scroller {
+  scrollBy: (delta: number) => void;
+  scrollTo: (offset: number) => void;
+  /** Scrolls the least distance that brings the child fully into view. */
+  scrollIntoView: (childId: string) => void;
+  readonly scrollTop: number;
+  readonly viewportRows: number;
+  readonly maxScrollTop: number;
+}
+
+export type ScrollerName = "list" | "text" | "json" | "log";
+
 export interface TuiState {
   connection: ConnectionSlice;
   requests: RequestsSlice;
@@ -107,7 +190,10 @@ export interface TuiState {
   detail: DetailSlice;
   interceptors: InterceptorsSlice;
   ui: UiSlice;
+  modals: ModalsSlice;
   viewport: ViewportSlice;
+  /** Imperative, never rendered from: subscribing to it would be a mistake. */
+  scrollers: Partial<Record<ScrollerName, Scroller>>;
 }
 
 export const ALL_SECTIONS: ReadonlySet<number> = new Set([
@@ -118,3 +204,33 @@ export const ALL_SECTIONS: ReadonlySet<number> = new Set([
 ]);
 
 export const EMPTY_COUNTS: InterceptorEventCounts = { info: 0, warn: 0, error: 0 };
+
+export const EMPTY_PATHS: ReadonlySet<string> = new Set<string>();
+
+export const INITIAL_TEXT_VIEW: TextViewSlice = {
+  searchOpen: false,
+  searchText: "",
+  matchIndex: 0,
+};
+
+export const INITIAL_JSON_VIEW: JsonViewSlice = {
+  cursorIndex: 0,
+  expandedPaths: EMPTY_PATHS,
+  matchingPaths: EMPTY_PATHS,
+  filterOpen: false,
+  filterText: "",
+  preFilterExpansion: null,
+};
+
+export const INITIAL_LOG_VIEW: LogViewSlice = {
+  filter: {},
+  filterOpen: false,
+  filterDraftOrigin: {},
+};
+
+export const INITIAL_EXPORT_VIEW: ExportViewSlice = {
+  optionIndex: 0,
+  phase: "format",
+  customPathOpen: false,
+  customPath: "",
+};

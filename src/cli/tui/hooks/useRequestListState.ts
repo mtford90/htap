@@ -8,11 +8,8 @@ import {
   type SetStateAction,
 } from "react";
 import type { CapturedRequestSummary } from "../../../shared/types.js";
-import {
-  countPrependedRequests,
-  resolveEffectiveListScrollOffset,
-  resolveSelectedIndex,
-} from "../../../tui/store/list-geometry.js";
+import { countPrependedRequests, resolveSelectedIndex } from "../../../tui/store/list-geometry.js";
+import { resolveEffectiveListScrollOffset } from "./list-scroll-offset.js";
 
 interface UseRequestListStateOptions {
   requests: CapturedRequestSummary[];

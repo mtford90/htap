@@ -7,7 +7,8 @@
  * the tests do not depend on how fast the machine is.
  */
 
-import type { ReactNode } from "react";
+import React, { type ReactNode } from "react";
+import { useKeyboard } from "@opentui/react";
 import { testRender } from "@opentui/react/test-utils";
 import type { TestRendererSetup } from "@opentui/core/testing";
 import { vi } from "vitest";
@@ -17,6 +18,8 @@ import type {
   InterceptorEvent,
 } from "../../shared/types.js";
 import { createTuiActions, createTuiStore } from "../store/store.js";
+import { dispatchKey, type CommandDeps } from "../commands/table.js";
+import { toKeyLike } from "../commands/keys.js";
 import { SyncEngine, type SyncClient } from "../sync/engine.js";
 
 // The reconciler warns about updates outside act(); the test renderer drives
@@ -174,4 +177,46 @@ export const createHarness = (clientOverrides: Partial<SyncClient> = {}) => {
   const client = stubSyncClient(clientOverrides);
   const engine = new SyncEngine({ client, actions });
   return { store, actions, client, engine };
+};
+
+/**
+ * Mounts the one keyboard listener the app has, so a modal under test is
+ * driven the way it is in the real TUI: through the command table.
+ */
+export function KeyboardBridge({ deps }: { deps: CommandDeps }): React.ReactNode {
+  useKeyboard((key) => {
+    if (dispatchKey(deps, toKeyLike(key))) {
+      key.stopPropagation();
+    }
+  });
+  return null;
+}
+
+export interface ModalRenderOptions extends RenderOptions {
+  client?: Partial<SyncClient>;
+}
+
+/** A store, actions, command deps and a rendered modal wired to the table. */
+export const renderWithCommands = async (
+  node: (harness: ReturnType<typeof createHarness>) => ReactNode,
+  { client = {}, ...size }: ModalRenderOptions = {}
+) => {
+  const harness = createHarness(client);
+  const exit = vi.fn();
+  const copyToClipboard = vi.fn(async () => undefined);
+  const deps: CommandDeps = {
+    store: harness.store,
+    actions: harness.actions,
+    engine: harness.engine,
+    exit,
+    copyToClipboard,
+  };
+  const setup = await renderTui(
+    <>
+      <KeyboardBridge deps={deps} />
+      {node(harness)}
+    </>,
+    size
+  );
+  return { ...harness, deps, exit, copyToClipboard, setup };
 };

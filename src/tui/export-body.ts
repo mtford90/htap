@@ -4,7 +4,7 @@
 
 import type { CapturedRequest } from "../shared/types.js";
 import type { BodyType } from "./store/types.js";
-import type { ExportAction } from "./components/ExportModal.js";
+import type { ExportAction } from "./export-options.js";
 import { generateFilename, saveBodyContent } from "./hooks/useBodyExport.js";
 import { isBinaryContent } from "./utils/binary.js";
 import { copyToClipboard } from "./utils/clipboard.js";

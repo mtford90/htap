@@ -1,16 +1,13 @@
 /** @jsxImportSource @opentui/react */
 
-import { afterEach, describe, expect, it, vi } from "vitest";
-import {
-  eventLines,
-  InterceptorLogModal,
-  passesFilter,
-} from "./InterceptorLogModal.js";
+import { afterEach, describe, expect, it } from "vitest";
+import { InterceptorLogModal } from "./InterceptorLogModal.js";
+import { eventLines, passesFilter } from "./event-log-rows.js";
 import {
   destroyRenderers,
   event,
   pressEscape,
-  renderTui,
+  renderWithCommands,
   settle,
   waitForText,
   waitUntil,
@@ -39,14 +36,20 @@ const errorEvent = event({
 });
 const events = [infoEvent, warnEvent, errorEvent];
 
-const render = (overrides: { events?: typeof events; onClose?: () => void } = {}) =>
-  renderTui(
-    <InterceptorLogModal
-      events={overrides.events ?? events}
-      width={120}
-      height={24}
-      onClose={overrides.onClose ?? vi.fn()}
-    />,
+const render = (overrides: { events?: typeof events } = {}) =>
+  renderWithCommands(
+    ({ store, actions }) => {
+      actions.openModal({ kind: "interceptorLog" });
+      return (
+        <InterceptorLogModal
+          store={store}
+          actions={actions}
+          events={overrides.events ?? events}
+          width={120}
+          height={24}
+        />
+      );
+    },
     { width: 120, height: 24 }
   );
 
@@ -104,7 +107,7 @@ describe("eventLines", () => {
 
 describe("InterceptorLogModal", () => {
   it("shows the newest event first with the row count", async () => {
-    const setup = await render();
+    const { setup } = await render();
 
     const frame = setup.captureCharFrame();
     expect(frame).toContain("Interceptor Log");
@@ -115,35 +118,40 @@ describe("InterceptorLogModal", () => {
   });
 
   it("shows the error detail lines under their event", async () => {
-    const setup = await render();
+    const { setup } = await render();
 
     expect(setup.captureCharFrame()).toContain("Error: boom");
   });
 
   it("waits for events when there are none", async () => {
-    const setup = await render({ events: [] });
+    const { setup } = await render({ events: [] });
 
     const frame = setup.captureCharFrame();
     expect(frame).toContain("Waiting for interceptor events...");
     expect(frame).toContain("0 events");
   });
 
-  it("closes on q and on Escape", async () => {
-    const onClose = vi.fn();
-    const setup = await render({ onClose });
+  it("closes on q", async () => {
+    const { store, setup } = await render();
 
     setup.mockInput.pressKey("q");
-    await waitUntil(setup, () => expect(onClose).toHaveBeenCalledTimes(1));
+
+    await waitUntil(setup, () => expect(store.getState().ui.modal).toBeNull());
+  });
+
+  it("closes on Escape", async () => {
+    const { store, setup } = await render();
 
     pressEscape(setup);
-    await waitUntil(setup, () => expect(onClose).toHaveBeenCalledTimes(2));
+
+    await waitUntil(setup, () => expect(store.getState().ui.modal).toBeNull());
   });
 
   it("scrolls with j and k", async () => {
     const many = Array.from({ length: 60 }, (_, index) =>
       event({ seq: index + 1, message: `line ${index + 1}` })
     );
-    const setup = await render({ events: many });
+    const { setup } = await render({ events: many });
 
     setup.mockInput.pressKey("j");
     await waitForText(setup, "Showing 2–");
@@ -156,7 +164,7 @@ describe("InterceptorLogModal", () => {
     const many = Array.from({ length: 60 }, (_, index) =>
       event({ seq: index + 1, message: `line ${index + 1}` })
     );
-    const setup = await render({ events: many });
+    const { setup } = await render({ events: many });
 
     setup.mockInput.pressKey("G");
     await waitForText(setup, "line 1 ");
@@ -166,7 +174,7 @@ describe("InterceptorLogModal", () => {
   });
 
   it("filters by level through the filter bar", async () => {
-    const setup = await render();
+    const { setup } = await render();
 
     setup.mockInput.pressKey("/");
     await waitForText(setup, "level:ALL");
@@ -180,7 +188,7 @@ describe("InterceptorLogModal", () => {
   });
 
   it("reverts the filter on Escape", async () => {
-    const setup = await render();
+    const { setup } = await render();
 
     setup.mockInput.pressKey("/");
     await waitForText(setup, "level:ALL");
@@ -195,7 +203,7 @@ describe("InterceptorLogModal", () => {
   });
 
   it("says when a filter matches nothing", async () => {
-    const setup = await render();
+    const { setup } = await render();
 
     setup.mockInput.pressKey("/");
     await waitForText(setup, "level:ALL");

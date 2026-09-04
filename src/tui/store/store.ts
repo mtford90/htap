@@ -13,20 +13,28 @@ import type {
   InterceptorEvent,
   RequestFilter,
 } from "../../shared/types.js";
-import {
-  countPrependedRequests,
-  resolveEffectiveListScrollOffset,
-  resolveSelectedIndex,
-} from "./list-geometry.js";
+import { defaultExpansion } from "../utils/json-tree.js";
+import { countPrependedRequests, resolveSelectedIndex } from "./list-geometry.js";
 import {
   ALL_SECTIONS,
   EMPTY_COUNTS,
+  INITIAL_EXPORT_VIEW,
+  INITIAL_JSON_VIEW,
+  INITIAL_LOG_VIEW,
+  INITIAL_TEXT_VIEW,
   SECTION_COUNT,
   SECTION_REQUEST,
   type Confirm,
+  type EventFilter,
+  type ExportViewSlice,
   type InterceptorEventCounts,
+  type JsonViewSlice,
   type Modal,
+  type Mode,
   type Panel,
+  type Scroller,
+  type ScrollerName,
+  type TextViewSlice,
   type TuiState,
 } from "./types.js";
 
@@ -39,6 +47,7 @@ export const RATIO_STEP = 0.05;
 
 const DEFAULT_COLUMNS = 80;
 const DEFAULT_ROWS = 24;
+export const STATUS_MESSAGE_TIMEOUT_MS = 3000;
 
 export interface CreateStoreOptions {
   caCertPath?: string;
@@ -56,7 +65,6 @@ export const createTuiStore = (options: CreateStoreOptions = {}): TuiStore =>
     requests: { items: [], loading: true, error: null, filter: {} },
     selection: {
       selectedId: null,
-      topVisibleId: null,
       following: true,
       pendingNew: 0,
       activePanel: "list",
@@ -71,8 +79,17 @@ export const createTuiStore = (options: CreateStoreOptions = {}): TuiStore =>
       showFullUrl: false,
       listWidthRatio: DEFAULT_LIST_RATIO,
       filterOpen: false,
+      filterDraftOrigin: null,
+      hoveredPanel: null,
+    },
+    modals: {
+      text: INITIAL_TEXT_VIEW,
+      json: INITIAL_JSON_VIEW,
+      log: INITIAL_LOG_VIEW,
+      export: INITIAL_EXPORT_VIEW,
     },
     viewport: { columns: DEFAULT_COLUMNS, rows: DEFAULT_ROWS, contentHeight: 1, listHeight: 1 },
+    scrollers: {},
   }));
 
 // --- derived values ---------------------------------------------------------
@@ -84,59 +101,43 @@ export const selectedIndex = (state: TuiState): number =>
     following: state.selection.following,
   });
 
-export const listScrollOffset = (state: TuiState): number => {
-  const items = state.requests.items;
-  const maxListOffset = Math.max(0, items.length - state.viewport.listHeight);
-  return resolveEffectiveListScrollOffset({
-    requests: items,
-    following: state.selection.following,
-    topVisibleRequestId: state.selection.topVisibleId,
-    selectedIndex: selectedIndex(state),
-    maxListOffset,
-  });
-};
-
 export const selectedSummary = (state: TuiState): CapturedRequestSummary | undefined => {
   const index = selectedIndex(state);
   return index >= 0 ? state.requests.items[index] : undefined;
 };
 
-/** True when a modal or the filter bar owns the keyboard. */
-export const isMainViewActive = (state: TuiState): boolean =>
-  state.ui.modal === null && !state.ui.filterOpen;
+/** Which keybindings apply: the filter bar and each modal own the keyboard. */
+export const currentMode = (state: TuiState): Mode => {
+  if (state.ui.filterOpen) {
+    return "filter";
+  }
+  const modal = state.ui.modal;
+  if (!modal) {
+    return "browse";
+  }
+  if (modal.kind === "text") {
+    return state.modals.text.searchOpen ? "textSearch" : "text";
+  }
+  if (modal.kind === "json") {
+    return state.modals.json.filterOpen ? "jsonFilter" : "json";
+  }
+  if (modal.kind === "interceptorLog") {
+    return state.modals.log.filterOpen ? "logFilter" : "interceptorLog";
+  }
+  const isExport = modal.kind === "bodyExport" || modal.kind === "formatExport";
+  if (isExport && state.modals.export.customPathOpen) {
+    return "exportPath";
+  }
+  return modal.kind;
+};
 
 // --- transitions ------------------------------------------------------------
 
-const anchorTopToCurrentOffset = (state: TuiState): string | null => {
-  const items = state.requests.items;
-  return items[listScrollOffset(state)]?.id ?? items[0]?.id ?? null;
-};
-
-/**
- * Leaving follow mode pins the viewport where it currently sits, so the rows
- * under the cursor do not jump when the next request arrives.
- */
-const enterBrowse = (state: TuiState): Partial<TuiState["selection"]> =>
-  state.selection.following
-    ? { following: false, topVisibleId: anchorTopToCurrentOffset(state) }
-    : {};
-
-/**
- * The single transition for every move of the cursor: the list pane draws
- * exactly the rows from the anchored top, so the anchor follows the cursor to
- * whichever edge it left. Moving the view alone must not come through here.
- */
-const selectRow = (state: TuiState, index: number): Partial<TuiState["selection"]> => {
-  const items = state.requests.items;
-  const height = Math.max(1, state.viewport.listHeight);
-  const offset = listScrollOffset(state);
-  const topIndex = index < offset ? index : Math.max(offset, index - height + 1);
-  return {
-    following: false,
-    selectedId: items[index]?.id ?? null,
-    topVisibleId: items[topIndex]?.id ?? items[0]?.id ?? null,
-  };
-};
+/** The single transition for every move of the cursor; the view follows it. */
+const selectRow = (state: TuiState, index: number): Partial<TuiState["selection"]> => ({
+  following: false,
+  selectedId: state.requests.items[index]?.id ?? null,
+});
 
 const patchSelection = (store: TuiStore, patch: Partial<TuiState["selection"]>): void => {
   store.setState((state) => ({ selection: { ...state.selection, ...patch } }));
@@ -150,7 +151,49 @@ const patchUi = (store: TuiStore, patch: Partial<TuiState["ui"]>): void => {
   store.setState((state) => ({ ui: { ...state.ui, ...patch } }));
 };
 
+const patchText = (store: TuiStore, patch: Partial<TextViewSlice>): void => {
+  store.setState((state) => ({
+    modals: { ...state.modals, text: { ...state.modals.text, ...patch } },
+  }));
+};
+
+const patchJson = (store: TuiStore, patch: Partial<JsonViewSlice>): void => {
+  store.setState((state) => ({
+    modals: { ...state.modals, json: { ...state.modals.json, ...patch } },
+  }));
+};
+
+const patchExport = (store: TuiStore, patch: Partial<ExportViewSlice>): void => {
+  store.setState((state) => ({
+    modals: { ...state.modals, export: { ...state.modals.export, ...patch } },
+  }));
+};
+
+/** A modal always opens with the view state it had the first time. */
+const initialModalView = (modal: Modal): Partial<TuiState["modals"]> => {
+  if (modal.kind === "text") {
+    return { text: INITIAL_TEXT_VIEW };
+  }
+  if (modal.kind === "json") {
+    return { json: { ...INITIAL_JSON_VIEW, expandedPaths: defaultExpansion(modal.data) } };
+  }
+  if (modal.kind === "interceptorLog") {
+    return { log: INITIAL_LOG_VIEW };
+  }
+  return { export: INITIAL_EXPORT_VIEW };
+};
+
 export const createTuiActions = (store: TuiStore) => {
+  let statusTimeout: NodeJS.Timeout | null = null;
+
+  const setStatusMessage = (statusMessage: string | undefined): void => {
+    if (statusTimeout) {
+      clearTimeout(statusTimeout);
+      statusTimeout = null;
+    }
+    patchUi(store, { statusMessage });
+  };
+
   const moveSelectionBy = (delta: number): void => {
     const state = store.getState();
     const items = state.requests.items;
@@ -193,12 +236,7 @@ export const createTuiActions = (store: TuiStore) => {
     },
 
     resetToFollow: (): void => {
-      patchSelection(store, {
-        following: true,
-        selectedId: null,
-        topVisibleId: null,
-        pendingNew: 0,
-      });
+      patchSelection(store, { following: true, selectedId: null, pendingNew: 0 });
     },
 
     toggleFollow: (): void => {
@@ -208,32 +246,28 @@ export const createTuiActions = (store: TuiStore) => {
         patchSelection(store, {
           following: false,
           selectedId: items[Math.max(0, selectedIndex(state))]?.id ?? items[0]?.id ?? null,
-          topVisibleId: anchorTopToCurrentOffset(state),
         });
         return;
       }
-      patchSelection(store, {
-        following: true,
-        selectedId: null,
-        topVisibleId: null,
-        pendingNew: 0,
-      });
+      patchSelection(store, { following: true, selectedId: null, pendingNew: 0 });
     },
 
-    /** Wheel scrolling moves the viewport without moving the cursor. */
-    scrollListBy: (delta: number): void => {
-      const state = store.getState();
-      const items = state.requests.items;
-      const maxOffset = Math.max(0, items.length - state.viewport.listHeight);
-      const nextOffset = Math.min(Math.max(listScrollOffset(state) + delta, 0), maxOffset);
-      patchSelection(store, {
-        ...enterBrowse(state),
-        topVisibleId: items[nextOffset]?.id ?? null,
-      });
+    /**
+     * Wheel scrolling moves the viewport without moving the cursor. The
+     * scrollbox has already moved itself by the time this runs; leaving the
+     * cursor unpinned is what stops the viewport snapping back to it.
+     */
+    stopFollowing: (): void => {
+      if (!store.getState().selection.following) {
+        return;
+      }
+      patchSelection(store, { following: false });
     },
 
     // --- panels and sections ---
     setActivePanel: (panel: Panel): void => patchSelection(store, { activePanel: panel }),
+
+    setHoveredPanel: (hoveredPanel: Panel | null): void => patchUi(store, { hoveredPanel }),
 
     focusSection: (section: number): void =>
       patchSelection(store, { activePanel: "detail", focusedSection: section }),
@@ -298,6 +332,13 @@ export const createTuiActions = (store: TuiStore) => {
 
     setViewport: (viewport: TuiState["viewport"]): void => store.setState({ viewport }),
 
+    /** A scrolling view lends the command table its scroll position. */
+    registerScroller: (name: ScrollerName, scroller: Scroller | null): void => {
+      store.setState((state) => ({
+        scrollers: { ...state.scrollers, [name]: scroller ?? undefined },
+      }));
+    },
+
     // --- ui ---
     toggleFullUrl: (): boolean => {
       const next = !store.getState().ui.showFullUrl;
@@ -305,13 +346,78 @@ export const createTuiActions = (store: TuiStore) => {
       return next;
     },
 
-    setStatusMessage: (statusMessage: string | undefined): void =>
-      patchUi(store, { statusMessage }),
+    setStatusMessage,
 
-    openModal: (modal: Modal): void => patchUi(store, { modal }),
+    /** Shows a message and clears it again, so no view has to own the timer. */
+    flashStatus: (message: string): void => {
+      setStatusMessage(message);
+      statusTimeout = setTimeout(() => {
+        statusTimeout = null;
+        patchUi(store, { statusMessage: undefined });
+      }, STATUS_MESSAGE_TIMEOUT_MS);
+    },
+
+    /** Drops the pending status timer, so the process can exit promptly. */
+    stopStatusTimer: (): void => {
+      if (statusTimeout) {
+        clearTimeout(statusTimeout);
+        statusTimeout = null;
+      }
+    },
+
+    openModal: (modal: Modal): void => {
+      store.setState((state) => ({
+        ui: { ...state.ui, modal },
+        modals: { ...state.modals, ...initialModalView(modal) },
+      }));
+    },
     closeModal: (): void => patchUi(store, { modal: null }),
     setConfirm: (confirm: Confirm | null): void => patchUi(store, { confirm }),
-    setFilterOpen: (filterOpen: boolean): void => patchUi(store, { filterOpen }),
+
+    /** Opening the filter bar remembers what Escape should put back. */
+    openFilter: (): void => {
+      const { filter, bodySearch } = store.getState().requests;
+      patchUi(store, { filterOpen: true, filterDraftOrigin: { filter, bodySearch } });
+    },
+
+    closeFilter: (): void => patchUi(store, { filterOpen: false, filterDraftOrigin: null }),
+
+    // --- modal view state ---
+    patchTextView: (patch: Partial<TextViewSlice>): void => patchText(store, patch),
+    patchJsonView: (patch: Partial<JsonViewSlice>): void => patchJson(store, patch),
+    patchExportView: (patch: Partial<ExportViewSlice>): void => patchExport(store, patch),
+
+    setLogFilter: (filter: EventFilter): void => {
+      store.setState((state) => ({
+        modals: { ...state.modals, log: { ...state.modals.log, filter } },
+      }));
+    },
+
+    openLogFilter: (): void => {
+      store.setState((state) => ({
+        modals: {
+          ...state.modals,
+          log: {
+            ...state.modals.log,
+            filterOpen: true,
+            filterDraftOrigin: state.modals.log.filter,
+          },
+        },
+      }));
+    },
+
+    closeLogFilter: (revert: boolean): void => {
+      store.setState((state) => ({
+        modals: {
+          ...state.modals,
+          log: {
+            ...state.modals.log,
+            filterOpen: false,
+            filter: revert ? state.modals.log.filterDraftOrigin : state.modals.log.filter,
+          },
+        },
+      }));
+    },
 
     // --- data, written by the sync engine ---
     setFilter: (filter: RequestFilter, bodySearch: BodySearchOptions | undefined): void => {
@@ -347,7 +453,7 @@ export const createTuiActions = (store: TuiStore) => {
         if (items.length === 0) {
           nextSelection.selectedId = null;
         } else if (selectedId && !items.some((item) => item.id === selectedId)) {
-          const fallback = Math.min(listScrollOffset(state), items.length - 1);
+          const fallback = Math.min(state.scrollers.list?.scrollTop ?? 0, items.length - 1);
           nextSelection.selectedId = items[fallback]?.id ?? items[0]?.id ?? null;
         }
       }

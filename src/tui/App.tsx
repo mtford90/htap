@@ -6,12 +6,11 @@
  * it renders comes from the store.
  */
 
-import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import React, { useCallback, useEffect, useLayoutEffect, useMemo } from "react";
 import { useKeyboard, useTerminalDimensions } from "@opentui/react";
 import { useStore } from "zustand";
 import { useShallow } from "zustand/react/shallow";
 import {
-  listScrollOffset,
   selectedIndex as selectSelectedIndex,
   selectedSummary,
   type TuiActions,
@@ -23,7 +22,6 @@ import { dispatchKey, visibleHints, type CommandDeps } from "./commands/table.js
 import { toKeyLike } from "./commands/keys.js";
 import { copyToClipboard } from "./utils/clipboard.js";
 import { isFilterActive } from "./utils/filters.js";
-import { exportBody } from "./export-body.js";
 import { useSpinner } from "./hooks/useSpinner.js";
 import { ListPane } from "./components/ListPane.js";
 import { DetailPane } from "./components/DetailPane.js";
@@ -31,12 +29,10 @@ import { FilterBar } from "./components/FilterBar.js";
 import { InfoBar } from "./components/InfoBar.js";
 import { StatusBar } from "./components/StatusBar.js";
 import { ModalHost } from "./components/ModalHost.js";
-import type { ExportAction } from "./components/ExportModal.js";
 import { DIM } from "./components/styles.js";
 
 export const MIN_TERMINAL_COLUMNS = 60;
 export const MIN_TERMINAL_ROWS = 10;
-const STATUS_MESSAGE_TIMEOUT_MS = 3000;
 const FILTER_BAR_ROWS = 2;
 const INFO_BAR_ROWS = 1;
 const STATUS_BAR_ROWS = 2;
@@ -65,42 +61,20 @@ export function App({ store, actions, engine, onExit }: AppProps): React.ReactNo
   const interceptors = useTui(store, (state) => state.interceptors);
   const connection = useTui(store, (state) => state.connection);
   const selectedIndex = useTui(store, selectSelectedIndex);
-  const scrollOffset = useTui(store, listScrollOffset);
   // The hint list is rebuilt on every read, so compare it shallowly.
   const hints = useStore(store, useShallow(visibleHints));
 
-  const [hoveredPanel, setHoveredPanel] = useState<"list" | "detail" | null>(null);
   const spinnerFrame = useSpinner(loading && requests.length === 0);
-  const statusTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
-  const showStatus = useCallback(
-    (message: string) => {
-      if (statusTimeoutRef.current) {
-        clearTimeout(statusTimeoutRef.current);
-      }
-      actions.setStatusMessage(message);
-      statusTimeoutRef.current = setTimeout(
-        () => actions.setStatusMessage(undefined),
-        STATUS_MESSAGE_TIMEOUT_MS
-      );
-    },
-    [actions]
-  );
-
-  useEffect(
-    () => () => {
-      if (statusTimeoutRef.current) {
-        clearTimeout(statusTimeoutRef.current);
-      }
-    },
-    []
-  );
+  useEffect(() => actions.stopStatusTimer, [actions]);
 
   const filterBarRows = ui.filterOpen ? FILTER_BAR_ROWS : 0;
   const contentHeight = rows - STATUS_BAR_ROWS - INFO_BAR_ROWS - filterBarRows;
   const listHeight = Math.max(1, contentHeight - 2);
 
-  useEffect(() => {
+  // Layout effects land before the renderer draws, so the first frame already
+  // has the real geometry rather than the store's placeholder.
+  useLayoutEffect(() => {
     actions.setViewport({ columns, rows, contentHeight, listHeight });
   }, [actions, columns, rows, contentHeight, listHeight]);
 
@@ -111,35 +85,17 @@ export function App({ store, actions, engine, onExit }: AppProps): React.ReactNo
   }, [engine, selectedId]);
 
   const commandDeps: CommandDeps = useMemo(
-    () => ({ store, actions, engine, showStatus, exit: onExit, copyToClipboard }),
-    [store, actions, engine, showStatus, onExit]
+    () => ({ store, actions, engine, exit: onExit, copyToClipboard }),
+    [store, actions, engine, onExit]
   );
 
+  // Global listeners run in registration order and this one mounts first, so
+  // every key reaches the command table before any focused input sees it.
   useKeyboard((key) => {
-    // Modals and the filter bar mount below this handler, so they see the key
-    // first and stop it; without this check their close key would immediately
-    // be read again as a main-view command.
-    if (key.propagationStopped) {
-      return;
-    }
     if (dispatchKey(commandDeps, toKeyLike(key))) {
       key.stopPropagation();
     }
   });
-
-  const handleExportBody = useCallback(
-    (action: ExportAction, customPath?: string) => {
-      const state = store.getState();
-      const request = state.detail.request;
-      const modal = state.ui.modal;
-      if (!request || modal?.kind !== "bodyExport") {
-        return;
-      }
-      actions.closeModal();
-      exportBody({ request, bodyType: modal.bodyType, action, customPath, showStatus });
-    },
-    [store, actions, showStatus]
-  );
 
   const handleFilterChange = useCallback(
     (nextFilter: typeof filter, nextBodySearch: typeof bodySearch) => {
@@ -148,21 +104,6 @@ export function App({ store, actions, engine, onExit }: AppProps): React.ReactNo
     },
     [engine, actions]
   );
-
-  const preOpenFilterRef = useRef({ filter, bodySearch });
-  useEffect(() => {
-    if (ui.filterOpen) {
-      return;
-    }
-    preOpenFilterRef.current = { filter, bodySearch };
-  }, [ui.filterOpen, filter, bodySearch]);
-
-  const handleFilterCancel = useCallback(() => {
-    const previous = preOpenFilterRef.current;
-    engine.setFilter(previous.filter, previous.bodySearch);
-    actions.resetToFollow();
-    actions.setFilterOpen(false);
-  }, [engine, actions]);
 
   if (columns < MIN_TERMINAL_COLUMNS || rows < MIN_TERMINAL_ROWS) {
     return (
@@ -185,113 +126,108 @@ export function App({ store, actions, engine, onExit }: AppProps): React.ReactNo
     );
   }
 
-  if (ui.modal) {
-    return (
-      <ModalHost
-        modal={ui.modal}
-        request={detailRequest}
-        events={interceptors.events}
-        proxyPort={connection.proxyPort}
-        caCertPath={connection.caCertPath}
-        width={columns}
-        height={rows}
-        onClose={actions.closeModal}
-        onStatus={showStatus}
-        onExportBody={handleExportBody}
-      />
-    );
-  }
-
-  if (loading && requests.length === 0) {
-    return (
-      <box flexDirection="column" width={columns} height={rows}>
-        <box flexGrow={1} alignItems="center" justifyContent="center">
-          <text>
-            <span fg="cyan">{spinnerFrame}</span>
-            <span> Loading...</span>
-          </text>
-        </box>
-        <StatusBar hints={hints} width={columns} />
-      </box>
-    );
-  }
-
-  if (error) {
-    return (
-      <box flexDirection="column" width={columns} height={rows}>
-        <box flexGrow={1} alignItems="center" justifyContent="center">
-          <text fg="red">{`Error: ${error}`}</text>
-        </box>
-        <StatusBar message="Press 'q' to quit, 'r' to retry" hints={hints} width={columns} />
-      </box>
-    );
-  }
-
   const hasDetail = detailRequest !== null;
   const listWidth = hasDetail ? Math.floor(columns * ui.listWidthRatio) : columns;
 
+  // A modal covers the main view rather than replacing it: hidden renderables
+  // are skipped by layout and hit-testing, so the list keeps its scroll
+  // position and takes no mouse events until the modal closes.
   return (
-    <box flexDirection="column" width={columns} height={rows}>
-      <box flexDirection="row" width={columns} height={contentHeight}>
-        <ListPane
-          requests={requests}
-          selectedIndex={selectedIndex}
-          scrollOffset={scrollOffset}
-          isActive={selection.activePanel === "list"}
-          isHovered={hoveredPanel === "list"}
-          width={listWidth}
-          height={contentHeight}
-          showFullUrl={ui.showFullUrl}
-          searchTerm={bodySearch ? undefined : filter.search}
-          following={selection.following}
-          pendingNewCount={selection.pendingNew}
-          onSelectIndex={actions.selectIndex}
-          onScroll={actions.scrollListBy}
-          onActivate={() => actions.setActivePanel("list")}
-          onHoverChange={(hovered) => setHoveredPanel(hovered ? "list" : null)}
-        />
-        {hasDetail && (
-          <DetailPane
-            request={detailRequest}
-            width={columns - listWidth}
-            height={contentHeight}
-            isActive={selection.activePanel === "detail"}
-            focusedSection={selection.focusedSection}
-            expandedSections={selection.expandedSections}
-            onActivate={() => actions.setActivePanel("detail")}
-            onHoverChange={(hovered) => setHoveredPanel(hovered ? "detail" : null)}
-          />
-        )}
-      </box>
-
-      {ui.filterOpen && (
-        <FilterBar
-          filter={filter}
-          bodySearch={bodySearch}
-          onFilterChange={handleFilterChange}
-          onClose={() => actions.setFilterOpen(false)}
-          onCancel={handleFilterCancel}
+    <box width={columns} height={rows}>
+      {ui.modal && (
+        <ModalHost
+          store={store}
+          actions={actions}
+          modal={ui.modal}
+          request={detailRequest}
+          events={interceptors.events}
+          proxyPort={connection.proxyPort}
+          caCertPath={connection.caCertPath}
           width={columns}
+          height={rows}
         />
       )}
+      <box visible={ui.modal === null} width={columns} height={rows}>
+        {loading && requests.length === 0 ? (
+          <box flexDirection="column" width={columns} height={rows}>
+            <box flexGrow={1} alignItems="center" justifyContent="center">
+              <text>
+                <span fg="cyan">{spinnerFrame}</span>
+                <span> Loading...</span>
+              </text>
+            </box>
+            <StatusBar hints={hints} width={columns} />
+          </box>
+        ) : error ? (
+          <box flexDirection="column" width={columns} height={rows}>
+            <box flexGrow={1} alignItems="center" justifyContent="center">
+              <text fg="red">{`Error: ${error}`}</text>
+            </box>
+            <StatusBar message="Press 'q' to quit, 'r' to retry" hints={hints} width={columns} />
+          </box>
+        ) : (
+          <box flexDirection="column" width={columns} height={rows}>
+            <box flexDirection="row" width={columns} height={contentHeight}>
+              <ListPane
+                requests={requests}
+                selectedIndex={selectedIndex}
+                cursorId={selection.selectedId}
+                actions={actions}
+                isActive={selection.activePanel === "list"}
+                isHovered={ui.hoveredPanel === "list"}
+                width={listWidth}
+                height={contentHeight}
+                showFullUrl={ui.showFullUrl}
+                searchTerm={bodySearch ? undefined : filter.search}
+                following={selection.following}
+                pendingNewCount={selection.pendingNew}
+                onSelectIndex={actions.selectIndex}
+                onActivate={() => actions.setActivePanel("list")}
+                onHoverChange={(hovered) => actions.setHoveredPanel(hovered ? "list" : null)}
+              />
+              {hasDetail && (
+                <DetailPane
+                  request={detailRequest}
+                  width={columns - listWidth}
+                  height={contentHeight}
+                  isActive={selection.activePanel === "detail"}
+                  focusedSection={selection.focusedSection}
+                  expandedSections={selection.expandedSections}
+                  onActivate={() => actions.setActivePanel("detail")}
+                  onHoverChange={(hovered) => actions.setHoveredPanel(hovered ? "detail" : null)}
+                />
+              )}
+            </box>
 
-      <InfoBar
-        interceptorErrorCount={interceptors.counts.error}
-        requestCount={requests.length}
-        interceptorCount={interceptors.count}
-        startTime={connection.startTime}
-        width={columns}
-      />
+            {ui.filterOpen && (
+              <FilterBar
+                filter={filter}
+                bodySearch={bodySearch}
+                onFilterChange={handleFilterChange}
+                width={columns}
+              />
+            )}
 
-      <StatusBar
-        message={ui.statusMessage}
-        filterActive={isFilterActive(filter) || bodySearch !== undefined}
-        filterOpen={ui.filterOpen}
-        hints={hints}
-        interceptorCount={interceptors.count}
-        interceptorErrorCount={interceptors.counts.error}
-        width={columns}
-      />
+            <InfoBar
+              interceptorErrorCount={interceptors.counts.error}
+              requestCount={requests.length}
+              interceptorCount={interceptors.count}
+              startTime={connection.startTime}
+              width={columns}
+            />
+
+            <StatusBar
+              message={ui.statusMessage}
+              filterActive={isFilterActive(filter) || bodySearch !== undefined}
+              filterOpen={ui.filterOpen}
+              hints={hints}
+              interceptorCount={interceptors.count}
+              interceptorErrorCount={interceptors.counts.error}
+              width={columns}
+            />
+          </box>
+        )}
+      </box>
     </box>
   );
 }

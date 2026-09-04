@@ -2,33 +2,26 @@
 
 /**
  * Filter bar for the interceptor event log: free text, log level and
- * interceptor name.
+ * interceptor name. Enter and Escape are command-table entries; this bar only
+ * owns Tab and the arrow keys that cycle its two list fields.
  */
 
 import React, { useEffect, useRef, useState } from "react";
 import { useKeyboard } from "@opentui/react";
+import type { EventFilter } from "../store/types.js";
 import { attributes, BOLD, DIM } from "./styles.js";
 
 const LEVEL_CYCLE = ["ALL", "ERROR", "WARN+"] as const;
 const MAX_SEARCH_LENGTH = 200;
 const FILTER_DEBOUNCE_MS = 150;
+const SEARCH_FIELD_WIDTH = 28;
 
 type FilterField = "search" | "level" | "interceptor";
 const FIELD_ORDER: FilterField[] = ["search", "level", "interceptor"];
 
-export interface EventFilter {
-  /** Undefined means every level. */
-  level?: "error" | "warn";
-  /** Undefined means every interceptor. */
-  interceptor?: string;
-  search?: string;
-}
-
 export interface EventFilterBarProps {
   filter: EventFilter;
   onFilterChange: (filter: EventFilter) => void;
-  onClose: () => void;
-  onCancel: () => void;
   interceptorNames: string[];
   width: number;
 }
@@ -65,12 +58,11 @@ export const buildEventFilter = (
 export function EventFilterBar({
   filter,
   onFilterChange,
-  onClose,
-  onCancel,
   interceptorNames,
   width,
 }: EventFilterBarProps): React.ReactNode {
-  const [search, setSearch] = useState(filter.search ?? "");
+  const [initialSearch] = useState(() => filter.search ?? "");
+  const [search, setSearch] = useState(initialSearch);
   const [levelIndex, setLevelIndex] = useState(() => {
     if (filter.level === "error") {
       return 1;
@@ -107,17 +99,8 @@ export function EventFilterBar({
   }, [search, levelIndex, interceptorIndex]);
 
   useKeyboard((key) => {
-    key.stopPropagation();
-
-    if (key.name === "escape") {
-      onCancel();
-      return;
-    }
-    if (key.name === "return") {
-      onClose();
-      return;
-    }
     if (key.name === "tab") {
+      key.stopPropagation();
       setFocusedField((previous) => {
         const currentIndex = FIELD_ORDER.indexOf(previous);
         const direction = key.shift ? -1 : 1;
@@ -128,15 +111,6 @@ export function EventFilterBar({
     }
 
     if (focusedField === "search") {
-      if (key.name === "backspace" || key.name === "delete") {
-        setSearch((previous) => previous.slice(0, -1));
-        return;
-      }
-      if (key.sequence.length === 1 && !key.ctrl && !key.meta) {
-        setSearch((previous) =>
-          previous.length >= MAX_SEARCH_LENGTH ? previous : previous + key.sequence
-        );
-      }
       return;
     }
 
@@ -145,6 +119,7 @@ export function EventFilterBar({
     if (!forwards && !backwards) {
       return;
     }
+    key.stopPropagation();
     const direction = forwards ? 1 : -1;
 
     if (focusedField === "level") {
@@ -168,14 +143,21 @@ export function EventFilterBar({
       paddingRight={1}
       flexDirection="row"
     >
-      <text wrapMode="none">
+      <text wrapMode="none" flexShrink={0}>
         <span fg="cyan" attributes={BOLD}>
           /
         </span>
-        <span>{` ${search}`}</span>
-        {focusedField === "search" ? <span fg="cyan">█</span> : null}
+        <span> </span>
       </text>
-      <text wrapMode="none">
+      <input
+        focused={focusedField === "search"}
+        value={initialSearch}
+        onInput={setSearch}
+        maxLength={MAX_SEARCH_LENGTH}
+        width={SEARCH_FIELD_WIDTH}
+        flexShrink={0}
+      />
+      <text wrapMode="none" flexShrink={0}>
         <span attributes={DIM}>{"  level:"}</span>
         <span
           fg={levelIndex > 0 ? "yellow" : "white"}
@@ -187,7 +169,7 @@ export function EventFilterBar({
           {currentLevel}
         </span>
       </text>
-      <text wrapMode="none">
+      <text wrapMode="none" flexShrink={0}>
         <span attributes={DIM}>{"  interceptor:"}</span>
         <span
           fg={interceptorIndex > 0 ? "yellow" : "white"}

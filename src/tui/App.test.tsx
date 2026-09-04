@@ -9,8 +9,9 @@ const saveBodyContent = vi.fn(async () => ({ success: true, message: "Saved to /
 vi.mock("./utils/clipboard.js", () => ({ copyToClipboard }));
 vi.mock("./utils/open-external.js", () => ({ openInExternalApp }));
 vi.mock("./hooks/useBodyExport.js", async () => {
-  const actual =
-    await vi.importActual<typeof import("./hooks/useBodyExport.js")>("./hooks/useBodyExport.js");
+  const actual = await vi.importActual<typeof import("./hooks/useBodyExport.js")>(
+    "./hooks/useBodyExport.js"
+  );
   return { ...actual, saveBodyContent };
 });
 
@@ -202,6 +203,40 @@ describe("App keyboard", () => {
     await waitForText(setup, "[1] Requests");
   });
 
+  it("keeps the list position across the help modal", async () => {
+    const requests = Array.from({ length: 100 }, (_, index) => summary(`r${index}`));
+    const { setup, store } = await renderApp({ requests });
+    setup.mockInput.pressKey("G");
+    await waitForText(setup, "76-100/100");
+
+    setup.mockInput.pressKey("?");
+    await waitForText(setup, "Toggle follow mode");
+    setup.mockInput.pressKey("?");
+    await waitForText(setup, "[1] Requests");
+
+    const frame = setup.captureCharFrame();
+    expect(frame).toContain("76-100/100");
+    expect(frame).toContain("/r99");
+    expect(store.getState().scrollers.list?.scrollTop).toBe(75);
+  });
+
+  it("keeps the list position across the interceptor log", async () => {
+    const requests = Array.from({ length: 100 }, (_, index) => summary(`r${index}`));
+    const { setup, store } = await renderApp({ requests });
+    setup.mockInput.pressKey("G");
+    await waitForText(setup, "76-100/100");
+
+    setup.mockInput.pressKey("L");
+    await waitForText(setup, "Interceptor Log");
+    setup.mockInput.pressKey("q");
+    await waitForText(setup, "[1] Requests");
+
+    const frame = setup.captureCharFrame();
+    expect(frame).toContain("76-100/100");
+    expect(frame).toContain("/r99");
+    expect(store.getState().scrollers.list?.scrollTop).toBe(75);
+  });
+
   it("opens the interceptor log with L", async () => {
     const { setup } = await renderApp();
 
@@ -254,9 +289,7 @@ describe("App keyboard", () => {
     const { setup, store } = await renderApp({ detail: fullRequest({ id: "a" }) });
 
     setup.mockInput.pressKey("\t");
-    await waitUntil(setup, () =>
-      expect(store.getState().selection.activePanel).toBe("detail")
-    );
+    await waitUntil(setup, () => expect(store.getState().selection.activePanel).toBe("detail"));
   });
 });
 
@@ -366,11 +399,23 @@ describe("App stale detail", () => {
     const responses = [pending, completed];
     const getRequest = vi.fn(async () => responses.shift() ?? completed);
     const deltas = [
-      { entries: [{ summary: summary("a", { responseStatus: undefined }), orderSeq: 1, changeSeq: 1 }], cursor: 1, hasMore: false },
-      { entries: [{ summary: summary("a"), orderSeq: 2, changeSeq: 2 }], cursor: 2, hasMore: false },
+      {
+        entries: [
+          { summary: summary("a", { responseStatus: undefined }), orderSeq: 1, changeSeq: 1 },
+        ],
+        cursor: 1,
+        hasMore: false,
+      },
+      {
+        entries: [{ summary: summary("a"), orderSeq: 2, changeSeq: 2 }],
+        cursor: 2,
+        hasMore: false,
+      },
       { entries: [], cursor: 2, hasMore: false },
     ];
-    const listRequestsSummaryDelta = vi.fn(async () => deltas.shift() ?? { entries: [], cursor: 2, hasMore: false });
+    const listRequestsSummaryDelta = vi.fn(
+      async () => deltas.shift() ?? { entries: [], cursor: 2, hasMore: false }
+    );
 
     const harness = createHarness({ getRequest, listRequestsSummaryDelta });
     const setup = await renderTui(
