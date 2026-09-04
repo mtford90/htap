@@ -3,8 +3,8 @@
 /**
  * Entry point for the OpenTUI TUI.
  *
- * The installed `httap` binary sets the FFI flag its native renderer needs in
- * its own shebang, so by the time this module loads the renderer's native
+ * The installed `httap` binary (bin/httap) execs Node with the FFI flag the
+ * renderer needs, so by the time this module loads the renderer's native
  * library is already available.
  */
 

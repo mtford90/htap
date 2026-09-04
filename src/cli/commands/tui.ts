@@ -61,7 +61,7 @@ const runOpenTui = async (options: TuiLaunchOptions): Promise<void> => {
 
 export const tuiCommand = new Command("tui")
   .description("Browse captured HTTP traffic")
-  .option("--ci", "CI mode: render once and exit after a short delay (for testing)")
+  .option("--ci", "CI mode: render once and exit after the first synced frame (for testing)")
   .action(async (options: { ci?: boolean }, command: Command) => {
     const globalOptions = getGlobalOptions(command);
 
