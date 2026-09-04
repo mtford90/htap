@@ -125,6 +125,8 @@ jobs:
           path: dist/
           retention-days: 1
 
+  # Triggered by the `v*` tag push, which release-please creates when a release PR is merged
+  # (see .github/workflows/release-please.yml) — no tag is pushed by hand.
   publish:
     name: Publish to npm
     runs-on: ubuntu-latest

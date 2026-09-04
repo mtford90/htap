@@ -10,7 +10,7 @@
 - Keep task descriptions concise but informative
 - Code reviews are stored in `docs/reviews/<date>/`
 
-Published to npm as `httap` (v0.1.0). The name `httap` was taken.
+Published to npm as `@mtford/httap`. The name `httap` was taken.
 
 ## Project Overview
 
