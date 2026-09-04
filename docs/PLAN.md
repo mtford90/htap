@@ -100,6 +100,13 @@ Validated support for mocking fully fictional hosts/paths through interceptors, 
 
 </details>
 
+<details>
+<summary>Release automation (release-please)</summary>
+
+`release-please-config.json` and `.release-please-manifest.json` drive a `release-please.yml` workflow that opens/updates a release PR on pushes to `master` (Conventional Commits, `bump-minor-pre-major` kept while pre-1.0). Merging that PR tags `vX.Y.Z`, which the existing `ci.yml` `publish` job picks up unchanged. Manifest seeded at `0.9.0`. The first release PR this produces needs a manual read of the generated changelog/version bump before merging.
+
+</details>
+
 ---
 
 ## Up Next
