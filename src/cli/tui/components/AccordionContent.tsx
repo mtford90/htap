@@ -106,10 +106,7 @@ export function BodyContent({
   contentLength?: string;
 }): React.ReactElement {
   // All hooks must be called before any conditional returns
-  const binaryCheck = useMemo(
-    () => isBinaryContent(body, contentType),
-    [body, contentType]
-  );
+  const binaryCheck = useMemo(() => isBinaryContent(body, contentType), [body, contentType]);
 
   const highlighterVersion = useSyncExternalStore(subscribeToHighlighter, getHighlighterVersion);
 
