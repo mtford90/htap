@@ -1,7 +1,8 @@
 /** @jsxImportSource @opentui/react */
 
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { TextViewerModal } from "./TextViewerModal.js";
+import { highlightCode } from "../utils/syntax-highlight.js";
 import {
   destroyRenderers,
   pressEscape,
@@ -10,7 +11,15 @@ import {
   waitUntil,
 } from "../test-support/render.js";
 
+vi.mock("../utils/syntax-highlight.js", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("../utils/syntax-highlight.js")>();
+  return { ...actual, highlightCode: vi.fn(actual.highlightCode) };
+});
+
 afterEach(destroyRenderers);
+beforeEach(() => {
+  vi.mocked(highlightCode).mockClear();
+});
 
 const lines = Array.from({ length: 60 }, (_, index) => `line ${index + 1}`).join("\n");
 
@@ -183,5 +192,26 @@ describe("TextViewerModal", () => {
     const frame = setup.captureCharFrame();
     expect(frame).toContain('"ok": true');
     expect(frame).not.toContain("[3");
+  });
+
+  it("shows a large body as plain text with a notice instead of highlighting it", async () => {
+    const oversized = Array.from({ length: 5000 }, (_, index) => `.c${index} { color: red; }`).join(
+      "\n"
+    );
+    expect(oversized.length).toBeGreaterThan(64 * 1024);
+
+    const { setup } = await render({ text: oversized, contentType: "text/css" });
+
+    const frame = setup.captureCharFrame();
+    expect(frame).toContain("body too large to highlight, showing plain text");
+    expect(frame).toContain(".c0 { color: red; }");
+    expect(highlightCode).not.toHaveBeenCalled();
+  });
+
+  it("highlights a body under the cap and shows no notice", async () => {
+    const { setup } = await render({ text: ".c0 { color: red; }", contentType: "text/css" });
+
+    expect(setup.captureCharFrame()).not.toContain("body too large to highlight");
+    expect(highlightCode).toHaveBeenCalled();
   });
 });

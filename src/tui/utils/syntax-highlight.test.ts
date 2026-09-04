@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { highlightCode } from "./syntax-highlight.js";
+import { highlightCode, preloadHighlighter } from "./syntax-highlight.js";
 
 /**
  * cli-highlight respects terminal colour support detection, so ANSI output
@@ -25,7 +25,9 @@ vi.mock("cli-highlight", () => {
 const cliHighlight = await import("cli-highlight");
 const highlightMock = vi.mocked(cliHighlight.highlight);
 
-beforeEach(() => {
+beforeEach(async () => {
+  // The library is loaded off the first-frame path, so tests must wait for it.
+  await preloadHighlighter();
   highlightMock.mockClear();
   // Restore default mock implementation
   highlightMock.mockImplementation(
@@ -222,5 +224,31 @@ describe("highlightCode", () => {
       highlightCode("plain text", "text/plain");
       expect(highlightMock).not.toHaveBeenCalled();
     });
+  });
+});
+
+describe("deferred loading", () => {
+  it("returns plain text until the highlighter lands, then tells subscribers", async () => {
+    vi.resetModules();
+    const fresh = await import("./syntax-highlight.js");
+    expect(fresh.getHighlighterVersion()).toBe(0);
+
+    const listener = vi.fn();
+    const unsubscribe = fresh.subscribeToHighlighter(listener);
+
+    // The first call cannot highlight, but it does start the load.
+    expect(fresh.highlightCode('{"key": "value"}', "application/json")).toBe('{"key": "value"}');
+    await fresh.preloadHighlighter();
+
+    expect(listener).toHaveBeenCalledTimes(1);
+    expect(fresh.getHighlighterVersion()).toBe(1);
+    expect(fresh.highlightCode('{"key": "value"}', "application/json")).toBe(
+      '[highlighted:json]{"key": "value"}'
+    );
+
+    unsubscribe();
+    await fresh.preloadHighlighter();
+    expect(listener).toHaveBeenCalledTimes(1);
+    expect(fresh.getHighlighterVersion()).toBe(1);
   });
 });

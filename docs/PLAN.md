@@ -112,6 +112,18 @@ Validated support for mocking fully fictional hosts/paths through interceptors, 
 
 </details>
 
+<details>
+<summary>TUI performance (OpenTUI)</summary>
+
+Top four items from the September 2026 performance scout.
+
+- The TUI process defaults to `NODE_ENV=production`, so React loads the production reconciler (`src/cli/commands/tui.ts`)
+- `bodyDisplayLines` highlights only the lines the detail pane can show, clipped to a column limit, so a one-line body costs the same as a short one
+- `cli-highlight` loads lazily and is warmed on a timer after the first frame; views subscribe to `subscribeToHighlighter` so the body drawn at startup recolours when it lands
+- The text viewer refuses to highlight above 64 KiB and says so, instead of freezing for seconds on a large body
+
+</details>
+
 ---
 
 ## Up Next
