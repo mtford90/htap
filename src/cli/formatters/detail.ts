@@ -8,7 +8,7 @@ import {
   formatSize,
   getStatusText,
   shortContentType,
-} from "../tui/utils/formatters.js";
+} from "../../tui/utils/formatters.js";
 import { GREEN, YELLOW, RED, CYAN, BOLD, DIM, RESET, useColour } from "./colour.js";
 
 function colourForStatus(status: number): string {

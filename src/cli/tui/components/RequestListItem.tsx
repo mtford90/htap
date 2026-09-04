@@ -5,34 +5,16 @@
 import React, { useRef, memo } from "react";
 import { Box, Text, type DOMElement } from "ink";
 import { useOnClick } from "@ink-tools/ink-mouse";
-import type { CapturedRequestSummary, InterceptionType } from "../../../shared/types.js";
-import { formatMethod, formatDuration, truncate } from "../utils/formatters.js";
-
-/**
- * Get the 2-character interception indicator and its colour.
- * Returns "M " for mocked, "I " for modified, or "  " for normal requests.
- */
-export function getInterceptionIndicator(type?: InterceptionType): { text: string; colour?: string } {
-  switch (type) {
-    case "mocked":
-      return { text: "M ", colour: "magenta" };
-    case "modified":
-      return { text: "I ", colour: "cyan" };
-    default:
-      return { text: "  " };
-  }
-}
-
-/**
- * Get the 2-character replay indicator and its colour.
- * Returns "R " for replayed requests, or "  " otherwise.
- */
-export function getReplayIndicator(replayedFromId?: string): { text: string; colour?: string } {
-  if (!replayedFromId) {
-    return { text: "  " };
-  }
-  return { text: "R ", colour: "yellow" };
-}
+import type { CapturedRequestSummary } from "../../../shared/types.js";
+import { formatMethod, formatDuration, truncate } from "../../../tui/utils/formatters.js";
+import {
+  getInterceptionIndicator,
+  getMethodColour,
+  getReplayIndicator,
+  getStatusColour,
+  getStatusIndicator,
+  splitByMatch,
+} from "../../../tui/utils/row-format.js";
 
 interface RequestListItemProps {
   request: CapturedRequestSummary;
@@ -41,89 +23,6 @@ interface RequestListItemProps {
   showFullUrl?: boolean;
   onClick?: () => void;
   searchTerm?: string;
-}
-
-/**
- * Get colour for HTTP status code.
- */
-export function getStatusColour(status: number | undefined): string {
-  if (status === undefined) {
-    return "gray";
-  }
-  if (status >= 200 && status < 300) {
-    return "green";
-  }
-  if (status >= 300 && status < 400) {
-    return "yellow";
-  }
-  if (status >= 400) {
-    return "red";
-  }
-  return "white";
-}
-
-/**
- * Get a visual indicator character for an HTTP status code.
- */
-export function getStatusIndicator(status: number | undefined): string {
-  if (status === undefined) {
-    return " ";
-  }
-  if (status >= 200 && status < 300) {
-    return "✓";
-  }
-  if (status >= 300 && status < 400) {
-    return "→";
-  }
-  return "✗";
-}
-
-/**
- * Get colour for HTTP method.
- */
-export function getMethodColour(method: string): string {
-  switch (method.toUpperCase()) {
-    case "GET":
-      return "green";
-    case "POST":
-      return "blue";
-    case "PUT":
-      return "yellow";
-    case "PATCH":
-      return "yellow";
-    case "DELETE":
-      return "magenta";
-    default:
-      return "white";
-  }
-}
-
-/**
- * Split text into segments around case-insensitive matches of a search term.
- * Returns alternating [non-match, match, non-match, ...] segments.
- */
-function splitByMatch(text: string, term: string): { text: string; isMatch: boolean }[] {
-  if (!term) return [{ text, isMatch: false }];
-
-  const segments: { text: string; isMatch: boolean }[] = [];
-  const lowerText = text.toLowerCase();
-  const lowerTerm = term.toLowerCase();
-  let pos = 0;
-
-  while (pos < text.length) {
-    const matchIdx = lowerText.indexOf(lowerTerm, pos);
-    if (matchIdx === -1) {
-      segments.push({ text: text.slice(pos), isMatch: false });
-      break;
-    }
-    if (matchIdx > pos) {
-      segments.push({ text: text.slice(pos, matchIdx), isMatch: false });
-    }
-    segments.push({ text: text.slice(matchIdx, matchIdx + term.length), isMatch: true });
-    pos = matchIdx + term.length;
-  }
-
-  return segments.length > 0 ? segments : [{ text, isMatch: false }];
 }
 
 export const RequestListItem = memo(function RequestListItem({

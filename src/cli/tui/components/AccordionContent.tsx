@@ -4,14 +4,14 @@
 
 import React, { useMemo } from "react";
 import { Box, Text } from "ink";
-import { formatSize } from "../utils/formatters.js";
-import { isBinaryContent, getBinaryTypeDescription } from "../utils/binary.js";
-import { highlightCode } from "../utils/syntax-highlight.js";
+import { formatSize } from "../../../tui/utils/formatters.js";
+import { isBinaryContent, getBinaryTypeDescription } from "../../../tui/utils/binary.js";
+import { highlightCode } from "../../../tui/utils/syntax-highlight.js";
 
 /** Only process the first 10 KB of body content for display — full body remains available for export/save. */
 const BODY_PREVIEW_LIMIT = 10 * 1024;
 
-import { isJsonContent } from "../utils/content-type.js";
+import { isJsonContent } from "../../../tui/utils/content-type.js";
 
 /**
  * Display request/response headers as key-value pairs.

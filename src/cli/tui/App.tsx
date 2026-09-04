@@ -9,11 +9,11 @@ import { useStdoutDimensions } from "./hooks/useStdoutDimensions.js";
 import { useRequests } from "./hooks/useRequests.js";
 import { useRequestListState } from "./hooks/useRequestListState.js";
 import { useSpinner } from "./hooks/useSpinner.js";
-import { useBodyExport, generateFilename } from "./hooks/useBodyExport.js";
-import { formatSize } from "./utils/formatters.js";
-import { copyToClipboard } from "./utils/clipboard.js";
-import { isBinaryContent } from "./utils/binary.js";
-import { openInExternalApp } from "./utils/open-external.js";
+import { useBodyExport, generateFilename } from "../../tui/hooks/useBodyExport.js";
+import { formatSize } from "../../tui/utils/formatters.js";
+import { copyToClipboard } from "../../tui/utils/clipboard.js";
+import { isBinaryContent } from "../../tui/utils/binary.js";
+import { openInExternalApp } from "../../tui/utils/open-external.js";
 import { RequestList } from "./components/RequestList.js";
 import {
   AccordionPanel,
@@ -30,8 +30,8 @@ import { FormatExportModal } from "./components/FormatExportModal.js";
 import { HelpModal } from "./components/HelpModal.js";
 import { InterceptorLogModal } from "./components/InterceptorLogModal.js";
 import { InfoBar } from "./components/InfoBar.js";
-import { isFilterActive } from "./utils/filters.js";
-import { isJsonContent } from "./utils/content-type.js";
+import { isFilterActive } from "../../tui/utils/filters.js";
+import { isJsonContent } from "../../tui/utils/content-type.js";
 import { JsonExplorerModal } from "./components/JsonExplorerModal.js";
 import { TextViewerModal } from "./components/TextViewerModal.js";
 import { useInterceptorEvents } from "./hooks/useInterceptorEvents.js";

@@ -31,15 +31,15 @@ vi.mock("../../shared/config.js", () => ({
 const mockExportFormatToClipboard = vi.fn().mockResolvedValue({ success: true, message: "cURL copied to clipboard" });
 const mockExportHarToDir = vi.fn().mockReturnValue({ success: true, message: "Exported 1 request(s) to /mock/path" });
 
-vi.mock("./hooks/useExport.js", () => ({
+vi.mock("../../tui/hooks/useExport.js", () => ({
   exportFormatToClipboard: (...args: unknown[]) => mockExportFormatToClipboard(...args),
   exportHarToDir: (...args: unknown[]) => mockExportHarToDir(...args),
 }));
 
 const mockResolveTargetDir = vi.fn().mockReturnValue("/mock/exports");
 
-vi.mock("./hooks/useBodyExport.js", async () => {
-  const actual = await vi.importActual<Record<string, unknown>>("./hooks/useBodyExport.js");
+vi.mock("../../tui/hooks/useBodyExport.js", async () => {
+  const actual = await vi.importActual<Record<string, unknown>>("../../tui/hooks/useBodyExport.js");
   return {
     ...actual,
     resolveTargetDir: (...args: unknown[]) => mockResolveTargetDir(...args),
@@ -47,12 +47,12 @@ vi.mock("./hooks/useBodyExport.js", async () => {
 });
 
 const mockCopyToClipboard = vi.fn().mockResolvedValue(undefined);
-vi.mock("./utils/clipboard.js", () => ({
+vi.mock("../../tui/utils/clipboard.js", () => ({
   copyToClipboard: (...args: unknown[]) => mockCopyToClipboard(...args),
 }));
 
 const mockOpenInExternalApp = vi.fn().mockResolvedValue({ success: true, message: "Opened" });
-vi.mock("./utils/open-external.js", () => ({
+vi.mock("../../tui/utils/open-external.js", () => ({
   openInExternalApp: (...args: unknown[]) => mockOpenInExternalApp(...args),
 }));
 

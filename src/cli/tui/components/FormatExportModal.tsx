@@ -8,8 +8,8 @@
 import React, { useState } from "react";
 import { Box, Text, useInput } from "ink";
 import type { CapturedRequest } from "../../../shared/types.js";
-import { exportFormatToClipboard, exportHarToDir, type ExportResult } from "../hooks/useExport.js";
-import { resolveTargetDir } from "../hooks/useBodyExport.js";
+import { exportFormatToClipboard, exportHarToDir, type ExportResult } from "../../../tui/hooks/useExport.js";
+import { resolveTargetDir } from "../../../tui/hooks/useBodyExport.js";
 
 export interface FormatExportModalProps {
   request: CapturedRequest;

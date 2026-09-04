@@ -16,9 +16,9 @@ import {
   buildBreadcrumb,
   parentPath,
   type JsonTreeNode,
-} from "../utils/json-tree.js";
-import { formatSize } from "../utils/formatters.js";
-import { copyToClipboard } from "../utils/clipboard.js";
+} from "../../../tui/utils/json-tree.js";
+import { formatSize } from "../../../tui/utils/formatters.js";
+import { copyToClipboard } from "../../../tui/utils/clipboard.js";
 import { HintContent, type HintItem } from "./HintContent.js";
 
 const JSON_EXPLORER_HINTS: HintItem[] = [

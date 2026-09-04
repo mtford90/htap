@@ -8,11 +8,11 @@ import type { CapturedRequest } from "../../shared/types.js";
 import { getErrorMessage, connectToDaemon } from "./helpers.js";
 import { formatRequestDetail } from "../formatters/detail.js";
 import { formatHint } from "../formatters/hints.js";
-import { generateCurl } from "../tui/utils/curl.js";
-import { generateFetch } from "../tui/utils/fetch.js";
-import { generatePythonRequests } from "../tui/utils/python-requests.js";
-import { generateHttpie } from "../tui/utils/httpie.js";
-import { generateHarString } from "../tui/utils/har.js";
+import { generateCurl } from "../../tui/utils/curl.js";
+import { generateFetch } from "../../tui/utils/fetch.js";
+import { generatePythonRequests } from "../../tui/utils/python-requests.js";
+import { generateHttpie } from "../../tui/utils/httpie.js";
+import { generateHarString } from "../../tui/utils/har.js";
 import { SHORT_ID_LENGTH } from "../formatters/table.js";
 
 const EXPORT_FORMATS = ["curl", "har", "fetch", "requests", "python", "httpie"];

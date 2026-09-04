@@ -6,9 +6,9 @@
 
 import React, { useState, useMemo, useCallback, useRef, useEffect } from "react";
 import { Box, Text, useInput } from "ink";
-import { highlightCode } from "../utils/syntax-highlight.js";
-import { formatSize } from "../utils/formatters.js";
-import { copyToClipboard } from "../utils/clipboard.js";
+import { highlightCode } from "../../../tui/utils/syntax-highlight.js";
+import { formatSize } from "../../../tui/utils/formatters.js";
+import { copyToClipboard } from "../../../tui/utils/clipboard.js";
 import { HintContent, type HintItem } from "./HintContent.js";
 
 const TEXT_VIEWER_HINTS: HintItem[] = [
